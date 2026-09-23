@@ -38,7 +38,9 @@ export function PricingTable() {
             <div
               key={plan.id}
               className={cn(
-                'flex flex-col rounded-xl2 border bg-surface p-6',
+                // The pricing page centers its heading block, so cards opt back
+                // out explicitly rather than inheriting centered body text.
+                'flex flex-col rounded-xl2 border bg-surface p-6 text-left',
                 plan.highlighted ? 'border-accent shadow-card ring-1 ring-accent/20' : 'border-line',
               )}
             >
