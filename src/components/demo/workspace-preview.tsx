@@ -25,7 +25,7 @@ export function WorkspacePreview({ className }: { className?: string }) {
     <div className={cn('overflow-hidden rounded-xl2 border border-editor-line bg-editor-bg shadow-lift', className)}>
       {/* Chrome */}
       <div className="flex flex-wrap items-center gap-x-5 gap-y-2 border-b border-editor-line px-4 py-3">
-        <span className="text-[13px] font-semibold text-editor-text">PanelFlow</span>
+        <span className="text-[13px] font-semibold text-editor-text">Overset</span>
         <Meta label="Project" value="The Fallen Hero" />
         <Meta label="Chapter" value="Chapter 14" />
         <Meta label="Language" value="KO → EN" />

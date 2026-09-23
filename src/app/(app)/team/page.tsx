@@ -7,7 +7,7 @@ import { DEMO_COMMENTS, DEMO_TEAM } from '@/lib/data/workspace';
 export const metadata: Metadata = { title: 'Team' };
 
 const WORKFLOW = [
-  ['AI translation', 'PanelFlow drafts every region with full chapter context.'],
+  ['AI translation', 'Overset drafts every region with full chapter context.'],
   ['Translator review', 'Wording, speaker, OCR, and reading order are corrected here.'],
   ['Proofreader', 'Meaning, grammar, voice, and terminology consistency.'],
   ['Typesetter', 'Fit, line breaks, and placement inside the original bubbles.'],

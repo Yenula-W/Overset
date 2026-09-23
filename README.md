@@ -1,10 +1,14 @@
-# PanelFlow
+# Overset
 
 AI localization workspace for manhwa, webtoons, manga, and comics.
 
 **Same artwork. Same panels. Same bubbles. Different language.**
 
-PanelFlow takes a chapter you own or are authorized to translate, finds every
+*Overset* is the typographic term for text that runs past the frame holding it
+— the exact condition a translated speech bubble falls into, and the problem
+this product spends most of its effort solving well.
+
+Overset takes a chapter you own or are authorized to translate, finds every
 text region, translates it with the surrounding story in mind, removes only the
 original text, fits the translation back into the same bubbles, and exports at
 the original dimensions — without the translator leaving the app.
@@ -66,7 +70,7 @@ providers can be benchmarked on cost and quality and replaced without a rewrite.
 
 **Keys stay on the server.** `src/lib/server/env.ts` imports `server-only`, so
 importing it from client code is a build error. Requests flow
-`browser → PanelFlow backend → providers → PanelFlow backend → editor`. No
+`browser → Overset backend → providers → Overset backend → editor`. No
 provider key reaches client JavaScript, HTML, network requests, or localStorage.
 
 **Stages are separately addressable.** `src/lib/pipeline.ts` defines each stage
@@ -84,7 +88,7 @@ the client.
 ## Demo content
 
 All demo artwork, characters, dialogue, and project names are original fiction
-created for PanelFlow. The demo comic page is drawn from scratch as SVG in
+created for Overset. The demo comic page is drawn from scratch as SVG in
 `src/components/demo/artwork.tsx`. No commercial manhwa art or text appears
 anywhere in the product or its marketing.
 

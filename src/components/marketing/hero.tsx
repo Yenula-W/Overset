@@ -25,7 +25,7 @@ export function Hero() {
             bubble by bubble.
           </h1>
           <p className="lede mx-auto mt-7 max-w-2xl text-pretty">
-            Upload your chapter. PanelFlow detects, translates, cleans, and typesets every panel while preserving
+            Upload your chapter. Overset detects, translates, cleans, and typesets every panel while preserving
             context, terminology, character voice, and the original artwork.
           </p>
           <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
@@ -57,7 +57,7 @@ export function Hero() {
             ))}
           </dl>
           <p className="mt-5 text-center text-[12px] text-ink-faint">
-            Demo project metrics from a fictional chapter created for PanelFlow.
+            Demo project metrics from a fictional chapter created for Overset.
           </p>
         </Reveal>
       </div>

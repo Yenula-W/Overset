@@ -64,7 +64,7 @@ export function MarketingFooter() {
       </div>
       <div className="hairline">
         <div className="shell flex flex-col gap-1 py-6 text-[13px] text-ink-faint sm:flex-row sm:items-center sm:justify-between">
-          <p>© 2026 PanelFlow AI</p>
+          <p>© 2026 Overset</p>
           <p>Built for translators, creators, and localization teams.</p>
         </div>
       </div>

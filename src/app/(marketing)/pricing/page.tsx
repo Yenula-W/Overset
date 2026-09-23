@@ -4,7 +4,7 @@ import { FinalCta } from '@/components/marketing/sections';
 
 export const metadata: Metadata = {
   title: 'Pricing',
-  description: 'PanelFlow plans for individual translators, creators, teams, and publishers.',
+  description: 'Overset plans for individual translators, creators, teams, and publishers.',
 };
 
 const FAQ = [

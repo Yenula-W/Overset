@@ -31,13 +31,13 @@ export function HowItWorks() {
         <Step
           number="01"
           title="Upload your chapter"
-          body="Drop in your chapter and PanelFlow automatically organizes the pages and finds the text."
+          body="Drop in your chapter and Overset automatically organizes the pages and finds the text."
           visual={<UploadVisual />}
         />
         <Step
           number="02"
-          title="Let PanelFlow understand it"
-          body="PanelFlow reads dialogue in context instead of treating every speech bubble as an isolated sentence."
+          title="Let Overset understand it"
+          body="Overset reads dialogue in context instead of treating every speech bubble as an isolated sentence."
           visual={<ContextVisual />}
           reverse
         />
@@ -157,7 +157,7 @@ export function ContextEngine() {
           <br className="hidden sm:block" /> doesn’t always mean the same thing.
         </>
       }
-      lede="Most translation tools see a sentence. PanelFlow sees the conversation around it."
+      lede="Most translation tools see a sentence. Overset sees the conversation around it."
     >
       <Reveal delay={80}>
         <div className="mt-12 grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
@@ -232,7 +232,7 @@ export function CharacterVoices() {
           <br className="hidden sm:block" /> sound like the same AI.
         </>
       }
-      lede="PanelFlow keeps a profile for every recurring character — how formal they are, how much slang they use, what they call the people around them — and remembers the wording you approved last chapter."
+      lede="Overset keeps a profile for every recurring character — how formal they are, how much slang they use, what they call the people around them — and remembers the wording you approved last chapter."
     >
       <Reveal delay={80}>
         <div className="mt-12 grid gap-4 md:grid-cols-2">
@@ -279,7 +279,7 @@ export function QaSection() {
   ];
 
   return (
-    <Section eyebrow="Quality assurance" title="Catch mistakes before your readers do." lede="PanelFlow runs a proofreading pass across the whole chapter before export — and flags what it is unsure about rather than quietly rewriting your work.">
+    <Section eyebrow="Quality assurance" title="Catch mistakes before your readers do." lede="Overset runs a proofreading pass across the whole chapter before export — and flags what it is unsure about rather than quietly rewriting your work.">
       <Reveal delay={80}>
         <Card className="mt-12 overflow-hidden">
           <div className="flex items-center justify-between border-b border-line px-5 py-3.5">
@@ -342,9 +342,9 @@ export function OwnershipSection() {
       <Reveal delay={60}>
         <div className="mt-10 grid gap-4 md:grid-cols-2">
           {[
-            ['You keep your rights', 'You retain the rights to everything you upload. PanelFlow processes your files to produce your translation — nothing more.'],
+            ['You keep your rights', 'You retain the rights to everything you upload. Overset processes your files to produce your translation — nothing more.'],
             ['Private by default', 'Projects are private to you and the people you invite. Uploaded chapters are not published as public content.'],
-            ['Upload what you may translate', 'Only upload material you own or are authorized to translate and process. PanelFlow is localization software, not a distribution platform.'],
+            ['Upload what you may translate', 'Only upload material you own or are authorized to translate and process. Overset is localization software, not a distribution platform.'],
             ['Delete whenever you want', 'You can delete projects, chapters, and uploaded files from your account at any time.'],
           ].map(([title, body]) => (
             <Card key={title} className="p-6">
@@ -368,7 +368,7 @@ export function FinalCta() {
           Your next chapter could already
           <br className="hidden sm:block" /> be translated.
         </h2>
-        <p className="lede mx-auto mt-6 max-w-lg">Upload a chapter and see what PanelFlow can do.</p>
+        <p className="lede mx-auto mt-6 max-w-lg">Upload a chapter and see what Overset can do.</p>
         <div className="mt-9">
           <Button href="/signup" size="lg">
             Translate for free

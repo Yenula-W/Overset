@@ -28,7 +28,7 @@ export const resetSchema = z.object({ email: z.string().email('Enter a valid ema
 export type SignupInput = z.infer<typeof signupSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 
-const SESSION_KEY = 'panelflow.session';
+const SESSION_KEY = 'overset.session';
 
 export interface ClientSession {
   name: string;

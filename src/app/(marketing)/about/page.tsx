@@ -13,11 +13,20 @@ export default function AboutPage() {
           <h1 className="mt-4 text-section font-semibold text-balance">Localization software, not a translation toy.</h1>
           <p className="lede mt-6 text-pretty">
             Translating a comic chapter today means moving between an OCR tool, a translator, an image editor, a
-            typesetting app, a terminology spreadsheet, and a proofreading pass in a chat thread. PanelFlow is an
+            typesetting app, a terminology spreadsheet, and a proofreading pass in a chat thread. Overset is an
             attempt to put that in one place without taking the judgment away from the translator.
           </p>
         </div>
       </section>
+
+      <Section eyebrow="The name" title="Why Overset.">
+        <p className="mt-6 max-w-2xl text-[15px] leading-relaxed text-ink-muted">
+          In typesetting, text is <em>overset</em> when it runs past the frame meant to hold it. It is the first thing
+          that goes wrong when a line of Korean becomes a line of English and the bubble stays exactly the same size.
+          Resolving that — without shrinking the lettering past readable, and without touching the artwork around it —
+          is most of the work.
+        </p>
+      </Section>
 
       <Section title="What we believe">
         <div className="mt-8 max-w-2xl space-y-6 text-[15px] leading-relaxed text-ink-muted">

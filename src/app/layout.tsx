@@ -2,17 +2,17 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://panelflow.ai'),
+  metadataBase: new URL('https://overset.ai'),
   title: {
-    default: 'PanelFlow — Translate the story. Preserve the panel.',
-    template: '%s · PanelFlow',
+    default: 'Overset — Translate the story. Preserve the panel.',
+    template: '%s · Overset',
   },
   description:
-    'PanelFlow is an AI localization workspace for manhwa, webtoons, manga, and comics. Detect, translate, clean, and typeset every panel while keeping the original artwork intact.',
+    'Overset is an AI localization workspace for manhwa, webtoons, manga, and comics. Detect, translate, clean, and typeset every panel while keeping the original artwork intact.',
   openGraph: {
-    title: 'PanelFlow — Translate the story. Preserve the panel.',
+    title: 'Overset — Translate the story. Preserve the panel.',
     description:
-      'Upload a chapter. PanelFlow detects, translates, cleans, and typesets every panel while preserving context, terminology, character voice, and the original artwork.',
+      'Upload a chapter. Overset detects, translates, cleans, and typesets every panel while preserving context, terminology, character voice, and the original artwork.',
     type: 'website',
   },
 };

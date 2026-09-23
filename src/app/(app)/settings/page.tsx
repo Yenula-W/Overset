@@ -149,7 +149,7 @@ export default function SettingsPage() {
               </CardBody>
             </Card>
             <p className="text-[12.5px] leading-relaxed text-ink-faint">
-              Payment details are handled by the payment provider. PanelFlow never stores card numbers.
+              Payment details are handled by the payment provider. Overset never stores card numbers.
             </p>
           </>
         )}

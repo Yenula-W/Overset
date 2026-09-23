@@ -31,7 +31,7 @@ export default function GlossaryPage() {
     <AppShellPage>
       <PageHeader
         title="Project glossary"
-        lede="The Fallen Hero · terminology PanelFlow applies to every new chapter."
+        lede="The Fallen Hero · terminology Overset applies to every new chapter."
         actions={
           <Button>
             <Plus size={15} />

@@ -1,7 +1,7 @@
 /**
  * Provider interfaces.
  *
- * PanelFlow must never be welded to one AI vendor. Every external capability
+ * Overset must never be welded to one AI vendor. Every external capability
  * goes through one of these interfaces so a provider can be swapped — or
  * A/B benchmarked for cost and quality — without touching the UI.
  *

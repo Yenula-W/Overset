@@ -34,7 +34,7 @@ export function validateUpload(files: UploadCandidate[]): ValidationFailure[] {
       failures.push({
         file: file.name,
         code: 'unsupported_type',
-        message: `“${file.name}” is a ${file.mimeType || 'unknown'} file. PanelFlow accepts PNG, JPG, WEBP, PDF, and ZIP.`,
+        message: `“${file.name}” is a ${file.mimeType || 'unknown'} file. Overset accepts PNG, JPG, WEBP, PDF, and ZIP.`,
       });
     }
     if (file.bytes > MAX_FILE_BYTES) {

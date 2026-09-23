@@ -1,5 +1,5 @@
 /**
- * PanelFlow domain model.
+ * Overset domain model.
  *
  * These types are the contract shared by the UI, the mock service layer, and
  * (eventually) the real backend + database. Nothing here is UI-specific.

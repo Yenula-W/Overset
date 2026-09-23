@@ -5,11 +5,11 @@ import { PIPELINE } from '@/lib/pipeline';
 /**
  * Chapter translation endpoint.
  *
- * The browser talks only to PanelFlow. PanelFlow talks to the OCR, vision,
+ * The browser talks only to Overset. Overset talks to the OCR, vision,
  * translation, and cleaning providers with server-held keys, then returns
  * results to the editor. No provider key is ever sent to the client.
  *
- *   Browser → PanelFlow backend → providers → PanelFlow backend → editor
+ *   Browser → Overset backend → providers → Overset backend → editor
  *
  * This route is the shape of that boundary. It enforces auth, project access,
  * and rate limiting before any billable work is queued.

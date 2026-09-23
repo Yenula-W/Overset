@@ -21,7 +21,7 @@ export default function DocsPage() {
       <section className="pt-16 sm:pt-24">
         <div className="shell max-w-3xl">
           <p className="eyebrow">Documentation</p>
-          <h1 className="mt-4 text-section font-semibold text-balance">How PanelFlow works, in detail.</h1>
+          <h1 className="mt-4 text-section font-semibold text-balance">How Overset works, in detail.</h1>
         </div>
       </section>
 

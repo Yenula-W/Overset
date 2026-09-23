@@ -17,7 +17,7 @@ interface Step {
 const STEPS: Step[] = [
   {
     key: 'medium',
-    title: 'Welcome to PanelFlow.',
+    title: 'Welcome to Overset.',
     question: 'What do you primarily translate?',
     options: [
       { value: 'manhwa', label: 'Manhwa', detail: 'Korean, usually vertical scroll' },

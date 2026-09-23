@@ -1,5 +1,5 @@
 /**
- * Original fictional demo artwork for PanelFlow.
+ * Original fictional demo artwork for Overset.
  *
  * Every page here is drawn from scratch as SVG. No commercial manhwa art,
  * characters, or text is used anywhere in the product or its marketing.
@@ -155,20 +155,26 @@ function Panel({
  * detection overlays and the typesetting demo, so every state lines up.
  */
 export function DemoComicPage({ showArtworkText = true }: { showArtworkText?: boolean }) {
+  // Several copies of this page can share a document (the editor's page rail
+  // sits beside the canvas). Namespacing every def keeps their gradients and
+  // patterns from colliding, which otherwise blanks out whole panels.
+  const uid = React.useId().replace(/:/g, '');
+  const ref = (name: string) => `url(#${name}-${uid})`;
+
   return (
     <>
       <defs>
-        <Hatch id="hatch-a" angle={38} gap={7} opacity={0.35} />
-        <Hatch id="hatch-b" angle={-32} gap={5} opacity={0.22} />
-        <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+        <Hatch id={`hatch-a-${uid}`} angle={38} gap={7} opacity={0.35} />
+        <Hatch id={`hatch-b-${uid}`} angle={-32} gap={5} opacity={0.22} />
+        <linearGradient id={`sky-${uid}`} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor="#D9D6E8" />
           <stop offset="100%" stopColor="#F2F0EC" />
         </linearGradient>
-        <linearGradient id="dusk" x1="0" y1="0" x2="0" y2="1">
+        <linearGradient id={`dusk-${uid}`} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor="#3B3A4E" />
           <stop offset="100%" stopColor="#6A6480" />
         </linearGradient>
-        <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5">
+        <radialGradient id={`glow-${uid}`} cx="0.5" cy="0.5" r="0.5">
           <stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.85" />
           <stop offset="100%" stopColor="#FFFFFF" stopOpacity="0" />
         </radialGradient>
@@ -177,16 +183,16 @@ export function DemoComicPage({ showArtworkText = true }: { showArtworkText?: bo
       <rect width={PAGE_W} height={PAGE_H} fill="#FFFFFF" />
 
       {/* Panel 1 — wide establishing shot */}
-      <Panel x={40} y={40} w={760} h={300} bg="url(#sky)">
-        <rect x={40} y={40} width={760} height={300} fill="url(#sky)" />
+      <Panel x={40} y={40} w={760} h={300} bg={ref('sky')}>
+        <rect x={40} y={40} width={760} height={300} fill={ref('sky')} />
         <path d="M40 250 L180 150 L280 210 L390 120 L520 220 L640 140 L800 230 L800 340 L40 340 Z" fill="#B9B5CC" />
         <path d="M40 285 L160 215 L300 275 L440 200 L580 280 L700 220 L800 275 L800 340 L40 340 Z" fill="#8F8AA8" />
         <rect x={430} y={95} width={26} height={185} fill="#6E698A" />
         <rect x={420} y={80} width={46} height={22} fill="#5B5675" />
         <path d="M40 300 L800 300 L800 340 L40 340 Z" fill="#5E5A74" />
         <circle cx={640} cy={110} r={34} fill="#FBF7EA" />
-        <circle cx={640} cy={110} r={70} fill="url(#glow)" />
-        <rect x={40} y={40} width={760} height={300} fill="url(#hatch-b)" />
+        <circle cx={640} cy={110} r={70} fill={ref('glow')} />
+        <rect x={40} y={40} width={760} height={300} fill={ref('hatch-b')} />
         <Figure x={208} y={198} scale={0.58} tone="#3A3A44" hair="#1C1C20" hairStyle="short" />
         <Figure x={292} y={204} scale={0.55} tone="#4A4152" hair="#2B1F2E" hairStyle="tied" flip />
       </Panel>
@@ -204,11 +210,11 @@ export function DemoComicPage({ showArtworkText = true }: { showArtworkText?: bo
       </Panel>
 
       {/* Panel 3 — close-up right, dusk */}
-      <Panel x={422} y={356} w={378} h={330} bg="url(#dusk)">
-        <rect x={422} y={356} width={378} height={330} fill="url(#dusk)" />
-        <circle cx={611} cy={470} r={120} fill="url(#glow)" opacity="0.35" />
+      <Panel x={422} y={356} w={378} h={330} bg={ref('dusk')}>
+        <rect x={422} y={356} width={378} height={330} fill={ref('dusk')} />
+        <circle cx={611} cy={470} r={120} fill={ref('glow')} opacity="0.35" />
         <Figure x={615} y={542} scale={1.2} tone="#2A2636" hair="#141220" hairStyle="long" expression="neutral" flip cloak />
-        <rect x={422} y={356} width={378} height={330} fill="url(#hatch-a)" opacity="0.35" />
+        <rect x={422} y={356} width={378} height={330} fill={ref('hatch-a')} opacity="0.35" />
       </Panel>
 
       {/* Panel 4 — tall dramatic panel */}

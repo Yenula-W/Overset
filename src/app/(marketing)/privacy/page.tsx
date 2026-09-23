@@ -4,7 +4,7 @@ import { OwnershipSection } from '@/components/marketing/sections';
 
 export const metadata: Metadata = {
   title: 'Privacy and content ownership',
-  description: 'What happens to the chapters you upload to PanelFlow.',
+  description: 'What happens to the chapters you upload to Overset.',
 };
 
 export default function PrivacyPage() {
@@ -15,7 +15,7 @@ export default function PrivacyPage() {
           <p className="eyebrow">Privacy</p>
           <h1 className="mt-4 text-section font-semibold text-balance">Your chapters stay yours.</h1>
           <p className="lede mt-6 text-pretty">
-            PanelFlow is localization software. You upload material you are authorized to work on, PanelFlow processes
+            Overset is localization software. You upload material you are authorized to work on, Overset processes
             it to produce your translation, and the result belongs to you.
           </p>
         </div>
@@ -27,7 +27,7 @@ export default function PrivacyPage() {
         <div className="mt-10 max-w-2xl space-y-6 text-[15px] leading-relaxed text-ink-muted">
           <p>
             <strong className="font-medium text-ink">You retain your rights.</strong> Uploading a chapter does not
-            transfer ownership of it. PanelFlow stores and processes your files so the product can do its job, and for
+            transfer ownership of it. Overset stores and processes your files so the product can do its job, and for
             no other purpose.
           </p>
           <p>
@@ -36,7 +36,7 @@ export default function PrivacyPage() {
           </p>
           <p>
             <strong className="font-medium text-ink">You are responsible for what you upload.</strong> Only upload
-            material you own or are authorized to translate and process. PanelFlow does not host, distribute, or make
+            material you own or are authorized to translate and process. Overset does not host, distribute, or make
             available anyone else’s comics.
           </p>
           <p>
@@ -44,7 +44,7 @@ export default function PrivacyPage() {
             and exports can be deleted from your account, and deletion removes the underlying files.
           </p>
           <p>
-            <strong className="font-medium text-ink">We don’t claim certifications we don’t have.</strong> PanelFlow
+            <strong className="font-medium text-ink">We don’t claim certifications we don’t have.</strong> Overset
             applies standard practices — encrypted transport, access control on every project, server-side handling of
             all AI provider keys. This page will say more only when there is more that is true.
           </p>

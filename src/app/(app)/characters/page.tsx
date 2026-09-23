@@ -31,7 +31,7 @@ export default function CharactersPage() {
     <AppShellPage>
       <PageHeader
         title="Characters"
-        lede="The Fallen Hero · voice, formality, and speech rules PanelFlow applies when translating each speaker."
+        lede="The Fallen Hero · voice, formality, and speech rules Overset applies when translating each speaker."
         actions={
           <Button>
             <Plus size={15} />

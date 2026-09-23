@@ -48,7 +48,7 @@ export function UploadZone({
 
     const wrongType = incoming.find((f) => f.type && !ACCEPTED.includes(f.type));
     if (wrongType) {
-      setError(`“${wrongType.name}” isn’t a supported file type. PanelFlow accepts ${ACCEPTED_LABEL}.`);
+      setError(`“${wrongType.name}” isn’t a supported file type. Overset accepts ${ACCEPTED_LABEL}.`);
       return;
     }
     const tooLarge = incoming.find((f) => f.size > MAX_BYTES);

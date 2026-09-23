@@ -5,12 +5,12 @@ import { ContextEngine, FinalCta, HowItWorks, QaSection } from '@/components/mar
 
 export const metadata: Metadata = {
   title: 'How it works',
-  description: 'Upload, analyze, detect, OCR, translate, clean, typeset, review, QA, export — one workflow inside PanelFlow.',
+  description: 'Upload, analyze, detect, OCR, translate, clean, typeset, review, QA, export — one workflow inside Overset.',
 };
 
 const PIPELINE_COPY = [
   ['Detect', 'Panels and text regions are found separately, then classified as dialogue, thought, narration, SFX, signs, or background text. The page is never treated as one block of OCR.'],
-  ['Understand', 'Before anything is translated, PanelFlow assembles the chapter, the scene, the conversation, the speaker, and your glossary into one structured context.'],
+  ['Understand', 'Before anything is translated, Overset assembles the chapter, the scene, the conversation, the speaker, and your glossary into one structured context.'],
   ['Translate', 'The model returns a literal reading, a recommended translation, alternatives, a confidence score, and a note when the line is genuinely ambiguous.'],
   ['Clean', 'Only the source text is removed. Simple bubbles get their background restored; text over artwork is reconstructed in the smallest region that will do.'],
   ['Typeset', 'Translated text is fitted into the original bubble by adjusting line breaks first, spacing second, and font size last.'],
@@ -25,7 +25,7 @@ export default function HowItWorksPage() {
           <p className="eyebrow">How it works</p>
           <h1 className="mt-4 text-section font-semibold text-balance">Same artwork. Different language.</h1>
           <p className="lede mt-6 text-pretty">
-            PanelFlow runs a chapter through one pipeline — upload, analyze, detect, OCR, understand, translate, clean,
+            Overset runs a chapter through one pipeline — upload, analyze, detect, OCR, understand, translate, clean,
             typeset, review, QA, export — and hands you control at every step that matters.
           </p>
         </div>

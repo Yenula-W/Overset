@@ -14,7 +14,7 @@ import {
 export const DEMO_USER: User = {
   id: 'u-1',
   name: 'Yenula',
-  email: 'yenula@panelflow.ai',
+  email: 'yenula@overset.ai',
   createdAt: '2026-02-11T09:00:00Z',
   onboardingComplete: true,
   preferences: { primaryMedium: 'manhwa', role: 'individual', primarySourceLanguage: 'ko' },
@@ -115,10 +115,10 @@ export const DEMO_CHAPTERS: Chapter[] = [
 ];
 
 export const DEMO_TEAM: TeamMember[] = [
-  { id: 'u-1', name: 'Yenula', email: 'yenula@panelflow.ai', role: 'owner', avatarColor: '#6C63E8', lastActive: '2026-09-22T19:12:00Z', status: 'active' },
-  { id: 'u-2', name: 'Alex Rhee', email: 'alex@panelflow.ai', role: 'proofreader', avatarColor: '#4F8A5B', lastActive: '2026-09-22T17:40:00Z', status: 'active' },
-  { id: 'u-3', name: 'Dana Okafor', email: 'dana@panelflow.ai', role: 'typesetter', avatarColor: '#B4833A', lastActive: '2026-09-22T12:05:00Z', status: 'active' },
-  { id: 'u-4', name: 'Sam Ito', email: 'sam@panelflow.ai', role: 'translator', avatarColor: '#B4544A', lastActive: '2026-09-21T20:15:00Z', status: 'invited' },
+  { id: 'u-1', name: 'Yenula', email: 'yenula@overset.ai', role: 'owner', avatarColor: '#6C63E8', lastActive: '2026-09-22T19:12:00Z', status: 'active' },
+  { id: 'u-2', name: 'Alex Rhee', email: 'alex@overset.ai', role: 'proofreader', avatarColor: '#4F8A5B', lastActive: '2026-09-22T17:40:00Z', status: 'active' },
+  { id: 'u-3', name: 'Dana Okafor', email: 'dana@overset.ai', role: 'typesetter', avatarColor: '#B4833A', lastActive: '2026-09-22T12:05:00Z', status: 'active' },
+  { id: 'u-4', name: 'Sam Ito', email: 'sam@overset.ai', role: 'translator', avatarColor: '#B4544A', lastActive: '2026-09-21T20:15:00Z', status: 'invited' },
 ];
 
 export const DEMO_MEMORY: MemoryEntry[] = [
@@ -168,7 +168,7 @@ export const DEMO_COMMENTS: Comment[] = [
 export const DEMO_VERSIONS: VersionEvent[] = [
   { id: 'v-1', chapterId: 'c-fh-14', regionId: 'r-05', kind: 'human_edit', actor: 'Yenula', summary: 'Edited Bubble 05', before: 'Jin Seo, if you step back now, sahyeong will never stop.', after: 'Jin Seo — if you back off now, sahyeong will never stop.', createdAt: '2026-09-22T19:42:00Z' },
   { id: 'v-2', chapterId: 'c-fh-14', regionId: 'r-07', kind: 'typeset', actor: 'Dana Okafor', summary: 'Adjusted SFX rotation on Bubble 07', createdAt: '2026-09-22T19:35:00Z' },
-  { id: 'v-3', chapterId: 'c-fh-14', kind: 'ai_translation', actor: 'PanelFlow', summary: 'AI translation generated for 186 regions', createdAt: '2026-09-22T19:31:00Z' },
+  { id: 'v-3', chapterId: 'c-fh-14', kind: 'ai_translation', actor: 'Overset', summary: 'AI translation generated for 186 regions', createdAt: '2026-09-22T19:31:00Z' },
   { id: 'v-4', chapterId: 'c-fh-14', kind: 'glossary_update', actor: 'Yenula', summary: 'Locked “Heavenly Demon Divine Art”', before: 'Heavenly Demon Technique', after: 'Heavenly Demon Divine Art', createdAt: '2026-09-22T19:29:00Z' },
   { id: 'v-5', chapterId: 'c-fh-14', regionId: 'r-01', kind: 'approval', actor: 'Alex Rhee', summary: 'Approved Bubble 01', createdAt: '2026-09-22T19:20:00Z' },
 ];

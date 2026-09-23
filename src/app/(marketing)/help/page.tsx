@@ -7,8 +7,8 @@ export const metadata: Metadata = { title: 'Help' };
 
 const ANSWERS: Array<[string, string]> = [
   ['A page came back with low OCR confidence.', 'Open the page in the editor and check the flagged region. You can correct the recognized text directly, redraw the region, or split it if two bubbles were merged.'],
-  ['PanelFlow picked the wrong speaker.', 'Change the speaker in the inspector. The character profile is reapplied and you can regenerate that line with the correct voice.'],
-  ['The translation does not fit the bubble.', 'The typesetting panel shows a fit warning with three options: shorten the translation, reduce the font slightly, or place the text by hand. PanelFlow will not shrink text below a readable size on its own.'],
+  ['Overset picked the wrong speaker.', 'Change the speaker in the inspector. The character profile is reapplied and you can regenerate that line with the correct voice.'],
+  ['The translation does not fit the bubble.', 'The typesetting panel shows a fit warning with three options: shorten the translation, reduce the font slightly, or place the text by hand. Overset will not shrink text below a readable size on its own.'],
   ['Terminology changed between chapters.', 'Lock the term in the glossary. Locked terms are used in every future translation until you change them, and QA flags anything that drifts.'],
   ['Processing failed on some pages.', 'Retry just those pages. Each pipeline stage keeps its own state, so OCR and translation already done are not repeated or re-billed.'],
   ['I need to remove a chapter I uploaded.', 'Delete it from the project. Deleting removes the original, cleaned, and translated files.'],

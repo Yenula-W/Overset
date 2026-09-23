@@ -11,7 +11,7 @@ export default function ContactPage() {
         <div className="shell max-w-3xl">
           <p className="eyebrow">Contact</p>
           <h1 className="mt-4 text-section font-semibold text-balance">Get in touch.</h1>
-          <p className="lede mt-6">Questions about a chapter, a plan, or running PanelFlow across a team.</p>
+          <p className="lede mt-6">Questions about a chapter, a plan, or running Overset across a team.</p>
         </div>
       </section>
 
@@ -26,7 +26,7 @@ export default function ContactPage() {
             </Field>
             <Field label="What is this about?" htmlFor="topic">
               <Select id="topic" name="topic" defaultValue="product">
-                <option value="product">Using PanelFlow</option>
+                <option value="product">Using Overset</option>
                 <option value="billing">Billing</option>
                 <option value="teams">Teams and publishers</option>
                 <option value="privacy">Privacy and content</option>

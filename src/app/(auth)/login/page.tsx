@@ -32,7 +32,7 @@ export default function LoginPage() {
       lede="Pick up where you left off."
       footer={
         <>
-          New to PanelFlow?{' '}
+          New to Overset?{' '}
           <Link href="/signup" className="font-medium text-ink underline underline-offset-2">
             Create an account
           </Link>
