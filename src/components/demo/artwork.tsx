@@ -23,7 +23,11 @@ function Hatch({ id, angle = 45, gap = 6, opacity = 0.5 }: { id: string; angle?:
   );
 }
 
-/** Stylized figure — silhouette and line work only, no recognizable likeness. */
+/**
+ * Stylized figure — original silhouette and line work, no likeness of any real
+ * person or existing character. Kept deliberately simple: the demo pages exist
+ * to show text handling, so the art stays readable at thumbnail size.
+ */
 function Figure({
   x,
   y,
@@ -32,6 +36,8 @@ function Figure({
   hair = '#1C1C20',
   flip = false,
   cloak = false,
+  hairStyle = 'long',
+  expression = 'neutral',
 }: {
   x: number;
   y: number;
@@ -40,22 +46,77 @@ function Figure({
   hair?: string;
   flip?: boolean;
   cloak?: boolean;
+  hairStyle?: 'long' | 'short' | 'tied';
+  expression?: 'neutral' | 'tense' | 'smug';
 }) {
+  const skin = '#EDE0D4';
+  const shade = '#D9C7B7';
+
   return (
     <g transform={`translate(${x} ${y}) scale(${flip ? -scale : scale} ${scale})`}>
       {cloak && (
-        <path d="M-52 40 L-34 -16 L34 -16 L52 40 L38 168 L-38 168 Z" fill={tone} opacity="0.92" />
+        <>
+          <path d="M-58 44 L-36 -6 L36 -6 L58 44 L46 170 L-46 170 Z" fill="#221F2E" />
+          <path d="M-36 -6 L-18 34 L18 34 L36 -6 Z" fill="#191725" />
+        </>
       )}
-      <path d="M-30 30 L30 30 L44 150 L-44 150 Z" fill={cloak ? '#2E2E38' : tone} />
-      <path d="M-30 30 L-46 96 L-34 104 L-22 48 Z" fill={cloak ? '#2E2E38' : tone} />
-      <path d="M30 30 L46 96 L34 104 L22 48 Z" fill={cloak ? '#2E2E38' : tone} />
-      <ellipse cx="0" cy="-2" rx="25" ry="30" fill="#E8DFD6" />
-      <path d="M-25 -6 C-26 -34 -12 -44 0 -44 C13 -44 27 -34 26 -6 L20 -12 C16 -26 6 -30 -2 -28 C-12 -26 -19 -18 -20 -8 Z" fill={hair} />
-      <path d="M-24 -10 L-30 26 L-22 24 Z" fill={hair} />
-      <path d="M24 -10 L30 26 L22 24 Z" fill={hair} />
-      <path d="M-13 -2 L-5 -2" stroke={INK} strokeWidth="2.4" strokeLinecap="round" />
-      <path d="M5 -2 L13 -2" stroke={INK} strokeWidth="2.4" strokeLinecap="round" />
-      <path d="M-4 12 L4 12" stroke={INK} strokeWidth="1.8" strokeLinecap="round" opacity="0.8" />
+
+      {/* Torso */}
+      <path d="M-26 34 Q0 26 26 34 L36 96 L32 152 L-32 152 L-36 96 Z" fill={cloak ? '#2B2839' : tone} />
+      {/* Collar */}
+      <path d="M-26 34 Q0 48 26 34 L20 26 Q0 36 -20 26 Z" fill="#F4EEE6" opacity={cloak ? 0.15 : 0.55} />
+      {/* Arms */}
+      <path d="M-26 36 Q-44 62 -40 104 L-28 106 Q-30 66 -16 44 Z" fill={cloak ? '#241F31' : tone} />
+      <path d="M26 36 Q44 62 40 104 L28 106 Q30 66 16 44 Z" fill={cloak ? '#241F31' : tone} />
+      <circle cx={-34} cy={110} r={7} fill={skin} />
+      <circle cx={34} cy={110} r={7} fill={skin} />
+      {/* Neck */}
+      <path d="M-9 14 L9 14 L9 32 Q0 38 -9 32 Z" fill={shade} />
+
+      {/* Head */}
+      <path d="M0 -34 C17 -34 27 -21 27 -4 C27 14 16 28 0 28 C-16 28 -27 14 -27 -4 C-27 -21 -17 -34 0 -34 Z" fill={skin} />
+      <path d="M13 -22 C24 -18 27 -8 27 -4 C27 12 17 26 3 28 C16 20 22 6 20 -8 Z" fill={shade} opacity="0.55" />
+
+      {/* Hair */}
+      {hairStyle === 'long' && (
+        <>
+          <path d="M-28 -2 C-30 -30 -16 -42 0 -42 C16 -42 30 -30 28 -2 L22 -10 C18 -24 9 -28 0 -27 C-11 -26 -19 -18 -22 -8 Z" fill={hair} />
+          <path d="M-27 -8 L-33 40 L-22 38 L-20 -4 Z" fill={hair} />
+          <path d="M27 -8 L33 40 L22 38 L20 -4 Z" fill={hair} />
+        </>
+      )}
+      {hairStyle === 'short' && (
+        <path d="M-28 -4 C-30 -32 -15 -43 0 -43 C15 -43 30 -32 28 -4 L21 -12 C14 -26 -12 -28 -21 -12 Z" fill={hair} />
+      )}
+      {hairStyle === 'tied' && (
+        <>
+          <path d="M-28 -4 C-30 -32 -15 -43 0 -43 C15 -43 30 -32 28 -4 L21 -12 C14 -26 -12 -28 -21 -12 Z" fill={hair} />
+          <path d="M22 -14 Q42 -6 38 22 Q32 6 20 0 Z" fill={hair} />
+        </>
+      )}
+
+      {/* Face */}
+      {expression === 'tense' ? (
+        <>
+          <path d="M-16 -8 L-6 -4" stroke={INK} strokeWidth="2.6" strokeLinecap="round" />
+          <path d="M16 -8 L6 -4" stroke={INK} strokeWidth="2.6" strokeLinecap="round" />
+        </>
+      ) : (
+        <>
+          <path d="M-16 -7 L-6 -7" stroke={INK} strokeWidth="2.6" strokeLinecap="round" />
+          <path d="M16 -7 L6 -7" stroke={INK} strokeWidth="2.6" strokeLinecap="round" />
+        </>
+      )}
+      <path d="M-14 1 Q-11 6 -7 1" stroke={INK} strokeWidth="2.2" fill="none" strokeLinecap="round" />
+      <path d="M14 1 Q11 6 7 1" stroke={INK} strokeWidth="2.2" fill="none" strokeLinecap="round" />
+      <path d="M1 4 L-2 11 L2 12" stroke={INK} strokeWidth="1.4" fill="none" strokeLinecap="round" opacity="0.7" />
+      {expression === 'smug' ? (
+        <path d="M-6 18 Q0 22 7 16" stroke={INK} strokeWidth="2" fill="none" strokeLinecap="round" />
+      ) : expression === 'tense' ? (
+        <path d="M-6 19 Q0 16 6 19" stroke={INK} strokeWidth="2" fill="none" strokeLinecap="round" />
+      ) : (
+        <path d="M-5 18 L5 18" stroke={INK} strokeWidth="2" strokeLinecap="round" />
+      )}
     </g>
   );
 }
@@ -126,8 +187,8 @@ export function DemoComicPage({ showArtworkText = true }: { showArtworkText?: bo
         <circle cx={640} cy={110} r={34} fill="#FBF7EA" />
         <circle cx={640} cy={110} r={70} fill="url(#glow)" />
         <rect x={40} y={40} width={760} height={300} fill="url(#hatch-b)" />
-        <Figure x={210} y={200} scale={0.62} tone="#3A3A44" hair="#1C1C20" />
-        <Figure x={290} y={206} scale={0.58} tone="#4A4152" hair="#2B1F2E" flip />
+        <Figure x={208} y={198} scale={0.58} tone="#3A3A44" hair="#1C1C20" hairStyle="short" />
+        <Figure x={292} y={204} scale={0.55} tone="#4A4152" hair="#2B1F2E" hairStyle="tied" flip />
       </Panel>
 
       {/* Panel 2 — close-up left */}
@@ -138,7 +199,7 @@ export function DemoComicPage({ showArtworkText = true }: { showArtworkText?: bo
             <line key={i} x1={40 + i * 28} y1={356} x2={-40 + i * 28} y2={686} stroke={INK} strokeWidth="1" opacity="0.18" />
           ))}
         </g>
-        <Figure x={230} y={520} scale={1.35} tone="#39394A" hair="#17171B" />
+        <Figure x={230} y={532} scale={1.25} tone="#39394A" hair="#17171B" hairStyle="short" expression="smug" />
         <path d="M40 620 L406 620 L406 686 L40 686 Z" fill="#DCD8D0" opacity="0.7" />
       </Panel>
 
@@ -146,7 +207,7 @@ export function DemoComicPage({ showArtworkText = true }: { showArtworkText?: bo
       <Panel x={422} y={356} w={378} h={330} bg="url(#dusk)">
         <rect x={422} y={356} width={378} height={330} fill="url(#dusk)" />
         <circle cx={611} cy={470} r={120} fill="url(#glow)" opacity="0.35" />
-        <Figure x={615} y={530} scale={1.3} tone="#2A2636" hair="#141220" flip cloak />
+        <Figure x={615} y={542} scale={1.2} tone="#2A2636" hair="#141220" hairStyle="long" expression="neutral" flip cloak />
         <rect x={422} y={356} width={378} height={330} fill="url(#hatch-a)" opacity="0.35" />
       </Panel>
 
@@ -160,8 +221,8 @@ export function DemoComicPage({ showArtworkText = true }: { showArtworkText?: bo
             <line key={i} x1={420} y1={900} x2={40 + i * 36} y2={702} stroke={INK} strokeWidth="1.2" opacity="0.14" />
           ))}
         </g>
-        <Figure x={300} y={960} scale={1.1} tone="#383848" hair="#16161C" />
-        <Figure x={540} y={975} scale={1.05} tone="#2C2838" hair="#141222" flip cloak />
+        <Figure x={296} y={972} scale={1.0} tone="#383848" hair="#16161C" hairStyle="short" expression="tense" />
+        <Figure x={548} y={984} scale={0.96} tone="#2C2838" hair="#141222" hairStyle="tied" expression="smug" flip cloak />
         {showArtworkText && (
           <text
             x={660}

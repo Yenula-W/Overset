@@ -9,11 +9,12 @@ import { TypesetPanel } from '@/components/app/editor/typeset-panel';
 import { CompareView } from '@/components/app/editor/compare';
 import { HistoryPanel, QaPanel } from '@/components/app/editor/side-panels';
 import { ExportModal } from '@/components/app/editor/export-modal';
+import { PageRail, buildThumbs } from '@/components/app/editor/page-rail';
 import { DEMO_REGIONS } from '@/lib/data/chapter';
 import type { DialogueRegion, TypesettingProperties } from '@/lib/types/domain';
 import { cn } from '@/lib/utils';
 
-const PAGE_THUMBS = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0'));
+const PAGE_THUMBS = buildThumbs(12);
 const CANVAS_VIEWS: Array<{ id: PageView | 'compare'; label: string }> = [
   { id: 'original', label: 'Original' },
   { id: 'cleaned', label: 'Cleaned' },
@@ -175,21 +176,7 @@ export default function EditorPage() {
         {/* Pages */}
         <aside className={cn('min-h-0 overflow-y-auto border-r border-editor-line p-3', mobileTab === 'pages' ? 'block' : 'hidden lg:block')}>
           <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-editor-muted">Chapter 14</p>
-          <div className="grid grid-cols-3 gap-2 lg:grid-cols-1">
-            {PAGE_THUMBS.map((t) => (
-              <button
-                key={t}
-                onClick={() => setPage(t)}
-                aria-current={page === t ? 'true' : undefined}
-                className={cn(
-                  'flex aspect-[3/4] items-end justify-start rounded-md border p-1.5 text-[10px] font-semibold transition-colors',
-                  page === t ? 'border-accent bg-accent/15 text-[#C3BEFF]' : 'border-editor-line bg-editor-panel text-editor-muted hover:border-editor-muted',
-                )}
-              >
-                {t}
-              </button>
-            ))}
-          </div>
+          <PageRail thumbs={PAGE_THUMBS} current={page} onSelect={setPage} regions={regions} />
         </aside>
 
         {/* Canvas */}
