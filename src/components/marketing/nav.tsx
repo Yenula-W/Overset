@@ -25,11 +25,14 @@ export function MarketingNav() {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
+  // The background is unconditional: the hero's product preview is dark, and a
+  // transparent bar over it leaves the navigation unreadable. Only the border
+  // reacts to scrolling.
   return (
     <header
       className={cn(
-        'sticky top-0 z-40 transition-[background-color,border-color,backdrop-filter] duration-300',
-        scrolled ? 'border-b border-line bg-canvas/80 backdrop-blur-xl' : 'border-b border-transparent bg-transparent',
+        'sticky top-0 z-40 border-b bg-canvas/85 backdrop-blur-xl transition-colors duration-300',
+        scrolled ? 'border-line' : 'border-transparent',
       )}
     >
       <nav className="shell flex h-16 items-center justify-between" aria-label="Main">
