@@ -92,6 +92,17 @@ created for Overset. The demo comic page is drawn from scratch as SVG in
 `src/components/demo/artwork.tsx`. No commercial manhwa art or text appears
 anywhere in the product or its marketing.
 
+## Deployment
+
+Deployed on Vercel from `main`; every push to `main` builds and promotes to
+production. `vercel.json` pins the framework to `nextjs` — without it the
+project can fall back to the "Other" preset, where the Next.js build succeeds
+and Vercel then fails looking for a `public/` output directory that a Next app
+never produces.
+
+Set the provider keys from `.env.example` as Vercel environment variables. None
+of them may be prefixed `NEXT_PUBLIC_`.
+
 ## Status
 
 The marketing site, authentication and onboarding, workspace, and translation
