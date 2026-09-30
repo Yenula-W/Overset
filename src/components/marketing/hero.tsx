@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from 'react';
-import { ArrowDown, ArrowRight, Check } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 import { Segmented, UploadBar } from './mk';
 import { PanelArtFour, PanelArtOne, PanelArtThree, PanelArtTwo } from './paper-art';
@@ -16,20 +16,7 @@ const LANGS: Record<Lang, [string, string, string, string]> = {
   PT: ['O QUE VOCÊ ESTÁ FAZENDO AQUI?', 'VOCÊ PROMETEU. ATÉ O FIM, JUNTOS.', '…VOCÊ ESTÁ ATRASADO.', 'TEMOS QUE IR ANTES QUE O PORTÃO ABRA!'],
 };
 
-/** Uppercase lettering → sentence case for the side card. */
-const sentence = (s: string) =>
-  s.toLowerCase()
-    .replace(/^(\P{L}*)(\p{L})/u, (_m, prefix: string, letter: string) => prefix + letter.toUpperCase())
-    .replace(/([.!?¡¿…]\s+)(\p{L})/gu, (_m, a: string, b: string) => a + b.toUpperCase())
-    .replace(/\bjin seo\b/gi, 'Jin Seo');
-
-const STEPS: Array<[string, string, string]> = [
-  ['01', 'Detect', 'Find every text region'],
-  ['02', 'Translate', 'With chapter and character context'],
-  ['03', 'Clean', 'Remove only the original text'],
-  ['04', 'Typeset', 'Fit it back into the same bubble'],
-  ['05', 'Export', 'At the original dimensions'],
-];
+const STEPS = ['Detect', 'Translate', 'Clean', 'Typeset', 'Export'];
 
 interface BubbleDef {
   left: number;
@@ -73,10 +60,9 @@ export function Hero() {
         <div className="scroll-intro">
           <h1>Stop translating<br />bubble by bubble.</h1>
           <div className="scroll-intro-copy">
-            <p className="scroll-lede">Upload your chapter. Overset detects, translates, cleans, and typesets every panel while preserving context, character voice, and the original artwork.</p>
+            <p className="scroll-lede">Translate your chapter. Keep the artwork.</p>
             <UploadBar />
             <div className="flex flex-wrap items-center gap-3">
-              <span className="text-[12px] text-ink-muted">Translate into</span>
               <Segmented label="Target language" value={lang} onChange={setLang} items={(Object.keys(LANGS) as Lang[]).map(code => ({ id: code, label: code }))} />
             </div>
           </div>
@@ -89,15 +75,12 @@ export function Hero() {
         </div>
 
         <div className="scroll-paper" role="img" aria-label={`Fictional comic page, ${step >= 3 ? 'translated' : step === 2 ? 'cleaned' : 'Korean source'} lettering`}>
-          <div className="absolute left-3.5 right-3.5 top-3.5 flex justify-between font-mono text-[10px] tracking-[0.08em] text-ink-muted">
-            <span>CH. 28 · P. 14</span><span>KO → {lang}</span>
-          </div>
           {PANELS.map(({ Art, ...position }, index) => <div key={index} className="absolute overflow-hidden border-2 border-ink" style={position}><Art /></div>)}
           {BUBBLES.map((bubble, index) => (
             <div key={bubble.label} className="absolute grid place-items-center rounded-[50%] border-2 border-ink bg-white text-center"
               style={{left: bubble.left, top: bubble.top, width: bubble.width, height: bubble.height, padding: bubble.padding}}>
               <div data-detection className="absolute -inset-2 rounded-lg border-[1.5px] border-dashed border-accent opacity-0" aria-hidden>
-                <span className="absolute -top-[9px] left-2 bg-accent px-[5px] py-0.5 font-mono text-[9px] font-semibold text-white">{bubble.label}</span>
+
               </div>
               <span data-source lang="ko" aria-hidden={step >= 2} className="font-kr font-bold" style={{gridArea:'1/1',fontSize:bubble.koreanSize,lineHeight:1.3}}>{bubble.korean}</span>
               <span data-target lang={lang.toLowerCase()} aria-hidden={step < 3} className="font-narrow font-bold opacity-0" style={{gridArea:'1/1',fontSize:bubble.targetSize,lineHeight:1.15}}>{LANGS[lang][index]}</span>
@@ -105,38 +88,12 @@ export function Hero() {
           ))}
         </div>
 
-        <div className="scroll-hint" aria-hidden><span className="scroll-hint-line" /><span>SCROLL TO TRANSLATE THE PAGE</span><ArrowDown size={14} /></div>
-        <a href="#how-it-works" className="scroll-skip">Skip animation <ArrowDown size={12} aria-hidden /></a>
-
-        <ol className="scroll-rail" aria-label="Translation pipeline" aria-hidden={step < 0}>
-          <li className="mb-7 text-[10px] font-semibold tracking-[0.16em] text-ink-muted">ONE PAGE. EVERY STEP.</li>
-          {STEPS.map(([number,label,description], index) => (
-            <li key={number} aria-current={step === index ? 'step' : undefined} className="scroll-step" data-active={step === index} data-complete={step > index}>
-              <span className="scroll-step-number">{step > index ? <Check size={13} aria-label="Complete" /> : number}</span>
-              <div><p className="scroll-step-label">{label}</p><p className="scroll-step-description">{description}</p></div>
-            </li>
-          ))}
-        </ol>
-
-        <div className="scroll-mobile-step" aria-live="polite" aria-atomic="true">{step >= 0 ? `${STEPS[step][0]} / ${STEPS[step][1]}` : 'A chapter, in another language.'}</div>
-
-        <aside className="scroll-inspector" aria-label="Demo translations" aria-hidden={step < 1}>
-          <div className="flex justify-between border-b border-line px-[18px] py-3.5 font-mono text-[11px] font-semibold tracking-[0.08em] text-ink-muted"><span>TRANSLATION REVIEW</span><span>KO → {lang}</span></div>
-          {BUBBLES.map((bubble, index) => (
-            <div key={bubble.label} className="flex flex-col gap-1.5 border-b border-line px-[18px] py-3.5 last:border-0">
-              <span className="text-[11px] text-ink-muted">{String(index+1).padStart(2,'0')} · {bubble.speaker}</span>
-              <span lang="ko" className="font-kr text-[13px] font-medium">{bubble.koreanFlat}</span>
-              <span data-proposal lang={lang.toLowerCase()} className="text-[14px] font-medium text-accent-strong opacity-0">{sentence(LANGS[lang][index])}</span>
-            </div>
-          ))}
-          <div className="bg-[#f8f8f4] px-[18px] py-3 text-[11px] text-ink-muted">Character voice · Previous dialogue · Glossary</div>
-        </aside>
+        <div className="scroll-mobile-step" aria-live="polite" aria-atomic="true">{step >= 0 ? STEPS[step] : ''}</div>
 
         <div className="scroll-finish">
-          <p className="m-0 text-[12px] font-semibold uppercase tracking-[0.08em] sm:text-[14px]">Same artwork. Same panels. <span className="text-accent-strong">Different language.</span></p>
+          <p className="m-0 text-[12px] font-semibold uppercase tracking-[0.08em] sm:text-[14px]">Same artwork. <span className="text-accent-strong">Different language.</span></p>
           <Link href="/signup" className="mt-2 inline-flex min-h-9 items-center gap-2 text-[12px] font-medium text-ink-muted hover:text-ink">Try your own chapter <ArrowRight size={13} aria-hidden /></Link>
         </div>
-        <span className="scroll-demo-label">FICTIONAL DEMO · ORIGINAL ARTWORK</span>
       </div>
     </section>
   );
