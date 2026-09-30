@@ -47,7 +47,7 @@ export default function AboutPage() {
         </div>
         {/* Original art from the Overset demo chapter, standing in for a studio photo. */}
         <div className="aspect-[16/7] min-h-[280px] overflow-hidden border-2 border-ink bg-mk-frame">
-          <svg viewBox="40 40 760 300" className="block h-full w-full" preserveAspectRatio="xMidYMid slice" role="img" aria-label="A panel from an original Overset demo chapter: two figures beneath a tower at dusk">
+          <svg viewBox="44 44 752 292" className="block h-full w-full" preserveAspectRatio="xMidYMid slice" role="img" aria-label="A panel from an original Overset demo chapter: two figures beneath a tower at dusk">
             <DemoComicPage showArtworkText={false} />
           </svg>
         </div>

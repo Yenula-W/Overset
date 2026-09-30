@@ -48,7 +48,7 @@ function PlanGrid({ billing }: { billing: Billing }) {
           const hl = Boolean(plan.highlighted);
           // Publisher is quoted per organization, so it always shows its monthly floor.
           const custom = plan.id === 'publisher';
-          const price = custom ? plan.priceLabel ?? `$${plan.priceMonthly}` : `$${billing === 'monthly' ? plan.priceMonthly : plan.priceYearly}`;
+          const price = `$${custom || billing === 'monthly' ? plan.priceMonthly : plan.priceYearly}`;
           const per = custom || billing === 'monthly' ? '/month' : '/year';
           const href = custom ? '/contact' : plan.href;
           return (
@@ -61,7 +61,9 @@ function PlanGrid({ billing }: { billing: Billing }) {
                 {plan.badge && <span className="bg-accent px-2 py-1 text-[11px] font-semibold text-white">{plan.badge}</span>}
               </div>
               <div className="flex items-baseline gap-1.5">
-                <span className="text-[40px] font-extrabold tracking-[-0.03em]">{price}</span>
+                {/* "From $249" at 40px wraps in a narrow card; set the qualifier small. */}
+                {custom && <span className={cn('text-[13px]', hl ? 'text-[#B8B8C4]' : 'text-ink-muted')}>From</span>}
+                <span className="whitespace-nowrap text-[40px] font-extrabold tracking-[-0.03em]">{price}</span>
                 {plan.priceMonthly > 0 && <span className={cn('text-[13px]', hl ? 'text-[#B8B8C4]' : 'text-ink-muted')}>{per}</span>}
               </div>
               <p className={cn('m-0 min-h-[42px] text-[14px] leading-[1.5]', hl ? 'text-[#B8B8C4]' : 'text-ink-muted')}>{plan.tagline}</p>
