@@ -60,3 +60,18 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* Homepage demo stays in document flow. No scroll listeners, camera transforms,
+   animated filters, or viewport-height spacers are needed to reveal the page. */
+@layer components {
+  .home-hero { max-width: 1320px; }
+  .demo-stage {
+    background-color: #eeeee8;
+    background-image: radial-gradient(#d4d4cb 0.65px, transparent 0.65px);
+    background-size: 14px 14px;
+  }
+  .demo-paper { container-type: inline-size; width: min(100%, 294px); aspect-ratio: 420 / 600; }
+  .demo-bubble:focus-visible { outline-offset: 4px; }
+  .demo-detected::after { content: ''; position: absolute; inset: -5px; border: 1px dashed #6c63e8; border-radius: 5px; pointer-events: none; }
+  .home-section { @apply scroll-mt-24; max-width: 1320px; }
+}

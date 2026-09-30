@@ -19,7 +19,7 @@ export function MarketingNav() {
   React.useEffect(() => setOpen(false), [pathname]);
 
   return (
-    <header className="sticky top-0 z-50 h-16 border-b border-line bg-[rgba(251,251,249,0.92)] backdrop-blur-[14px]">
+    <header className="sticky top-0 z-50 h-16 border-b border-line bg-mk-page">
       <nav className="mx-auto flex h-16 max-w-[1440px] items-center justify-between gap-6 px-4 sm:px-8" aria-label="Main">
         <Link href="/" className="flex items-center gap-2.5 text-ink hover:text-ink" aria-label="Overset home">
           <OversetMark size={24} className="text-accent" />
