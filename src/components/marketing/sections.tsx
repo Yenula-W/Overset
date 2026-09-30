@@ -360,23 +360,5 @@ export function OwnershipSection() {
 
 /* -------------------------------------------------------------- final cta */
 
-export function FinalCta() {
-  return (
-    <section className="py-28 sm:py-40">
-      <div className="shell text-center">
-        <h2 className="mx-auto max-w-3xl text-section font-semibold text-balance">
-          Your next chapter could already
-          <br className="hidden sm:block" /> be translated.
-        </h2>
-        <p className="lede mx-auto mt-6 max-w-lg">Upload a chapter and see what Overset can do.</p>
-        <div className="mt-9">
-          <Button href="/signup" size="lg">
-            Translate for free
-            <ArrowRight size={16} />
-          </Button>
-        </div>
-        <p className="mt-4 text-[13px] text-ink-faint">30 pages free · No credit card required</p>
-      </div>
-    </section>
-  );
-}
+// One final CTA across the site, in the redesign's style.
+export { FinalCta } from './home-sections';

@@ -16,11 +16,11 @@ const SECTIONS: Array<[string, string]> = [
 export default function TermsPage() {
   return (
     <>
-      <section className="pt-16 sm:pt-24">
-        <div className="shell max-w-3xl">
-          <p className="eyebrow">Terms</p>
-          <h1 className="mt-4 text-section font-semibold text-balance">Terms of service.</h1>
-          <p className="lede mt-6">Plain summary of how Overset may be used. This is a product outline, not legal advice.</p>
+      <section className="pt-14">
+        <div className="mk-shell">
+          <p className="mk-eyebrow m-0 uppercase">Terms</p>
+          <h1 className="mk-display mt-4 max-w-[1100px] text-balance">Terms of service.</h1>
+          <p className="mt-6 max-w-[620px] text-[16px] leading-[1.6] text-ink-muted">Plain summary of how Overset may be used. This is a product outline, not legal advice.</p>
         </div>
       </section>
 

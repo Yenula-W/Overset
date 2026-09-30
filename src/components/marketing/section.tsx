@@ -19,13 +19,13 @@ export function Section({
   align?: 'left' | 'center';
 }) {
   return (
-    <section id={id} className={cn('py-20 sm:py-28', className)}>
-      <div className="shell">
+    <section id={id} className={cn('pb-10 pt-[100px]', className)}>
+      <div className="mk-shell">
         {(eyebrow || title || lede) && (
-          <div className={cn('max-w-2xl', align === 'center' && 'mx-auto text-center')}>
-            {eyebrow && <p className="eyebrow">{eyebrow}</p>}
-            {title && <h2 className="mt-3 text-section font-semibold text-balance">{title}</h2>}
-            {lede && <p className="lede mt-5 text-pretty">{lede}</p>}
+          <div className={cn('max-w-[720px]', align === 'center' && 'mx-auto text-center')}>
+            {eyebrow && <p className="mk-eyebrow m-0 uppercase">{eyebrow}</p>}
+            {title && <h2 className="mk-h2 mt-3.5">{title}</h2>}
+            {lede && <p className="mt-5 text-pretty text-[16px] leading-[1.55] text-ink-muted">{lede}</p>}
           </div>
         )}
         {children}

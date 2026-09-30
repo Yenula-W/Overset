@@ -20,11 +20,11 @@ const PIPELINE_COPY = [
 export default function HowItWorksPage() {
   return (
     <>
-      <section className="pt-16 sm:pt-24">
-        <div className="shell max-w-3xl">
-          <p className="eyebrow">How it works</p>
-          <h1 className="mt-4 text-section font-semibold text-balance">Same artwork. Different language.</h1>
-          <p className="lede mt-6 text-pretty">
+      <section className="pt-14">
+        <div className="mk-shell">
+          <p className="mk-eyebrow m-0 uppercase">How it works</p>
+          <h1 className="mk-display mt-4 max-w-[1100px] text-balance">Same artwork. Different language.</h1>
+          <p className="mt-6 max-w-[620px] text-pretty text-[16px] leading-[1.6] text-ink-muted">
             Overset runs a chapter through one pipeline — upload, analyze, detect, OCR, understand, translate, clean,
             typeset, review, QA, export — and hands you control at every step that matters.
           </p>

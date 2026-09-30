@@ -1,47 +1,28 @@
 import type { Metadata } from 'next';
-import { Section } from '@/components/marketing/section';
-import { Button, Card, Field, Input, Select, Textarea } from '@/components/ui';
+import { ContactForm } from './contact-form';
 
-export const metadata: Metadata = { title: 'Contact' };
+export const metadata: Metadata = {
+  title: 'Contact',
+  description: 'Publisher plans, API access, custom limits, or help with a chapter. Talk to the Overset team.',
+};
 
 export default function ContactPage() {
   return (
-    <>
-      <section className="pt-16 sm:pt-24">
-        <div className="shell max-w-3xl">
-          <p className="eyebrow">Contact</p>
-          <h1 className="mt-4 text-section font-semibold text-balance">Get in touch.</h1>
-          <p className="lede mt-6">Questions about a chapter, a plan, or running Overset across a team.</p>
-        </div>
-      </section>
-
-      <Section>
-        <Card className="max-w-xl p-6">
-          <form className="space-y-4">
-            <Field label="Name" htmlFor="name">
-              <Input id="name" name="name" autoComplete="name" />
-            </Field>
-            <Field label="Email" htmlFor="email">
-              <Input id="email" name="email" type="email" autoComplete="email" />
-            </Field>
-            <Field label="What is this about?" htmlFor="topic">
-              <Select id="topic" name="topic" defaultValue="product">
-                <option value="product">Using Overset</option>
-                <option value="billing">Billing</option>
-                <option value="teams">Teams and publishers</option>
-                <option value="privacy">Privacy and content</option>
-                <option value="other">Something else</option>
-              </Select>
-            </Field>
-            <Field label="Message" htmlFor="message">
-              <Textarea id="message" name="message" />
-            </Field>
-            <Button type="submit" size="lg" className="w-full">
-              Send message
-            </Button>
-          </form>
-        </Card>
-      </Section>
-    </>
+    <section className="mk-shell flex flex-wrap gap-x-[72px] gap-y-12 pb-10 pt-14">
+      <div className="flex flex-col gap-[22px]" style={{ flex: '1 1 420px' }}>
+        <h1 className="mk-display">
+          Talk
+          <br />
+          to us.
+        </h1>
+        <p className="m-0 max-w-[420px] text-[15px] leading-[1.6] text-ink-muted">
+          Publisher plans, API access, custom limits, or help with a chapter that didn’t come out right. We read every
+          message.
+        </p>
+      </div>
+      <div className="max-w-[620px]" style={{ flex: '1 1 460px' }}>
+        <ContactForm />
+      </div>
+    </section>
   );
 }

@@ -17,10 +17,10 @@ const ANSWERS: Array<[string, string]> = [
 export default function HelpPage() {
   return (
     <>
-      <section className="pt-16 sm:pt-24">
-        <div className="shell max-w-3xl">
-          <p className="eyebrow">Help</p>
-          <h1 className="mt-4 text-section font-semibold text-balance">Common situations.</h1>
+      <section className="pt-14">
+        <div className="mk-shell">
+          <p className="mk-eyebrow m-0 uppercase">Help</p>
+          <h1 className="mk-display mt-4 max-w-[1100px] text-balance">Common situations.</h1>
         </div>
       </section>
 
