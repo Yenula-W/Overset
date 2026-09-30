@@ -2,88 +2,88 @@
 
 import * as React from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { Menu, X } from 'lucide-react';
-import { Logo } from '@/components/brand';
-import { Button } from '@/components/ui';
+import { OversetMark } from '@/components/brand';
 import { cn } from '@/lib/utils';
+import { NAV_LINKS } from './mk';
 
-const LINKS = [
-  { href: '/#product', label: 'Product' },
-  { href: '/how-it-works', label: 'How it works' },
-  { href: '/teams', label: 'For Teams' },
-  { href: '/pricing', label: 'Pricing' },
-];
+function isActive(pathname: string, href: string) {
+  return href === '/' ? pathname === '/' : pathname === href || pathname.startsWith(`${href}/`);
+}
 
 export function MarketingNav() {
-  const [scrolled, setScrolled] = React.useState(false);
+  const pathname = usePathname();
   const [open, setOpen] = React.useState(false);
 
-  React.useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 12);
-    onScroll();
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
-  }, []);
+  React.useEffect(() => setOpen(false), [pathname]);
 
-  // The background is unconditional: the hero's product preview is dark, and a
-  // transparent bar over it leaves the navigation unreadable. Only the border
-  // reacts to scrolling.
   return (
-    <header
-      className={cn(
-        'sticky top-0 z-40 border-b bg-canvas/85 backdrop-blur-xl transition-colors duration-300',
-        scrolled ? 'border-line' : 'border-transparent',
-      )}
-    >
-      <nav className="shell flex h-16 items-center justify-between" aria-label="Main">
-        <Logo />
+    <header className="sticky top-0 z-50 h-16 border-b border-line bg-[rgba(251,251,249,0.92)] backdrop-blur-[14px]">
+      <nav className="mx-auto flex h-16 max-w-[1440px] items-center justify-between gap-6 px-4 sm:px-8" aria-label="Main">
+        <Link href="/" className="flex items-center gap-2.5 text-ink hover:text-ink" aria-label="Overset home">
+          <OversetMark size={24} className="text-accent" />
+          <span className="text-[15px] font-extrabold tracking-[0.06em]">OVERSET</span>
+        </Link>
 
-        <div className="hidden items-center gap-1 md:flex">
-          {LINKS.map((l) => (
-            <Link
-              key={l.href}
-              href={l.href}
-              className="rounded-lg px-3 py-1.5 text-[14px] text-ink-muted transition-colors hover:text-ink"
-            >
-              {l.label}
-            </Link>
-          ))}
+        <div className="hidden items-center gap-7 md:flex">
+          {NAV_LINKS.map((l) => {
+            const active = isActive(pathname, l.href);
+            return (
+              <Link
+                key={l.href}
+                href={l.href}
+                aria-current={active ? 'page' : undefined}
+                className={cn('text-[14px] text-ink hover:text-accent', active && 'underline underline-offset-[6px]')}
+              >
+                {l.label}
+              </Link>
+            );
+          })}
         </div>
 
-        <div className="hidden items-center gap-2 md:flex">
-          <Link href="/login" className="rounded-lg px-3 py-1.5 text-[14px] text-ink-muted transition-colors hover:text-ink">
+        <div className="hidden items-center gap-[18px] md:flex">
+          <Link href="/login" className="text-[14px] text-ink-muted hover:text-accent">
             Log in
           </Link>
-          <Button href="/signup" size="sm">
-            Translate for free
-          </Button>
+          <Link
+            href="/signup"
+            className="bg-ink px-4 py-2.5 text-[14px] font-medium text-white transition-colors hover:bg-accent hover:text-white"
+          >
+            Translate free
+          </Link>
         </div>
 
         <button
-          className="-mr-2 rounded-lg p-2 text-ink md:hidden"
+          className="-mr-2 p-2 text-ink md:hidden"
           onClick={() => setOpen((v) => !v)}
           aria-expanded={open}
           aria-label={open ? 'Close menu' : 'Open menu'}
         >
-          {open ? <X size={18} /> : <Menu size={18} />}
+          {open ? <X size={20} /> : <Menu size={20} />}
         </button>
       </nav>
 
       {open && (
-        <div className="animate-fade-in border-t border-line bg-canvas md:hidden">
-          <div className="shell flex flex-col gap-1 py-4">
-            {LINKS.map((l) => (
-              <Link key={l.href} href={l.href} onClick={() => setOpen(false)} className="rounded-lg px-2 py-2.5 text-[15px] text-ink">
+        <div className="border-b border-line bg-mk-page md:hidden">
+          <div className="flex flex-col px-4 pb-5 pt-2">
+            {NAV_LINKS.map((l) => (
+              <Link
+                key={l.href}
+                href={l.href}
+                aria-current={isActive(pathname, l.href) ? 'page' : undefined}
+                className="border-b border-line py-3.5 text-[17px] font-semibold text-ink"
+              >
                 {l.label}
               </Link>
             ))}
-            <div className="mt-2 flex flex-col gap-2 border-t border-line pt-4">
-              <Button href="/login" variant="secondary" size="lg">
+            <div className="mt-5 flex gap-2">
+              <Link href="/login" className="flex-1 border border-mk-input bg-white py-3 text-center text-[15px] text-ink">
                 Log in
-              </Button>
-              <Button href="/signup" size="lg">
-                Translate for free
-              </Button>
+              </Link>
+              <Link href="/signup" className="flex-1 bg-ink py-3 text-center text-[15px] font-medium text-white hover:text-white">
+                Translate free
+              </Link>
             </div>
           </div>
         </div>

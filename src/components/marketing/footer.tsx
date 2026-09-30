@@ -1,71 +1,34 @@
 import Link from 'next/link';
-import { Logo } from '@/components/brand';
-
-const COLUMNS = [
-  {
-    title: 'Product',
-    links: [
-      { href: '/#features', label: 'Features' },
-      { href: '/how-it-works', label: 'How it works' },
-      { href: '/pricing', label: 'Pricing' },
-      { href: '/teams', label: 'Teams' },
-      { href: '/teams#api', label: 'API' },
-    ],
-  },
-  {
-    title: 'Resources',
-    links: [
-      { href: '/docs', label: 'Documentation' },
-      { href: '/help', label: 'Help' },
-      { href: '/changelog', label: 'Changelog' },
-    ],
-  },
-  {
-    title: 'Company',
-    links: [
-      { href: '/about', label: 'About' },
-      { href: '/contact', label: 'Contact' },
-    ],
-  },
-  {
-    title: 'Legal',
-    links: [
-      { href: '/privacy', label: 'Privacy' },
-      { href: '/terms', label: 'Terms' },
-      { href: '/privacy#ownership', label: 'Content ownership' },
-    ],
-  },
-];
+import { NAV_LINKS } from './mk';
 
 export function MarketingFooter() {
   return (
-    <footer className="hairline mt-24 bg-canvas">
-      <div className="shell grid gap-10 py-14 sm:grid-cols-2 lg:grid-cols-5">
-        <div className="lg:col-span-1">
-          <Logo />
-          <p className="mt-3 max-w-[22ch] text-[13px] leading-relaxed text-ink-muted">
-            Translate the story. Preserve the panel.
-          </p>
+    <footer className="mt-10 border-t border-line">
+      <div className="mx-auto flex max-w-[1440px] flex-wrap items-start justify-between gap-8 px-4 py-12 sm:px-8">
+        <div className="flex max-w-[320px] flex-col gap-2.5">
+          <span className="text-[15px] font-extrabold tracking-[0.06em]">OVERSET</span>
+          <span className="text-[13px] leading-[1.5] text-ink-muted">
+            AI localization workspace for manhwa, webtoons, manga, and comics.
+          </span>
         </div>
-        {COLUMNS.map((col) => (
-          <div key={col.title}>
-            <h3 className="text-[12px] font-semibold uppercase tracking-[0.1em] text-ink-faint">{col.title}</h3>
-            <ul className="mt-3 space-y-2">
-              {col.links.map((l) => (
-                <li key={l.href}>
-                  <Link href={l.href} className="text-[14px] text-ink-muted transition-colors hover:text-ink">
-                    {l.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ))}
-      </div>
-      <div className="hairline">
-        <div className="shell flex flex-col gap-1 py-6 text-[13px] text-ink-faint sm:flex-row sm:items-center sm:justify-between">
-          <p>© 2026 Overset</p>
-          <p>Built for translators, creators, and localization teams.</p>
+        <nav className="flex flex-wrap gap-7" aria-label="Footer">
+          {NAV_LINKS.map((l) => (
+            <Link key={l.href} href={l.href} className="text-[13px] text-ink-muted hover:text-ink">
+              {l.label}
+            </Link>
+          ))}
+        </nav>
+        <div className="flex flex-col items-start gap-2 sm:items-end">
+          <span className="text-[12px] text-ink-faint">© 2026 Overset</span>
+          {/* Legal pages stay reachable from every marketing page. */}
+          <span className="flex gap-4 text-[12px]">
+            <Link href="/privacy" className="text-ink-faint hover:text-ink">
+              Privacy
+            </Link>
+            <Link href="/terms" className="text-ink-faint hover:text-ink">
+              Terms
+            </Link>
+          </span>
         </div>
       </div>
     </footer>
