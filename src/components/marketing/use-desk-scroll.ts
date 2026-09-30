@@ -27,16 +27,12 @@ export function useDeskScroll(root: React.RefObject<HTMLElement | null>, onStep:
     const intro = section.querySelector<HTMLElement>('.scroll-intro')!;
     const desk = section.querySelector<HTMLElement>('.scroll-desk')!;
     const paper = section.querySelector<HTMLElement>('.scroll-paper')!;
-    const hint = section.querySelector<HTMLElement>('.scroll-hint')!;
-    const rail = section.querySelector<HTMLElement>('.scroll-rail')!;
-    const inspector = section.querySelector<HTMLElement>('.scroll-inspector')!;
     const mobileStep = section.querySelector<HTMLElement>('.scroll-mobile-step')!;
     const finish = section.querySelector<HTMLElement>('.scroll-finish')!;
     const progressLine = section.querySelector<HTMLElement>('.scroll-progress-fill')!;
     const original = [...section.querySelectorAll<HTMLElement>('[data-source]')];
     const translated = [...section.querySelectorAll<HTMLElement>('[data-target]')];
     const boxes = [...section.querySelectorAll<HTMLElement>('[data-detection]')];
-    const proposals = [...section.querySelectorAll<HTMLElement>('[data-proposal]')];
     const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
     let geometry: Geometry;
     let frame = 0;
@@ -67,19 +63,13 @@ export function useDeskScroll(root: React.RefObject<HTMLElement | null>, onStep:
       intro.style.transform = `translate3d(0,${reduced ? 0 : -32 * (1 - t.intro)}px,0)`;
       // Faded calls to action must not remain invisible keyboard stops.
       intro.inert = !reduced && t.intro === 0;
-      opacity(hint, reduced ? 0 : 1 - phase(p, 0.015, 0.08));
-      opacity(rail, reduced ? 0 : t.controls);
-      opacity(inspector, reduced ? 0 : t.translation);
       opacity(mobileStep, reduced ? 0 : t.controls);
       opacity(finish, t.finished);
       finish.inert = t.finished < 0.99;
       finish.style.transform = `translate3d(0,${12 * (1 - t.finished)}px,0)`;
-      rail.style.transform = `translate3d(${-14 * (1 - t.controls)}px,-50%,0)`;
-      inspector.style.transform = `translate3d(${14 * (1 - t.translation)}px,-50%,0)`;
       original.forEach(element => opacity(element, t.source));
       translated.forEach(element => opacity(element, t.target));
       boxes.forEach((element, i) => opacity(element, phase(p, 0.43 + i * 0.012, 0.48 + i * 0.012) * (1 - phase(p, 0.89, 0.94))));
-      proposals.forEach((element, i) => opacity(element, phase(p, 0.54 + i * 0.018, 0.59 + i * 0.018)));
       progressLine.style.transform = `scaleX(${p.toFixed(5)})`;
       if (lastStep !== t.step) {
         lastStep = t.step;
