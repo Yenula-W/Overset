@@ -28,7 +28,7 @@ function Hatch({ id, angle = 45, gap = 6, opacity = 0.5 }: { id: string; angle?:
  * person or existing character. Kept deliberately simple: the demo pages exist
  * to show text handling, so the art stays readable at thumbnail size.
  */
-function Figure({
+export function Figure({
   x,
   y,
   scale = 1,

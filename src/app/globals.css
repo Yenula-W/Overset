@@ -25,6 +25,11 @@
 }
 
 @layer components {
+  /* Marketing container: 1440px max, 32px gutters (16px on phones). */
+  .mk-shell { @apply mx-auto w-full max-w-[1440px] px-4 sm:px-8; }
+  .mk-eyebrow { @apply text-[12px] font-semibold tracking-[0.14em] text-accent; }
+  .mk-h2 { font-size: clamp(28px, 3.4vw, 46px); line-height: 1.05; letter-spacing: -0.02em; @apply m-0 font-bold text-balance; }
+  .mk-display { font-size: clamp(40px, 6.4vw, 96px); line-height: 0.94; letter-spacing: -0.025em; @apply m-0 font-extrabold uppercase; }
   .shell { @apply mx-auto w-full max-w-shell px-5 sm:px-8; }
   .eyebrow { @apply text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-muted; }
   .lede { @apply text-[17px] leading-relaxed text-ink-muted sm:text-[19px]; }

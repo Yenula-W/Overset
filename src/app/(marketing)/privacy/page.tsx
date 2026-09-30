@@ -10,11 +10,11 @@ export const metadata: Metadata = {
 export default function PrivacyPage() {
   return (
     <>
-      <section className="pt-16 sm:pt-24">
-        <div className="shell max-w-3xl">
-          <p className="eyebrow">Privacy</p>
-          <h1 className="mt-4 text-section font-semibold text-balance">Your chapters stay yours.</h1>
-          <p className="lede mt-6 text-pretty">
+      <section className="pt-14">
+        <div className="mk-shell">
+          <p className="mk-eyebrow m-0 uppercase">Privacy</p>
+          <h1 className="mk-display mt-4 max-w-[1100px] text-balance">Your chapters stay yours.</h1>
+          <p className="mt-6 max-w-[620px] text-pretty text-[16px] leading-[1.6] text-ink-muted">
             Overset is localization software. You upload material you are authorized to work on, Overset processes
             it to produce your translation, and the result belongs to you.
           </p>

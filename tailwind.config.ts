@@ -32,10 +32,23 @@ const config: Config = {
         warnSoft: '#FAF2E6',
         danger: '#B4544A',
         dangerSoft: '#F9ECEA',
+        // Marketing site (2026 redesign). Kept separate from the app palette so
+        // the workspace and editor are unaffected by marketing changes.
+        mk: {
+          page: '#FBFBF9',
+          input: '#D9D9D3',
+          frame: '#ECEBE5',
+          scrim: '#F3F2EC',
+          tile: '#EFEEE8',
+          inactive: '#B8B8B2',
+        },
       },
       fontFamily: {
         sans: ['var(--font-sans)', 'ui-sans-serif', 'system-ui', 'sans-serif'],
         mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
+        archivo: ['Archivo', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        narrow: ['"Archivo Narrow"', 'Archivo', 'sans-serif'],
+        kr: ['"Noto Sans KR"', 'sans-serif'],
       },
       fontSize: {
         hero: ['clamp(2.75rem, 7vw, 5.75rem)', { lineHeight: '0.98', letterSpacing: '-0.035em' }],

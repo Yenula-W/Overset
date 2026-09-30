@@ -24,14 +24,14 @@ const WORKFLOW = ['AI translation', 'Translator review', 'Proofreader', 'Typeset
 export default function TeamsPage() {
   return (
     <>
-      <section className="pt-16 sm:pt-24">
-        <div className="shell max-w-3xl">
-          <p className="eyebrow">For teams</p>
-          <h1 className="mt-4 text-section font-semibold text-balance">
+      <section className="pt-14">
+        <div className="mk-shell">
+          <p className="mk-eyebrow m-0 uppercase">For teams</p>
+          <h1 className="mk-display mt-4 max-w-[1100px] text-balance">
             Localization infrastructure
             <br className="hidden sm:block" /> for entire teams.
           </h1>
-          <p className="lede mt-6 text-pretty">
+          <p className="mt-6 max-w-[620px] text-pretty text-[16px] leading-[1.6] text-ink-muted">
             Shared memory, shared terminology, and a review workflow that matches how localization teams actually
             divide the work.
           </p>
