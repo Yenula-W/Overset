@@ -61,17 +61,63 @@
   }
 }
 
-/* Homepage demo stays in document flow. No scroll listeners, camera transforms,
-   animated filters, or viewport-height spacers are needed to reveal the page. */
-@layer components {
-  .home-hero { max-width: 1320px; }
-  .demo-stage {
-    background-color: #eeeee8;
-    background-image: radial-gradient(#d4d4cb 0.65px, transparent 0.65px);
-    background-size: 14px 14px;
-  }
-  .demo-paper { container-type: inline-size; width: min(100%, 294px); aspect-ratio: 420 / 600; }
-  .demo-bubble:focus-visible { outline-offset: 4px; }
-  .demo-detected::after { content: ''; position: absolute; inset: -5px; border: 1px dashed #6c63e8; border-radius: 5px; pointer-events: none; }
-  .home-section { @apply scroll-mt-24; max-width: 1320px; }
+/* The desk sequence has one sticky stage and a single compositor timeline.
+   No animated layout, backdrop blur, filters, or inherited progress variables. */
+.scroll-hero { position: relative; height: 480svh; }
+.scroll-stage { position: sticky; top: 64px; height: calc(100svh - 64px); min-height: 360px; overflow: hidden; isolation: isolate; background: #eeede8; }
+.scroll-intro { position: absolute; z-index: 4; top: 0; left: 0; right: 0; display: grid; grid-template-columns: 1.65fr 1fr; align-items: end; gap: 32px; max-width: 1440px; margin: auto; padding: 34px 32px 24px; background: #fbfbf9; }
+.scroll-intro h1 { margin: 0; font-size: clamp(30px, 5.35vw, 80px); line-height: .98; letter-spacing: -.03em; font-weight: 800; text-transform: uppercase; }
+.scroll-intro-copy { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.scroll-lede { margin: 0; font-size: 14px; line-height: 1.5; color: #686868; }
+.scroll-desk { position: absolute; left: 10%; top: 30%; width: 80%; transform-origin: 67.5% 37.5%; }
+.scroll-desk img { display: block; width: 100%; height: 100%; object-fit: contain; /* A static feather avoids visible studio-background seams. */ mask-image: radial-gradient(ellipse 80% 80% at 50% 48%, #000 75%, transparent 100%); }
+.scroll-paper { position: absolute; z-index: 3; top: 0; left: 0; width: 420px; height: 600px; visibility: hidden; background: white; transform-origin: 50% 50%; backface-visibility: hidden; box-shadow: 0 12px 30px -12px rgb(22 22 22 / .28), 0 1px 3px rgb(22 22 22 / .08); }
+.scroll-hint { position: absolute; z-index: 5; bottom: 28px; left: 32px; display: flex; align-items: center; gap: 12px; font-size: 10px; font-weight: 600; letter-spacing: .12em; }
+.scroll-hint-line { width: 28px; height: 1px; background: #6c63e8; }
+.scroll-skip { position: absolute; z-index: 6; bottom: 28px; right: 32px; display: inline-flex; min-height: 32px; align-items: center; gap: 6px; color: #686868; font-size: 11px; }
+.scroll-skip:hover { color: #161616; }
+.scroll-progress { position: absolute; z-index: 7; top: 0; left: 0; right: 0; height: 2px; }
+.scroll-progress-fill { height: 100%; background: #6c63e8; transform: scaleX(0); transform-origin: left; }
+.scroll-rail { position: absolute; z-index: 4; left: clamp(24px, 4vw, 64px); top: 50%; width: 225px; margin: 0; padding: 0; list-style: none; opacity: 0; transform: translate3d(-14px,-50%,0); }
+.scroll-step { display: flex; align-items: baseline; gap: 14px; margin-bottom: 20px; color: #77776f; }
+.scroll-step-number { display: flex; width: 18px; flex-shrink: 0; font: 600 11px ui-monospace, monospace; transition: color 180ms; }
+.scroll-step-label { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -.02em; transition: color 180ms; }
+.scroll-step-description { margin: 4px 0 0; font-size: 12px; line-height: 1.5; color: #686868; opacity: 0; transition: opacity 180ms; }
+.scroll-step[data-active=true] .scroll-step-label { color: #161616; }
+.scroll-step[data-active=true] .scroll-step-number, .scroll-step[data-complete=true] .scroll-step-number { color: #5049d0; }
+.scroll-step[data-active=true] .scroll-step-description { opacity: 1; }
+.scroll-inspector { position: absolute; z-index: 4; right: clamp(24px, 4vw, 64px); top: 50%; width: 280px; border: 1px solid #deded7; background: #fff; opacity: 0; transform: translate3d(14px,-50%,0); box-shadow: 0 8px 24px -18px rgb(22 22 22 / .2); }
+.scroll-mobile-step { display: none; position: absolute; z-index: 4; top: 22px; left: 0; right: 0; text-align: center; font: 600 11px ui-monospace, monospace; text-transform: uppercase; letter-spacing: .1em; opacity: 0; }
+.scroll-finish { position: absolute; z-index: 5; bottom: 38px; left: 20px; right: 20px; text-align: center; opacity: 0; }
+.scroll-demo-label { position: absolute; bottom: 12px; left: 0; right: 0; text-align: center; pointer-events: none; color: #77776f; font: 9px ui-monospace, monospace; letter-spacing: .1em; }
+.scroll-hero[data-motion=reduced] .scroll-stage { position: relative; top: 0; }
+.scroll-hero[data-motion=reduced] .scroll-skip, .scroll-hero[data-motion=reduced] .scroll-progress { display: none; }
+/* Hint the two big moving layers only while their scene is on screen. */
+.scroll-hero[data-active=true] .scroll-paper, .scroll-hero[data-active=true] .scroll-desk { will-change: transform, opacity; }
+@media (max-width: 1099px) {
+  .scroll-rail, .scroll-inspector { display: none; }
+  .scroll-mobile-step { display: block; }
+  .scroll-intro { grid-template-columns: 1fr; gap: 18px; }
+  .scroll-intro-copy { max-width: 560px; }
+}
+@media (max-width: 599px) {
+  .scroll-intro { padding: 24px 16px 20px; gap: 16px; }
+  .scroll-lede { font-size: 12px; line-height: 1.5; }
+  .scroll-intro-copy { gap: 9px; }
+  .scroll-intro-copy > a { height: 44px; }
+  .scroll-hint { left: 16px; bottom: 42px; gap: 6px; font-size: 8px; }
+  .scroll-hint-line { width: 12px; }
+  .scroll-skip { right: 16px; bottom: 34px; font-size: 10px; }
+  .scroll-finish { bottom: 80px; }
+}
+@media (max-height: 620px) and (min-width: 600px) {
+  .scroll-intro { grid-template-columns: 1.3fr 1fr; padding-top: 16px; padding-bottom: 16px; }
+  .scroll-intro h1 { font-size: clamp(30px, 4.4vw, 58px); }
+  .scroll-lede { display: none; }
+  .scroll-rail, .scroll-inspector { display: none; }
+  .scroll-mobile-step { display: block; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .scroll-hero { height: auto; }
+  .scroll-paper, .scroll-desk { will-change: auto !important; }
 }
