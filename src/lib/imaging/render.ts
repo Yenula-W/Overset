@@ -39,7 +39,9 @@ export function canCleanLocally(region: DialogueRegion) {
 
 export function fontString(region: DialogueRegion, sizePx: number) {
   const t = region.typesetting;
-  return `${t.fontWeight} ${sizePx}px "${t.fontFamily}", "Comic Neue", sans-serif`;
+  // Comic Neue ships 400 and 700 only; snap so the browser doesn't fake a weight.
+  const weight = t.fontFamily === 'Comic Neue' ? (t.fontWeight >= 550 ? 700 : 400) : t.fontWeight;
+  return `${weight} ${sizePx}px "${t.fontFamily}", "Comic Neue", sans-serif`;
 }
 
 const measureCanvas = typeof document !== 'undefined' ? document.createElement('canvas').getContext('2d') : null;
@@ -151,7 +153,7 @@ function typesetRegion(ctx: CanvasRenderingContext2D, region: DialogueRegion, pa
 /** Waits for every lettering font the regions use, so canvas text never falls back. */
 export async function ensureFonts(regions: DialogueRegion[]) {
   if (typeof document === 'undefined' || !document.fonts) return;
-  const wanted = new Set(regions.map((r) => `${r.typesetting.fontWeight} 24px "${r.typesetting.fontFamily}"`));
+  const wanted = new Set(regions.map((r) => fontString(r, 24)));
   await Promise.all([...wanted].map((f) => document.fonts.load(f).catch(() => [])));
 }
 
