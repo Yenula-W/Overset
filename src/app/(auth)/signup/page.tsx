@@ -5,25 +5,47 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { AuthCard } from '@/components/auth/auth-card';
 import { Button, Field, Input } from '@/components/ui';
-import { fieldErrors, signupSchema, writeSession } from '@/lib/auth';
+import { fieldErrors, signupSchema } from '@/lib/auth';
+import { AuthError, signUp } from '@/lib/store/auth';
+import { RedirectIfSignedIn } from '@/lib/store/hooks';
+import { requestPersistence } from '@/lib/store/db';
 
 export default function SignupPage() {
+  return (
+    <RedirectIfSignedIn>
+      <SignupForm />
+    </RedirectIfSignedIn>
+  );
+}
+
+function SignupForm() {
   const router = useRouter();
   const [errors, setErrors] = React.useState<Record<string, string>>({});
   const [busy, setBusy] = React.useState(false);
+  const [requestedPlan, setRequestedPlan] = React.useState<string | null>(null);
 
-  function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+  React.useEffect(() => {
+    setRequestedPlan(new URLSearchParams(window.location.search).get('plan'));
+  }, []);
+
+  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const data = Object.fromEntries(new FormData(e.currentTarget));
-    const parsed = signupSchema.safeParse(data);
+    const parsed = signupSchema.safeParse(Object.fromEntries(new FormData(e.currentTarget)));
     if (!parsed.success) {
       setErrors(fieldErrors(parsed.error));
       return;
     }
     setErrors({});
     setBusy(true);
-    writeSession({ name: parsed.data.name, email: parsed.data.email, onboardingComplete: false });
-    router.push('/onboarding');
+    try {
+      await signUp(parsed.data);
+      void requestPersistence();
+      router.replace('/onboarding');
+    } catch (err) {
+      setBusy(false);
+      if (err instanceof AuthError) setErrors({ [err.field ?? 'form']: err.message });
+      else setErrors({ form: 'Your account couldn’t be created because this browser blocked storage. Turn off private browsing and try again.' });
+    }
   }
 
   return (
@@ -40,6 +62,16 @@ export default function SignupPage() {
       }
     >
       <form onSubmit={onSubmit} className="space-y-4" noValidate>
+        {requestedPlan && requestedPlan !== 'free' && (
+          <p className="rounded-lg bg-accent-soft px-3.5 py-3 text-[13px] leading-relaxed text-ink-muted">
+            Paid plans need billing, which isn’t connected yet. You’ll start on Free and can switch once payments are live.
+          </p>
+        )}
+        {errors.form && (
+          <p role="alert" className="rounded-lg bg-dangerSoft px-3.5 py-3 text-[13px] text-danger">
+            {errors.form}
+          </p>
+        )}
         <Field label="Name" htmlFor="name" error={errors.name}>
           <Input id="name" name="name" autoComplete="name" placeholder="Your name" aria-invalid={!!errors.name} />
         </Field>
@@ -54,6 +86,7 @@ export default function SignupPage() {
         </Button>
         <p className="text-center text-[12px] leading-relaxed text-ink-faint">
           By creating an account you confirm you will only upload material you own or are authorized to translate.
+          Your account and files are stored in this browser.
         </p>
       </form>
     </AuthCard>

@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   BookMarked,
   CircleHelp,
@@ -14,12 +14,15 @@ import {
   Sparkles,
   UsersRound,
   Gauge,
+  LogOut,
   X,
 } from 'lucide-react';
 import { Logo } from '@/components/brand';
 import { Avatar, Progress } from '@/components/ui';
-import { DEMO_SUBSCRIPTION, DEMO_USAGE, DEMO_USER } from '@/lib/data/workspace';
 import { planById } from '@/lib/billing';
+import { logOut } from '@/lib/store/auth';
+import { useLiveQuery, useUser } from '@/lib/store/hooks';
+import { getUsage } from '@/lib/store/repo';
 import { cn, formatNumber, pct } from '@/lib/utils';
 
 const NAV = [
@@ -40,10 +43,13 @@ const BOTTOM = [
 
 export function AppSidebar() {
   const pathname = usePathname();
+  const router = useRouter();
+  const user = useUser();
   const [open, setOpen] = React.useState(false);
-  const plan = planById(DEMO_SUBSCRIPTION.plan);
-  const used = DEMO_USAGE.pagesUsed;
-  const total = DEMO_USAGE.pagesIncluded;
+  const plan = planById(user.plan);
+  const usage = useLiveQuery(() => getUsage(user.id), [user.id], ['usage']);
+  const used = usage.data?.pagesProcessed ?? 0;
+  const total = plan.pageAllowance;
 
   React.useEffect(() => setOpen(false), [pathname]);
 
@@ -68,10 +74,11 @@ export function AppSidebar() {
         ))}
       </div>
 
-      <Link href="/settings" className="flex items-center gap-2.5 border-t border-line px-4 py-3.5 transition-colors hover:bg-ink/[0.025]">
-        <Avatar name={DEMO_USER.name} size={30} />
+      <div className="flex items-start border-t border-line">
+      <Link href="/settings" className="flex min-w-0 flex-1 items-center gap-2.5 px-4 py-3.5 transition-colors hover:bg-ink/[0.025]">
+        <Avatar name={user.name} size={30} />
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[13px] font-medium">{DEMO_USER.name}</p>
+          <p className="truncate text-[13px] font-medium">{user.name}</p>
           <p className="text-[11.5px] text-ink-muted">{plan.name} plan</p>
           <p className="mt-1.5 text-[11px] tabular-nums text-ink-faint">
             {formatNumber(used)} / {formatNumber(total)} pages
@@ -79,6 +86,18 @@ export function AppSidebar() {
           <Progress value={pct(used, total)} className="mt-1" label="Pages used this cycle" />
         </div>
       </Link>
+      <button
+        onClick={() => {
+          logOut();
+          router.replace('/login');
+        }}
+        className="mr-2 mt-3 rounded-lg p-2 text-ink-faint transition-colors hover:bg-ink/5 hover:text-ink"
+        aria-label="Log out"
+        title="Log out"
+      >
+        <LogOut size={15} />
+      </button>
+      </div>
     </div>
   );
 
