@@ -208,48 +208,52 @@ export function Hero() {
           {BUBBLES.map((bubble, index) => (
             <div
               key={bubble.label}
-              className="absolute grid place-items-center rounded-[50%] border-2 border-ink bg-white text-center"
+              data-bubble
+              className="absolute rounded-[50%] border-2 border-ink bg-white text-center"
               style={{
                 left: bubble.left,
                 top: bubble.top,
                 width: bubble.width,
                 height: bubble.height,
-                padding: bubble.padding,
               }}
             >
+              <div data-detection className="scroll-detection" aria-hidden>
+                <span className="scroll-chip">
+                  KO <ArrowRight size={9} strokeWidth={2.5} /> {lang}
+                </span>
+              </div>
               <div
-                data-detection
-                className="absolute -inset-2 rounded-lg border-[1.5px] border-dashed border-accent opacity-0"
-                aria-hidden
-              ></div>
-              <span
                 data-source
-                lang="ko"
-                aria-hidden={step >= 2}
-                className="font-kr font-bold"
-                style={{
-                  gridArea: "1/1",
-                  fontSize: bubble.koreanSize,
-                  lineHeight: 1.3,
-                }}
+                className="scroll-layer"
+                style={{ padding: bubble.padding }}
               >
-                {bubble.korean}
-              </span>
-              <span
+                <span
+                  lang="ko"
+                  aria-hidden={step >= 2}
+                  className="font-kr font-bold"
+                  style={{ fontSize: bubble.koreanSize, lineHeight: 1.3 }}
+                >
+                  {bubble.korean}
+                </span>
+              </div>
+              <div
                 data-target
-                lang={lang.toLowerCase()}
-                aria-hidden={step < 3}
-                className="font-narrow font-bold opacity-0"
-                style={{
-                  gridArea: "1/1",
-                  fontSize: bubble.targetSize,
-                  lineHeight: 1.15,
-                }}
+                className="scroll-layer"
+                style={{ padding: bubble.padding }}
               >
-                {LANGS[lang][index]}
-              </span>
+                <span
+                  lang={lang.toLowerCase()}
+                  aria-hidden={step < 3}
+                  className="font-narrow font-bold"
+                  style={{ fontSize: bubble.targetSize, lineHeight: 1.15 }}
+                >
+                  {LANGS[lang][index]}
+                </span>
+              </div>
+              <div data-wipe className="scroll-wipe" aria-hidden />
             </div>
           ))}
+          <div className="scroll-scan" aria-hidden />
         </div>
 
         <ol

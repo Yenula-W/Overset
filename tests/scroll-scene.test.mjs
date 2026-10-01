@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { damp, phase, timeline } from '../src/lib/marketing/scroll-scene.ts';
+import { BEATS, damp, phase, staggered, timeline } from '../src/lib/marketing/scroll-scene.ts';
 
 test('wheel smoothing is refresh-rate independent and never overshoots', () => {
   const settle = (hz) => {
@@ -37,7 +37,18 @@ test('initial and final frames are complete, and scrolling backwards returns the
   assert.equal(timeline(1).target, 1);
   assert.equal(timeline(1).finished, 1);
   assert.equal(timeline(1).detection, 0);
-  assert.equal(timeline(0.76).source + timeline(0.76).target, 0, 'clean stage is visibly blank');
+  assert.equal(timeline(0.685).source + timeline(0.685).target, 0, 'clean stage is visibly blank');
   assert.equal(phase(0, 0, 1), 0);
   assert.equal(phase(1, 0, 1), 1);
+});
+
+test('each region wipes inside its beat, in reading order', () => {
+  for (const beat of Object.values(BEATS)) {
+    for (let i = 0; i < 4; i++) {
+      assert.equal(staggered(beat[0], beat, i, 4), 0);
+      assert.equal(staggered(beat[1], beat, i, 4), 1);
+    }
+    const mid = (beat[0] + beat[1]) / 2;
+    assert.ok(staggered(mid, beat, 0, 4) > staggered(mid, beat, 3, 4), 'earlier regions lead');
+  }
 });

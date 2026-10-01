@@ -63,7 +63,7 @@
 
 /* The desk sequence has one sticky stage and a single compositor timeline.
    No animated layout, backdrop blur, filters, or inherited progress variables. */
-.scroll-hero { position: relative; height: 480svh; }
+.scroll-hero { position: relative; height: 900svh; }
 .scroll-stage { position: sticky; top: 64px; height: calc(100svh - 64px); min-height: 360px; overflow: hidden; isolation: isolate; background: #eeede8; }
 .scroll-intro { position: absolute; z-index: 4; top: 0; left: 0; right: 0; display: grid; grid-template-columns: 1.65fr 1fr; align-items: end; gap: 32px; max-width: 1440px; margin: auto; padding: 34px 32px 24px; background: #fbfbf9; }
 .scroll-intro h1 { margin: 0; font-size: clamp(30px, 5.35vw, 80px); line-height: .98; letter-spacing: -.03em; font-weight: 800; text-transform: uppercase; }
@@ -100,6 +100,27 @@
 @media (prefers-reduced-motion: reduce) {
   .scroll-hero { height: auto; }
   .scroll-paper, .scroll-desk { will-change: auto !important; }
+}
+
+/* Translation effects on the page: a reading beam, per-bubble detection
+   frames, and a wipe that erases the source and letters the translation. */
+.scroll-paper { overflow: hidden; }
+.scroll-layer { position: absolute; inset: 0; display: grid; place-items: center; border-radius: 50%; clip-path: inset(0 0 0 0); }
+[data-target].scroll-layer { clip-path: inset(0 100% 0 0); transition: color 500ms ease-out; }
+[data-target][data-writing=true] { color: #5049d0; }
+.scroll-detection { position: absolute; inset: -9px; border: 1.5px dashed #6c63e8; border-radius: 10px; opacity: 0; transition: border-color 300ms, background-color 300ms; }
+.scroll-detection[data-read=true] { border-style: solid; background: rgb(108 99 232 / .06); }
+.scroll-detection::before, .scroll-detection::after { content: ""; position: absolute; width: 9px; height: 9px; border: 2px solid #5049d0; }
+.scroll-detection::before { top: -3px; left: -3px; border-right: 0; border-bottom: 0; border-top-left-radius: 4px; }
+.scroll-detection::after { bottom: -3px; right: -3px; border-left: 0; border-top: 0; border-bottom-right-radius: 4px; }
+.scroll-chip { position: absolute; left: -2px; top: -19px; display: inline-flex; align-items: center; gap: 3px; padding: 2px 6px; border-radius: 4px; background: #5049d0; color: white; font: 600 9px/1.2 ui-monospace, monospace; letter-spacing: .06em; opacity: 0; transform: translate3d(0,4px,0); transition: opacity 250ms, transform 250ms; }
+.scroll-detection[data-read=true] .scroll-chip { opacity: 1; transform: none; }
+.scroll-wipe { position: absolute; top: 6%; bottom: 6%; left: 0; width: 34px; margin-left: -32px; opacity: 0; pointer-events: none; border-right: 2px solid #6c63e8; background: linear-gradient(to right, transparent, rgb(108 99 232 / .22)); filter: drop-shadow(0 0 6px rgb(108 99 232 / .7)); }
+.scroll-wipe[data-mode=erase] { border-right-color: #b9b6f3; background: linear-gradient(to right, transparent, rgb(255 255 255 / .95)); }
+.scroll-scan { position: absolute; z-index: 2; left: 0; right: 0; top: 0; height: 120px; opacity: 0; pointer-events: none; border-bottom: 2px solid #6c63e8; background: linear-gradient(to bottom, transparent, rgb(108 99 232 / .16)); box-shadow: 0 6px 18px -4px rgb(108 99 232 / .55); }
+@media (prefers-reduced-motion: reduce) {
+  .scroll-scan, .scroll-wipe { display: none; }
+  [data-target].scroll-layer, .scroll-detection, .scroll-chip { transition: none; }
 }
 
 /* A quiet workflow beside the page; one label replaces it on small screens. */

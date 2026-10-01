@@ -2,15 +2,22 @@
 
 import * as React from "react";
 import {
+  BEATS,
   clamp,
   damp,
   lerp,
   phase,
+  staggered,
   timeline,
 } from "@/lib/marketing/scroll-scene";
 
 // The live page sits on the clear writing area of desk-studio.webp.
 const PAPER_ANCHOR = { x: 0.675, y: 0.375, width: 0.17 };
+const PAPER_HEIGHT = 600;
+const BEAM_HEIGHT = 120;
+
+/** A wipe edge shows only while its sweep is under way. */
+const edge = (progress: number) => Math.min(1, progress * 10, (1 - progress) * 10);
 
 interface Geometry {
   start: number;
@@ -53,6 +60,18 @@ export function useDeskScroll(
     const boxes = [
       ...section.querySelectorAll<HTMLElement>("[data-detection]"),
     ];
+    const wipes = [...section.querySelectorAll<HTMLElement>("[data-wipe]")];
+    const bubbles = [
+      ...section.querySelectorAll<HTMLElement>("[data-bubble]"),
+    ];
+    const beam = section.querySelector<HTMLElement>(".scroll-scan")!;
+    // The page is a fixed 420×600 sheet, so bubble boxes never change.
+    const regions = bubbles.map((bubble) => ({
+      top: bubble.offsetTop,
+      height: bubble.offsetHeight,
+      width: bubble.offsetWidth,
+    }));
+    const count = regions.length;
     const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
     let geometry: Geometry;
     let frame = 0;
@@ -66,6 +85,9 @@ export function useDeskScroll(
     const opacity = (element: HTMLElement, value: number) => {
       const next = value.toFixed(4);
       if (element.style.opacity !== next) element.style.opacity = next;
+    };
+    const flag = (element: HTMLElement, key: string, value: string) => {
+      if (element.dataset[key] !== value) element.dataset[key] = value;
     };
 
     function render(p: number) {
@@ -89,15 +111,29 @@ export function useDeskScroll(
       opacity(finish, t.finished);
       finish.inert = t.finished < 0.99;
       finish.style.transform = `translate3d(0,${12 * (1 - t.finished)}px,0)`;
-      original.forEach((element) => opacity(element, t.source));
-      translated.forEach((element) => opacity(element, t.target));
-      boxes.forEach((element, i) =>
-        opacity(
-          element,
-          phase(p, 0.43 + i * 0.012, 0.48 + i * 0.012) *
-            (1 - phase(p, 0.89, 0.94)),
-        ),
-      );
+      // Reading beam: sweeps the page once, and each region it crosses is read.
+      const beamY = t.scan * (PAPER_HEIGHT + BEAM_HEIGHT);
+      beam.style.transform = `translate3d(0,${(beamY - BEAM_HEIGHT).toFixed(2)}px,0)`;
+      opacity(beam, reduced ? 0 : t.beam);
+      regions.forEach((region, i) => {
+        const found = phase(p, BEATS.detect[0] + i * 0.015, 0.36 + i * 0.015);
+        const read = reduced || p >= BEATS.scan[1] ? true : beamY > region.top + region.height / 2;
+        const erase = staggered(p, BEATS.erase, i, count);
+        const write = staggered(p, BEATS.write, i, count);
+        const box = boxes[i];
+        opacity(box, found * (1 - phase(p, 0.86, 0.91)));
+        box.style.transform = `scale(${(1 + 0.14 * (1 - found)).toFixed(4)})`;
+        flag(box, "read", String(read && t.step >= 1));
+        original[i].style.clipPath = `inset(0 0 0 ${(erase * 100).toFixed(2)}%)`;
+        translated[i].style.clipPath = `inset(0 ${(100 - write * 100).toFixed(2)}% 0 0)`;
+        flag(translated[i], "writing", String(write > 0 && write < 1));
+        // One edge per bubble: it erases the source, then letters the translation.
+        const writing = p >= BEATS.write[0] - 0.01;
+        const sweep = writing ? write : erase;
+        flag(wipes[i], "mode", writing ? "write" : "erase");
+        wipes[i].style.transform = `translate3d(${(sweep * region.width).toFixed(2)}px,0,0)`;
+        opacity(wipes[i], reduced ? 0 : edge(sweep));
+      });
       progressLine.style.transform = `scaleX(${p.toFixed(5)})`;
       if (lastStep !== t.step) {
         lastStep = t.step;
