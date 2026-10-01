@@ -20,7 +20,7 @@ export function PricingHeader() {
         </h1>
         <div className="flex max-w-[460px] flex-col gap-4" style={{ flex: '1 1 340px' }}>
           <p className="m-0 text-[15px] leading-[1.55] text-ink-muted">
-            Start with 30 free pages a month. Every plan includes OCR, translation, cleaning, and typesetting.
+            30 pages free. OCR, translation, cleaning, and typesetting included.
           </p>
           <Segmented
             label="Billing interval"
@@ -92,13 +92,13 @@ function PlanGrid({ billing }: { billing: Billing }) {
       </div>
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border border-line bg-white px-6 py-5">
         <span className="text-[15px]">
-          <strong>Need a few more pages?</strong>{' '}
+          <strong>Extra pages</strong>{' '}
           <span className="text-ink-muted">
             Top up with {pack.pages} pages for ${pack.priceUsd} on any plan.
           </span>
         </span>
         <Link href="/contact" className="text-[14px] text-ink underline underline-offset-4 hover:text-accent">
-          Questions about volume? Talk to us
+          Talk to us
         </Link>
       </div>
     </>

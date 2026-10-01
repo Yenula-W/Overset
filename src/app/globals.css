@@ -101,3 +101,23 @@
   .scroll-hero { height: auto; }
   .scroll-paper, .scroll-desk { will-change: auto !important; }
 }
+
+/* A quiet workflow beside the page; one label replaces it on small screens. */
+.scroll-rail { position: absolute; z-index: 4; left: clamp(24px, 4vw, 64px); top: 50%; width: 225px; margin: 0; padding: 0; list-style: none; opacity: 0; transform: translate3d(-14px,-50%,0); }
+.scroll-step { display: flex; align-items: baseline; gap: 14px; margin-bottom: 22px; color: #77776f; }
+.scroll-step-number { display: flex; width: 18px; flex-shrink: 0; font: 600 11px ui-monospace, monospace; }
+.scroll-step-label { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -.02em; transition: color 180ms; }
+.scroll-step-description { margin: 4px 0 0; font-size: 12px; line-height: 1.5; color: #686868; opacity: 0; transition: opacity 180ms; }
+.scroll-step[data-active=true] .scroll-step-label { color: #161616; }
+.scroll-step[data-active=true] .scroll-step-number, .scroll-step[data-complete=true] .scroll-step-number { color: #5049d0; }
+.scroll-step[data-active=true] .scroll-step-description { opacity: 1; }
+@media (min-width: 1100px) and (min-height: 621px) { .scroll-mobile-step { display: none; } }
+@media (max-width: 1099px), (max-height: 620px) { .scroll-rail { display: none; } }
+.marketing-details summary { display: flex; align-items: center; justify-content: space-between; gap: 20px; cursor: pointer; list-style: none; }
+.marketing-details summary::-webkit-details-marker { display: none; }
+.marketing-details summary::after { content: '+'; color: #686868; font-size: 22px; font-weight: 400; }
+.marketing-details[open] summary::after { content: '−'; }
+
+@keyframes about-demo-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+.about-demo-reveal { animation: about-demo-in 220ms ease-out both; }
+@media (prefers-reduced-motion: reduce) { .about-demo-reveal { animation: none; } }

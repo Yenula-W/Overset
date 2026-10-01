@@ -16,8 +16,7 @@ export default function ContactPage() {
           to us.
         </h1>
         <p className="m-0 max-w-[420px] text-[15px] leading-[1.6] text-ink-muted">
-          Publisher plans, API access, custom limits, or help with a chapter that didn’t come out right. We read every
-          message.
+          Questions, publisher plans, or help with a chapter.
         </p>
       </div>
       <div className="max-w-[620px]" style={{ flex: '1 1 460px' }}>

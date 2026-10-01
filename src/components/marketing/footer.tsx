@@ -8,7 +8,7 @@ export function MarketingFooter() {
         <div className="flex max-w-[320px] flex-col gap-2.5">
           <span className="text-[15px] font-extrabold tracking-[0.06em]">OVERSET</span>
           <span className="text-[13px] leading-[1.5] text-ink-muted">
-            AI localization workspace for manhwa, webtoons, manga, and comics.
+            Comic localization, in one workspace.
           </span>
         </div>
         <nav className="flex flex-wrap gap-7" aria-label="Footer">
