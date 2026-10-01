@@ -1,3 +1,5 @@
+import { cloudEnabled } from '@/lib/store/db';
+import { aiPage, callService } from '@/lib/client-services';
 import { ingestFiles, type IngestProblem } from '@/lib/imaging/ingest';
 import { detectRegions } from '@/lib/imaging/detect';
 import { addPages, getChapter, listCharacters, listGlossary, listPages, recordUsage, savePageRegions, updateChapter } from '@/lib/store/repo';
@@ -97,8 +99,25 @@ export async function processChapter(input: {
       mark('order', 'skipped', 'Set when regions are drawn');
     }
 
-    mark('ocr', 'skipped', 'Needs an AI provider — type or paste source text in the editor');
-    mark('translate', 'skipped', 'Needs an AI provider — translate in the editor with glossary and memory alongside');
+    const services = cloudEnabled ? await callService<{ai:boolean}>('/api/services').catch(() => ({ai:false})) : {ai:false};
+    if (services.ai) {
+      mark('ocr', 'running');
+      for (const p of saved) { onProgress(p.order, saved.length, `Reading page ${p.order}`); await aiPage(chapterId, p.id, 'ocr'); }
+      mark('ocr', 'complete', 'Source text read — review uncertain lines');
+      mark('translate', 'running');
+      const readPages = await listPages(ownerId, chapterId);
+      for (const p of readPages) for (const r of p.regions) {
+        if (r.translate && r.sourceText.trim() && !r.finalTranslation.trim()) {
+          onProgress(p.order, saved.length, `Translating page ${p.order}, region ${r.readingOrder}`);
+          await aiPage(chapterId, p.id, 'translate', r.id);
+        }
+      }
+      mark('translate', 'complete', 'Drafts saved for your review');
+      await callService(`/api/chapters/${encodeURIComponent(chapterId)}/complete`, {}).catch(() => {});
+    } else {
+      mark('ocr', 'skipped', 'AI is not connected yet — source text remains editable');
+      mark('translate', 'skipped', 'AI is not connected yet — use glossary and memory while translating manually');
+    }
 
     const [glossary, characters] = await Promise.all([listGlossary(ownerId, chapter.projectId), listCharacters(ownerId, chapter.projectId)]);
     mark('terminology', 'complete', `${glossary.length} glossary ${glossary.length === 1 ? 'term' : 'terms'} and ${characters.length} character ${characters.length === 1 ? 'profile' : 'profiles'} loaded`);

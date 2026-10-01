@@ -31,6 +31,7 @@ export function PageRail({
   onAddFiles: (files: File[]) => void;
   adding: boolean;
 }) {
+  const workspace = useActiveWorkspace();
   const input = React.useRef<HTMLInputElement>(null);
   return (
     <div className="space-y-2">
@@ -49,14 +50,14 @@ export function PageRail({
           />
         ))}
       </ul>
-      <button
+      {workspace.canEdit && <button
         onClick={() => input.current?.click()}
         disabled={adding}
         className="flex w-full items-center justify-center gap-1.5 rounded-md border border-dashed border-editor-line py-2 text-[11px] text-editor-muted transition-colors hover:border-editor-muted hover:text-editor-text disabled:opacity-50"
       >
         <Plus size={12} />
         {adding ? 'Adding…' : 'Add pages'}
-      </button>
+      </button>}
       <input
         ref={input}
         type="file"
@@ -126,7 +127,7 @@ function Thumb({
           <span aria-hidden className={cn('h-1.5 w-1.5 rounded-full', done ? 'bg-ok' : approved > 0 ? 'bg-warn' : 'bg-white/35')} />
         </span>
       </button>
-      <div className="absolute right-1 top-1 hidden gap-0.5 group-focus-within:flex group-hover:flex">
+      {workspace.canEdit && <div className="absolute right-1 top-1 hidden gap-0.5 group-focus-within:flex group-hover:flex">
         <RailBtn label={`Move page ${label} up`} disabled={index === 0} onClick={() => onMove(-1)}>
           <ArrowUp size={10} />
         </RailBtn>
@@ -136,7 +137,7 @@ function Thumb({
         <RailBtn label={`Delete page ${label}`} onClick={onDelete}>
           <Trash2 size={10} />
         </RailBtn>
-      </div>
+      </div>}
     </li>
   );
 }

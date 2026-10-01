@@ -38,7 +38,9 @@ export function PageCanvas({
   onCreate,
   onBoundsChange,
   onBoundsCommit,
+  readOnly = false,
 }: {
+  readOnly?: boolean;
   image: ImageBitmap | null;
   width: number;
   height: number;
@@ -87,6 +89,7 @@ export function PageCanvas({
 
   function onPointerDown(e: React.PointerEvent, target?: { id: string; resize?: boolean }) {
     if (e.button !== 0) return;
+    if (readOnly) { onSelect(target?.id ?? null); return; }
     const p = toPercent(e);
     overlayRef.current?.setPointerCapture(e.pointerId);
     if (target) {

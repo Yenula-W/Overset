@@ -1,39 +1,20 @@
 import { NextResponse } from 'next/server';
 import { planById } from '@/lib/billing';
-import { getSessionUser } from '@/lib/server/authz';
-import { serverClient } from '@/lib/supabase/server';
-import type { PlanId } from '@/lib/types/domain';
-
-/**
- * Usage for the signed-in account's current billing period, read on the
- * server. The plan comes from the profile row, which only the server can
- * change (see the records_guard trigger), so the allowance can't be inflated
- * from the browser.
- */
-export async function GET() {
-  const user = await getSessionUser();
-  const supabase = await serverClient();
-  if (!user || !supabase) {
-    return NextResponse.json(
-      { error: { code: 'unauthenticated', message: 'Log in to view usage.' } },
-      { status: 401 },
-    );
-  }
-
-  const now = new Date();
-  const period = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
-  const [profile, usage] = await Promise.all([
-    supabase.from('records').select('data').eq('store', 'users').eq('id', user.id).maybeSingle(),
-    supabase.from('records').select('data').eq('store', 'usage').eq('id', `${user.id}:${period}`).maybeSingle(),
-  ]);
-  if (profile.error || usage.error) {
-    return NextResponse.json(
-      { error: { code: 'unavailable', message: 'Usage is unavailable right now. Try again shortly.' } },
-      { status: 503 },
-    );
-  }
-
-  const plan = planById(((profile.data?.data as { plan?: PlanId } | null)?.plan ?? 'free') as PlanId);
-  const pagesUsed = Number((usage.data?.data as { pagesProcessed?: number } | null)?.pagesProcessed ?? 0);
-  return NextResponse.json({ period, plan: plan.id, pagesUsed, pagesIncluded: plan.pageAllowance, additionalCredits: 0 });
-}
+import { authenticated,record,adminClient } from '@/lib/server/records';
+import { failure,ServiceError } from '@/lib/server/http';
+import type { UserRecord,UsageRecord } from '@/lib/store/schema';
+export async function GET(request:Request){try{
+ const {user,db}=await authenticated();const owner=new URL(request.url).searchParams.get('workspace')||user.id;
+ const profile=await record<UserRecord>(db,'users',owner);const admin=adminClient();
+ const {data:billing,error}=await admin.from('workspace_billing').select('*').eq('owner_id',owner).maybeSingle();
+ if(error)throw new ServiceError('usage_unavailable','Usage is temporarily unavailable.');
+ const now=new Date();const month=`${now.getUTCFullYear()}-${String(now.getUTCMonth()+1).padStart(2,'0')}`;
+ const period=billing?.period&&new Date(billing.resets_at)>now?billing.period:month;
+ const {data:stored,error:readError}=await db.from('records').select('data').eq('store','usage').eq('id',`${owner}:${period}`).maybeSingle();
+ if(readError)throw new ServiceError('usage_unavailable','Usage is temporarily unavailable.');
+ const usage=(stored?.data as UsageRecord|undefined)??{id:`${owner}:${period}`,ownerId:owner,period,pagesProcessed:0,pagesExported:0};
+ const plan=planById(profile.plan);
+ const charged=await admin.from('page_charges').select('page_id',{count:'exact',head:true}).eq('owner_id',owner).eq('period',period).eq('credit',true);
+ const credits=billing?.credits??0;const spent=charged.count??0;
+ return NextResponse.json({...usage,plan:plan.id,pagesUsed:usage.pagesProcessed,pagesIncluded:plan.pageAllowance,additionalCredits:credits,creditsUsed:spent,remaining:Math.max(0,plan.pageAllowance-usage.pagesProcessed)+credits,resetsAt:period===month?new Date(Date.UTC(now.getUTCFullYear(),now.getUTCMonth()+1,1)).toISOString():billing.resets_at,hasSubscription:Boolean(billing?.subscription_id)});
+}catch(error){return failure(error);}}
