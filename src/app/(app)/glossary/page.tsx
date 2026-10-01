@@ -1,57 +1,113 @@
 'use client';
 
 import * as React from 'react';
-import { BookMarked, Lock, Plus, Search, Unlock } from 'lucide-react';
+import { BookMarked, Lock, Pencil, Plus, Search, Trash2, Unlock } from 'lucide-react';
 import { AppShellPage, PageHeader } from '@/components/app/page-header';
-import { Badge, Button, Card, EmptyState, Input, Modal, Table, Td, Th, Tr } from '@/components/ui';
-import { DEMO_GLOSSARY } from '@/lib/data/glossary';
-import { DEMO_CHARACTERS } from '@/lib/data/characters';
-import type { GlossaryEntry } from '@/lib/types/domain';
+import { NoProjects, ProjectPicker, useProjectChoice } from '@/components/app/project-picker';
+import { ConfirmModal } from '@/components/app/project-form';
+import { Badge, Button, Card, Checkbox, EmptyState, Field, Input, Modal, Select, Skeleton, Table, Td, Textarea, Th, Tr, useToast } from '@/components/ui';
+import { useLiveQuery, useUser } from '@/lib/store/hooks';
+import { deleteGlossaryEntry, listChapters, listCharacters, listGlossary, listPages, saveGlossaryEntry } from '@/lib/store/repo';
+import type { GlossaryRecord } from '@/lib/store/schema';
+import type { GlossaryStatus, GlossaryType } from '@/lib/types/domain';
 
 const STATUS_TONE = { locked: 'accent', approved: 'ok', suggested: 'neutral' } as const;
+const TYPES: GlossaryType[] = ['name', 'location', 'ability', 'organization', 'title', 'item', 'technique', 'idiom', 'honorific', 'term'];
+
+interface Usage {
+  count: number;
+  first?: string;
+  last?: string;
+}
 
 export default function GlossaryPage() {
+  const user = useUser();
+  const toast = useToast();
+  const { projects, project, choose, loading } = useProjectChoice();
   const [query, setQuery] = React.useState('');
-  const [entries, setEntries] = React.useState(DEMO_GLOSSARY);
-  const [selected, setSelected] = React.useState<GlossaryEntry | null>(null);
+  const [editing, setEditing] = React.useState<Partial<GlossaryRecord> | null>(null);
+  const [deleting, setDeleting] = React.useState<GlossaryRecord | null>(null);
 
-  const filtered = entries.filter((e) => {
-    const q = query.trim().toLowerCase();
-    if (!q) return true;
-    return [e.original, e.translation, e.romanization, e.type].some((f) => f?.toLowerCase().includes(q));
-  });
+  const data = useLiveQuery(
+    async () => {
+      if (!project) return null;
+      const [entries, characters, chapters] = await Promise.all([
+        listGlossary(user.id, project.id),
+        listCharacters(user.id, project.id),
+        listChapters(user.id, project.id),
+      ]);
+      // Usage is counted from the actual chapters, oldest first.
+      const lines: Array<{ where: string; text: string }> = [];
+      for (const c of [...chapters].sort((a, b) => a.number - b.number)) {
+        for (const p of await listPages(user.id, c.id)) {
+          for (const r of [...p.regions].sort((a, b) => a.readingOrder - b.readingOrder))
+            if (r.sourceText) lines.push({ where: `${c.name} · page ${p.order}`, text: r.sourceText });
+        }
+      }
+      const usage = new Map<string, Usage>();
+      for (const e of entries) {
+        const hits = lines.filter((l) => e.original && l.text.includes(e.original));
+        usage.set(e.id, { count: hits.length, first: hits[0]?.where, last: hits[hits.length - 1]?.where });
+      }
+      return { entries, characters, usage };
+    },
+    [user.id, project?.id],
+    ['glossary', 'characters', 'pages', 'chapters'],
+  );
 
-  function toggleLock(entry: GlossaryEntry) {
-    const next = entry.status === 'locked' ? ('approved' as const) : ('locked' as const);
-    setEntries((prev) => prev.map((e) => (e.id === entry.id ? { ...e, status: next } : e)));
-    setSelected((s) => (s && s.id === entry.id ? { ...s, status: next } : s));
+  if (!loading && projects?.length === 0) {
+    return (
+      <AppShellPage>
+        <PageHeader title="Glossary" />
+        <NoProjects what="Glossaries" />
+      </AppShellPage>
+    );
+  }
+
+  const entries = data.data?.entries ?? [];
+  const q = query.trim().toLowerCase();
+  const filtered = entries.filter((e) => !q || [e.original, e.translation, e.romanization, e.type, ...e.alternatives].some((f) => f?.toLowerCase().includes(q)));
+
+  async function toggleLock(entry: GlossaryRecord) {
+    const status: GlossaryStatus = entry.status === 'locked' ? 'approved' : 'locked';
+    await saveGlossaryEntry(user.id, { ...entry, status });
+    toast({ message: status === 'locked' ? `“${entry.original}” is locked.` : `“${entry.original}” is unlocked.`, tone: 'ok' });
   }
 
   return (
     <AppShellPage>
       <PageHeader
         title="Project glossary"
-        lede="The Fallen Hero · terminology Overset applies to every new chapter."
+        lede={project ? `${project.name} · terminology QA checks every chapter against.` : ' '}
         actions={
-          <Button>
+          <Button onClick={() => setEditing({ status: 'approved', type: 'term', alternatives: [], characterIds: [] })} disabled={!project}>
             <Plus size={15} />
             Add term
           </Button>
         }
       />
 
-      <div className="relative mt-7 max-w-sm">
-        <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-faint" aria-hidden />
-        <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search terms" className="pl-9" aria-label="Search glossary" />
+      <div className="mt-7 flex flex-wrap items-center gap-3">
+        <div className="relative w-full max-w-sm">
+          <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-faint" aria-hidden />
+          <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search terms" className="pl-9" aria-label="Search glossary" />
+        </div>
+        {projects && project && <ProjectPicker projects={projects} value={project.id} onChange={choose} />}
       </div>
 
-      {filtered.length === 0 ? (
+      {!data.data ? (
+        <Skeleton className="mt-5 h-48" />
+      ) : filtered.length === 0 ? (
         <EmptyState
           className="mt-6"
           icon={<BookMarked size={18} />}
-          title="No terms match that search."
-          body="Try a different spelling, or add the term so future chapters use it consistently."
-          action={<Button onClick={() => setQuery('')}>Clear search</Button>}
+          title={q ? 'No terms match that search.' : 'No terms yet.'}
+          body={
+            q
+              ? 'Try a different spelling, or add the term so future chapters use it consistently.'
+              : 'Add names, places, techniques, and titles. QA flags any translation that drifts from the approved wording.'
+          }
+          action={q ? <Button onClick={() => setQuery('')}>Clear search</Button> : <Button onClick={() => setEditing({ status: 'approved', type: 'term', alternatives: [], characterIds: [] })}>Add term</Button>}
         />
       ) : (
         <Card className="mt-5 overflow-hidden">
@@ -63,116 +119,226 @@ export default function GlossaryPage() {
                 <Th>Type</Th>
                 <Th className="text-right">Uses</Th>
                 <Th>Status</Th>
+                <Th className="w-0">
+                  <span className="sr-only">Actions</span>
+                </Th>
               </tr>
             </thead>
             <tbody>
-              {filtered.map((e) => (
-                <Tr key={e.id} className="cursor-pointer" onClick={() => setSelected(e)}>
-                  <Td>
-                    <span className="font-medium">{e.original}</span>
-                    {e.romanization && <span className="ml-2 text-[12px] italic text-ink-faint">{e.romanization}</span>}
-                  </Td>
-                  <Td>{e.translation}</Td>
-                  <Td className="capitalize text-ink-muted">{e.type}</Td>
-                  <Td className="text-right tabular-nums">{e.occurrences}</Td>
-                  <Td>
-                    <Badge tone={STATUS_TONE[e.status]} className="capitalize">
-                      {e.status}
-                    </Badge>
-                  </Td>
-                </Tr>
-              ))}
+              {filtered.map((e) => {
+                const u = data.data!.usage.get(e.id);
+                return (
+                  <Tr key={e.id}>
+                    <Td>
+                      <button onClick={() => setEditing(e)} className="text-left hover:underline">
+                        <span className="font-medium">{e.original}</span>
+                        {e.romanization && <span className="ml-2 text-[12px] italic text-ink-faint">{e.romanization}</span>}
+                      </button>
+                      {u?.first && <span className="block text-[11.5px] text-ink-faint">First seen {u.first}</span>}
+                    </Td>
+                    <Td>{e.translation}</Td>
+                    <Td className="capitalize text-ink-muted">{e.type}</Td>
+                    <Td className="text-right tabular-nums">{u?.count ?? 0}</Td>
+                    <Td>
+                      <Badge tone={STATUS_TONE[e.status]} className="capitalize">
+                        {e.status}
+                      </Badge>
+                    </Td>
+                    <Td>
+                      <div className="flex gap-0.5">
+                        <IconBtn label={e.status === 'locked' ? `Unlock ${e.original}` : `Lock ${e.original}`} onClick={() => void toggleLock(e)}>
+                          {e.status === 'locked' ? <Unlock size={13} /> : <Lock size={13} />}
+                        </IconBtn>
+                        <IconBtn label={`Edit ${e.original}`} onClick={() => setEditing(e)}>
+                          <Pencil size={13} />
+                        </IconBtn>
+                        <IconBtn label={`Delete ${e.original}`} onClick={() => setDeleting(e)} danger>
+                          <Trash2 size={13} />
+                        </IconBtn>
+                      </div>
+                    </Td>
+                  </Tr>
+                );
+              })}
             </tbody>
           </Table>
         </Card>
       )}
 
-      <Modal
-        open={selected !== null}
-        onClose={() => setSelected(null)}
-        title={selected?.original ?? ''}
-        description={selected?.romanization}
-        footer={
-          selected && (
-            <>
-              <Button variant="ghost" onClick={() => setSelected(null)}>
-                Close
-              </Button>
-              <Button variant="secondary" onClick={() => toggleLock(selected)}>
-                {selected.status === 'locked' ? <Unlock size={14} /> : <Lock size={14} />}
-                {selected.status === 'locked' ? 'Unlock term' : 'Lock term'}
-              </Button>
-            </>
-          )
-        }
-      >
-        {selected && (
-          <div className="space-y-5">
-            <Detail label="Translation">
-              <p className="text-[18px] font-medium">{selected.translation}</p>
-            </Detail>
-            {selected.alternatives.length > 0 && (
-              <Detail label="Alternatives">
-                <ul className="flex flex-wrap gap-1.5">
-                  {selected.alternatives.map((a) => (
-                    <li key={a} className="rounded-lg border border-line px-2.5 py-1 text-[13px] text-ink-muted">
-                      {a}
-                    </li>
-                  ))}
-                </ul>
-              </Detail>
-            )}
-            {selected.notes && (
-              <Detail label="Notes">
-                <p className="text-[14px] leading-relaxed text-ink-muted">{selected.notes}</p>
-              </Detail>
-            )}
-            <dl className="grid grid-cols-2 gap-x-6 gap-y-3 border-t border-line pt-4 text-[13px]">
-              {[
-                ['Occurrences', String(selected.occurrences)],
-                ['Type', selected.type],
-                ['First appearance', selected.firstAppearance ?? '—'],
-                ['Last appearance', selected.lastAppearance ?? '—'],
-              ].map(([k, v]) => (
-                <div key={k}>
-                  <dt className="text-ink-muted">{k}</dt>
-                  <dd className="mt-0.5 font-medium capitalize">{v}</dd>
-                </div>
-              ))}
-            </dl>
-            {selected.characterIds.length > 0 && (
-              <Detail label="Characters associated">
-                <ul className="flex flex-wrap gap-1.5">
-                  {selected.characterIds.map((id) => {
-                    const c = DEMO_CHARACTERS.find((x) => x.id === id);
-                    if (!c) return null;
-                    return (
-                      <li key={id} className="flex items-center gap-1.5 rounded-lg border border-line px-2.5 py-1 text-[13px]">
-                        <span className="h-2 w-2 rounded-full" style={{ background: c.color }} aria-hidden />
-                        {c.name}
-                      </li>
-                    );
-                  })}
-                </ul>
-              </Detail>
-            )}
-            {selected.status === 'locked' && (
-              <p className="rounded-lg bg-accent-soft px-3.5 py-3 text-[13px] leading-relaxed text-ink-muted">
-                This term is locked. Future translations use this wording unless you change it here.
-              </p>
-            )}
-          </div>
-        )}
-      </Modal>
+      {project && (
+        <TermModal
+          entry={editing}
+          usage={editing?.id ? data.data?.usage.get(editing.id) : undefined}
+          characters={data.data?.characters ?? []}
+          onClose={() => setEditing(null)}
+          onSave={async (v) => {
+            await saveGlossaryEntry(user.id, { ...v, projectId: project.id, occurrences: v.id ? data.data?.usage.get(v.id)?.count ?? 0 : 0 });
+            toast({ message: v.id ? 'Term updated.' : 'Term added.', tone: 'ok' });
+          }}
+        />
+      )}
+
+      <ConfirmModal
+        open={deleting !== null}
+        onClose={() => setDeleting(null)}
+        title={`Delete “${deleting?.original ?? ''}”?`}
+        confirmLabel="Delete term"
+        body="QA will stop checking translations against it. Existing translations aren’t changed."
+        onConfirm={async () => {
+          if (deleting) await deleteGlossaryEntry(user.id, deleting.id);
+        }}
+      />
     </AppShellPage>
   );
 }
 
-function Detail({ label, children }: { label: string; children: React.ReactNode }) {
+function TermModal({
+  entry,
+  usage,
+  characters,
+  onClose,
+  onSave,
+}: {
+  entry: Partial<GlossaryRecord> | null;
+  usage?: Usage;
+  characters: Array<{ id: string; name: string; color: string }>;
+  onClose: () => void;
+  onSave: (v: Omit<GlossaryRecord, 'id' | 'ownerId' | 'projectId' | 'occurrences'> & { id?: string }) => Promise<void>;
+}) {
+  const [v, setV] = React.useState<Partial<GlossaryRecord>>({});
+  const [alts, setAlts] = React.useState('');
+  const [error, setError] = React.useState<string | null>(null);
+  const [busy, setBusy] = React.useState(false);
+
+  React.useEffect(() => {
+    if (entry) {
+      setV(entry);
+      setAlts((entry.alternatives ?? []).join(', '));
+      setError(null);
+    }
+  }, [entry]);
+
+  async function save() {
+    if (!v.original?.trim() || !v.translation?.trim()) {
+      setError('Both the original and the approved translation are required.');
+      return;
+    }
+    setBusy(true);
+    try {
+      await onSave({
+        id: v.id,
+        original: v.original.trim(),
+        romanization: v.romanization?.trim() || undefined,
+        translation: v.translation.trim(),
+        alternatives: alts.split(',').map((a) => a.trim()).filter(Boolean),
+        type: (v.type ?? 'term') as GlossaryType,
+        notes: v.notes?.trim() || undefined,
+        status: (v.status ?? 'approved') as GlossaryStatus,
+        firstAppearance: usage?.first ?? v.firstAppearance,
+        lastAppearance: usage?.last ?? v.lastAppearance,
+        characterIds: v.characterIds ?? [],
+      });
+      onClose();
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
-    <div>
-      <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-faint">{label}</p>
+    <Modal
+      open={entry !== null}
+      onClose={onClose}
+      title={entry?.id ? 'Edit term' : 'Add term'}
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button onClick={() => void save()} loading={busy}>
+            {entry?.id ? 'Save' : 'Add term'}
+          </Button>
+        </>
+      }
+    >
+      <div className="space-y-4">
+        {error && <p role="alert" className="rounded-lg bg-dangerSoft px-3 py-2.5 text-[13px] text-danger">{error}</p>}
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Original" htmlFor="t-orig">
+            <Input id="t-orig" value={v.original ?? ''} onChange={(e) => setV({ ...v, original: e.target.value })} autoFocus />
+          </Field>
+          <Field label="Romanization" htmlFor="t-rom">
+            <Input id="t-rom" value={v.romanization ?? ''} onChange={(e) => setV({ ...v, romanization: e.target.value })} />
+          </Field>
+        </div>
+        <Field label="Approved translation" htmlFor="t-tr">
+          <Input id="t-tr" value={v.translation ?? ''} onChange={(e) => setV({ ...v, translation: e.target.value })} />
+        </Field>
+        <Field label="Alternatives" htmlFor="t-alt" hint="Comma-separated. QA names them when they slip into a translation.">
+          <Input id="t-alt" value={alts} onChange={(e) => setAlts(e.target.value)} />
+        </Field>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Type" htmlFor="t-type">
+            <Select id="t-type" value={v.type ?? 'term'} onChange={(e) => setV({ ...v, type: e.target.value as GlossaryType })}>
+              {TYPES.map((t) => (
+                <option key={t} value={t}>
+                  {t[0].toUpperCase() + t.slice(1)}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Field label="Status" htmlFor="t-status">
+            <Select id="t-status" value={v.status ?? 'approved'} onChange={(e) => setV({ ...v, status: e.target.value as GlossaryStatus })}>
+              <option value="suggested">Suggested — not enforced</option>
+              <option value="approved">Approved — QA warns on drift</option>
+              <option value="locked">Locked — drift is critical</option>
+            </Select>
+          </Field>
+        </div>
+        <Field label="Notes" htmlFor="t-notes">
+          <Textarea id="t-notes" value={v.notes ?? ''} onChange={(e) => setV({ ...v, notes: e.target.value })} />
+        </Field>
+        {characters.length > 0 && (
+          <fieldset>
+            <legend className="text-[13px] font-medium">Characters associated</legend>
+            <div className="mt-2 grid gap-2 sm:grid-cols-2">
+              {characters.map((c) => (
+                <Checkbox
+                  key={c.id}
+                  label={c.name}
+                  checked={(v.characterIds ?? []).includes(c.id)}
+                  onChange={(e) =>
+                    setV({ ...v, characterIds: e.target.checked ? [...(v.characterIds ?? []), c.id] : (v.characterIds ?? []).filter((x) => x !== c.id) })
+                  }
+                />
+              ))}
+            </div>
+          </fieldset>
+        )}
+        {entry?.id && (
+          <dl className="grid grid-cols-3 gap-4 border-t border-line pt-4 text-[13px]">
+            <div>
+              <dt className="text-ink-muted">Uses</dt>
+              <dd className="mt-0.5 font-medium">{usage?.count ?? 0}</dd>
+            </div>
+            <div>
+              <dt className="text-ink-muted">First appearance</dt>
+              <dd className="mt-0.5 font-medium">{usage?.first ?? '—'}</dd>
+            </div>
+            <div>
+              <dt className="text-ink-muted">Last appearance</dt>
+              <dd className="mt-0.5 font-medium">{usage?.last ?? '—'}</dd>
+            </div>
+          </dl>
+        )}
+      </div>
+    </Modal>
+  );
+}
+
+function IconBtn({ label, onClick, danger, children }: { label: string; onClick: () => void; danger?: boolean; children: React.ReactNode }) {
+  return (
+    <button onClick={onClick} aria-label={label} title={label} className={`rounded-md p-1.5 text-ink-faint hover:bg-ink/5 ${danger ? 'hover:text-danger' : 'hover:text-ink'}`}>
       {children}
-    </div>
+    </button>
   );
 }
