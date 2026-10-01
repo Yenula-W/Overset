@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import Link from 'next/link';
+import { ImportLocalBanner } from '@/components/app/import-local';
 import { useRouter } from 'next/navigation';
 import { ArrowUpRight, LibraryBig, Plus, Sparkles } from 'lucide-react';
 import { AppShellPage, PageHeader } from '@/components/app/page-header';
@@ -68,6 +69,7 @@ export default function DashboardPage() {
           </Button>
         }
       />
+      <ImportLocalBanner />
 
       {ws.error && (
         <p role="alert" className="mt-6 rounded-xl bg-dangerSoft px-4 py-3 text-[13px] text-danger">

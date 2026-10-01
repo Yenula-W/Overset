@@ -28,11 +28,14 @@ interface BlobMeta {
 
 class CloudError extends Error {}
 
-function fail(error: PostgrestError | { message: string }): never {
+function fail(error: PostgrestError | { message: string; statusCode?: string }): never {
   const offline = typeof navigator !== 'undefined' && !navigator.onLine;
-  throw new CloudError(
-    offline ? 'You’re offline, so Overset can’t reach your workspace. Reconnect and try again.' : `Overset couldn’t reach your workspace: ${error.message}`,
-  );
+  if (offline) throw new CloudError('You’re offline, so Overset can’t reach your workspace. Reconnect and try again.');
+  // Row-level security said no: a viewer editing, or a role that was just removed.
+  const denied =
+    ('code' in error && error.code === '42501') || ('statusCode' in error && error.statusCode === '403') || /row-level security/i.test(error.message);
+  if (denied) throw new CloudError('You don’t have permission to change this workspace. Ask its owner for an editing role.');
+  throw new CloudError(`Overset couldn’t reach your workspace: ${error.message}`);
 }
 
 function ownerOf(store: StoreName, value: Record<string, unknown>) {

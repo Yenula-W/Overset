@@ -83,6 +83,11 @@ export async function get<T>(store: StoreName, key: string): Promise<T | undefin
   return promisify(db.transaction(store, 'readonly').objectStore(store).get(key)) as Promise<T | undefined>;
 }
 
+export async function getAll<T>(store: StoreName): Promise<T[]> {
+  const db = await openDb();
+  return promisify(db.transaction(store, 'readonly').objectStore(store).getAll()) as Promise<T[]>;
+}
+
 export async function getAllByIndex<T>(store: StoreName, index: string, value: IDBValidKey): Promise<T[]> {
   const db = await openDb();
   return promisify(db.transaction(store, 'readonly').objectStore(store).index(index).getAll(value)) as Promise<T[]>;

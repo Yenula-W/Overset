@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
+import { ImportLocalCard } from '@/components/app/import-local';
 import { AppShellPage, PageHeader } from '@/components/app/page-header';
 import {
   Badge,
@@ -323,6 +324,7 @@ function DataTab() {
 
   return (
     <>
+      <ImportLocalCard />
       <Card>
         <CardHeader>
           <CardTitle>Your content</CardTitle>
