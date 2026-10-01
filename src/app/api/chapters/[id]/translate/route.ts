@@ -28,7 +28,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   // Expensive endpoints are rate limited per user, not per IP, because the
   // cost follows the account.
-  const limit = rateLimit(`translate:${user.id}`, 10, 60_000);
+  const limit = await rateLimit(`translate:${user.id}`, 10, 60_000);
   if (!limit.ok) {
     return NextResponse.json(
       {

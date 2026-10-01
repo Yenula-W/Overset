@@ -10,7 +10,7 @@ import { Button, Card, CardBody, Checkbox, Field, Input, Select } from '@/compon
 import { planById } from '@/lib/billing';
 import { processChapter, STAGES, type StageView } from '@/lib/processing';
 import type { IngestProblem } from '@/lib/imaging/ingest';
-import { useLiveQuery, useUser } from '@/lib/store/hooks';
+import { useLiveQuery, useUser, useActiveWorkspace } from '@/lib/store/hooks';
 import { createChapter, createProject, getUsage, listChapters, listProjects } from '@/lib/store/repo';
 import {
   DEFAULT_TRANSLATION_PREFERENCES,
@@ -36,8 +36,9 @@ const ADVANCED: Array<{ key: keyof TranslationPreferences; label: string }> = [
 
 export default function TranslatePage() {
   const user = useUser();
+  const workspace = useActiveWorkspace();
   const router = useRouter();
-  const projects = useLiveQuery(() => listProjects(user.id), [user.id], ['projects']);
+  const projects = useLiveQuery(() => listProjects(workspace.id), [workspace.id], ['projects']);
 
   const [step, setStep] = React.useState(0);
   const [items, setItems] = React.useState<UploadItem[]>([]);
@@ -93,9 +94,9 @@ export default function TranslatePage() {
       const chapterPrefs = { ...prefs, style };
       const project =
         projectId === NEW_PROJECT
-          ? await createProject(user.id, { name: newProjectName, sourceLanguage: source, targetLanguage: target, preferences: chapterPrefs })
+          ? await createProject(workspace.id, { name: newProjectName, sourceLanguage: source, targetLanguage: target, preferences: chapterPrefs })
           : projects.data!.find((p) => p.id === projectId)!;
-      const chapter = await createChapter(user.id, project.id, {
+      const chapter = await createChapter(workspace.id, project.id, {
         name: chapterName || undefined,
         sourceLanguage: source,
         targetLanguage: target,
@@ -103,7 +104,7 @@ export default function TranslatePage() {
       });
       setProcessingName(chapter.name);
       const res = await processChapter({
-        ownerId: user.id,
+        ownerId: workspace.id,
         chapterId: chapter.id,
         files: items.map((i) => i.file),
         sourceLanguage: source,
@@ -119,8 +120,8 @@ export default function TranslatePage() {
       setResult({ chapterId: chapter.id, projectId: project.id });
       setStep(3);
 
-      const plan = planById(user.plan);
-      const usage = await getUsage(user.id);
+      const plan = planById(workspace.plan);
+      const usage = await getUsage(workspace.id);
       if (usage.pagesProcessed > plan.pageAllowance) {
         setOverAllowance(
           `You’ve processed ${formatNumber(usage.pagesProcessed)} pages this month, over the ${plan.name} plan’s ${formatNumber(plan.pageAllowance)}. Billing isn’t connected yet, so nothing was blocked.`,
@@ -187,9 +188,9 @@ export default function TranslatePage() {
                       <Input id="pname" value={newProjectName} onChange={(e) => setNewProjectName(e.target.value)} placeholder="e.g. The Fallen Hero" autoFocus />
                     </Field>
                   ) : (
-                    <ChapterNameField ownerId={user.id} projectId={projectId} value={chapterName} onChange={setChapterName} />
+                    <ChapterNameField ownerId={workspace.id} projectId={projectId} value={chapterName} onChange={setChapterName} />
                   )}
-                  {projectId === NEW_PROJECT && <ChapterNameField ownerId={user.id} projectId="" value={chapterName} onChange={setChapterName} />}
+                  {projectId === NEW_PROJECT && <ChapterNameField ownerId={workspace.id} projectId="" value={chapterName} onChange={setChapterName} />}
                   <Field label="Source language" htmlFor="src" hint="Sets reading order — Japanese reads right to left.">
                     <Select id="src" value={source} onChange={(e) => setSource(e.target.value as LanguageCode)}>
                       <option value="ko">Korean</option>

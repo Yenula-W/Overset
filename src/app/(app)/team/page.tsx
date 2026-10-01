@@ -8,7 +8,7 @@ import { ConfirmModal } from '@/components/app/project-form';
 import { Avatar, Badge, Button, Card, CardBody, CardHeader, CardTitle, Field, Input, Modal, Select, StatusBadge, useToast } from '@/components/ui';
 import { planById } from '@/lib/billing';
 import { getAllByIndex } from '@/lib/store/db';
-import { useLiveQuery, useUser } from '@/lib/store/hooks';
+import { useLiveQuery, useUser, useActiveWorkspace } from '@/lib/store/hooks';
 import { inviteMember, listTeam, removeMember, updateMemberRole } from '@/lib/store/repo';
 import type { CommentRecord, TeamRecord } from '@/lib/store/schema';
 import type { TeamRole } from '@/lib/types/domain';
@@ -26,12 +26,13 @@ const ROLE_TONE = { owner: 'dark', translator: 'accent', proofreader: 'ok', type
 
 export default function TeamPage() {
   const user = useUser();
+  const workspace = useActiveWorkspace();
   const toast = useToast();
-  const plan = planById(user.plan);
-  const team = useLiveQuery(() => listTeam(user.id), [user.id], ['team']);
+  const plan = planById(workspace.plan);
+  const team = useLiveQuery(() => listTeam(workspace.id), [workspace.id], ['team']);
   const comments = useLiveQuery(
-    () => getAllByIndex<CommentRecord>('comments', 'ownerId', user.id).then((c) => c.filter((x) => !x.parentId).sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 8)),
-    [user.id],
+    () => getAllByIndex<CommentRecord>('comments', 'ownerId', workspace.id).then((c) => c.filter((x) => !x.parentId).sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 8)),
+    [workspace.id],
     ['comments'],
   );
   const [inviting, setInviting] = React.useState(false);
@@ -82,7 +83,7 @@ export default function TeamPage() {
                     aria-label={`Role for ${m.name}`}
                     value={m.role}
                     onChange={async (e) => {
-                      await updateMemberRole(user.id, m.id, e.target.value as TeamRole);
+                      await updateMemberRole(workspace.id, m.id, e.target.value as TeamRole);
                       toast({ message: `${m.name} is now a ${e.target.value}.`, tone: 'ok' });
                     }}
                     className="h-8 w-auto py-0 text-[12.5px] capitalize"
@@ -168,7 +169,7 @@ export default function TeamPage() {
         planName={plan.name}
         onClose={() => setInviting(false)}
         onInvite={async (v) => {
-          await inviteMember(user.id, v);
+          await inviteMember(workspace.id, v);
           toast({ message: `${v.name || v.email} added as ${v.role}.`, tone: 'ok' });
         }}
       />
@@ -180,7 +181,7 @@ export default function TeamPage() {
         confirmLabel="Remove"
         body="Their comments stay on the regions they were left on."
         onConfirm={async () => {
-          if (removing) await removeMember(user.id, removing.id);
+          if (removing) await removeMember(workspace.id, removing.id);
         }}
       />
     </AppShellPage>

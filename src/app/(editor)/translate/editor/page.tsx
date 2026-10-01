@@ -13,7 +13,7 @@ import { PageRail } from '@/components/app/editor/page-rail';
 import { useChapterData, useChapterId } from '@/components/app/editor/use-chapter';
 import { ConfirmModal } from '@/components/app/project-form';
 import { Button, Checkbox, EmptyState, Field, Input, Modal, Select, useToast } from '@/components/ui';
-import { useUser } from '@/lib/store/hooks';
+import { useUser, useActiveWorkspace } from '@/lib/store/hooks';
 import {
   addComment,
   addPages,
@@ -86,6 +86,7 @@ export default function EditorPage() {
 
 function Editor({ chapterId }: { chapterId: string }) {
   const user = useUser();
+  const workspace = useActiveWorkspace();
   const toast = useToast();
   const data = useChapterData(chapterId);
   const { drafts, updateRegions } = data;
@@ -121,7 +122,7 @@ function Editor({ chapterId }: { chapterId: string }) {
     let alive = true;
     let bitmap: ImageBitmap | null = null;
     setImage(null);
-    getBlob(user.id, page.originalBlobId)
+    getBlob(workspace.id, page.originalBlobId)
       .then(async (blob) => {
         if (!blob || !alive) return;
         bitmap = await createImageBitmap(blob);
@@ -133,7 +134,7 @@ function Editor({ chapterId }: { chapterId: string }) {
       alive = false;
       bitmap?.close();
     };
-  }, [page?.id, page?.originalBlobId, user.id, toast]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [page?.id, page?.originalBlobId, workspace.id, toast]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const characters = data.data?.characters ?? [];
   const glossary = data.data?.glossary ?? [];
@@ -157,8 +158,8 @@ function Editor({ chapterId }: { chapterId: string }) {
 
   const version = React.useCallback(
     (v: Omit<VersionRecord, 'id' | 'ownerId' | 'createdAt' | 'chapterId' | 'actor'>) =>
-      void addVersion(user.id, { ...v, chapterId, actor: user.name }),
-    [user.id, user.name, chapterId],
+      void addVersion(workspace.id, { ...v, chapterId, actor: user.name }),
+    [workspace.id, user.name, chapterId],
   );
 
   const patch = React.useCallback(
@@ -230,7 +231,7 @@ function Editor({ chapterId }: { chapterId: string }) {
     patch(region.id, { status: 'approved' });
     version({ pageId: page.id, regionId: region.id, kind: 'approval', summary: `Approved region ${index + 1} on page ${page.order}` });
     if (data.data.chapter.preferences.useTranslationMemory !== false) {
-      await rememberApproval(user.id, {
+      await rememberApproval(workspace.id, {
         projectId: data.data.project.id,
         region: { ...region, status: 'approved' },
         speakerName: speakerName(region.speakerId) || undefined,
@@ -286,7 +287,7 @@ function Editor({ chapterId }: { chapterId: string }) {
     const j = i + dir;
     if (j < 0 || j >= ids.length) return;
     [ids[i], ids[j]] = [ids[j], ids[i]];
-    await reorderPages(user.id, chapterId, ids);
+    await reorderPages(workspace.id, chapterId, ids);
   }
 
   async function addFiles(files: File[]) {
@@ -298,11 +299,11 @@ function Editor({ chapterId }: { chapterId: string }) {
         toast({ message: problems[0]?.reason ?? 'None of those files could be read as pages.', tone: 'warn' });
         return;
       }
-      const saved = await addPages(user.id, chapterId, ingested);
-      await recordUsage(user.id, { pagesProcessed: saved.length });
+      const saved = await addPages(workspace.id, chapterId, ingested);
+      await recordUsage(workspace.id, { pagesProcessed: saved.length });
       for (let i = 0; i < saved.length; i++) {
         try {
-          await savePageRegions(user.id, saved[i].id, await detectRegions(ingested[i].original, saved[i].id, data.data.chapter.sourceLanguage));
+          await savePageRegions(workspace.id, saved[i].id, await detectRegions(ingested[i].original, saved[i].id, data.data.chapter.sourceLanguage));
         } catch {
           /* the translator can draw regions by hand */
         }
@@ -392,9 +393,9 @@ function Editor({ chapterId }: { chapterId: string }) {
             comments={comments.filter((c) => c.regionId === region?.id)}
             onAdd={async (body, parentId) => {
               if (!region || !page) return;
-              await addComment(user.id, { chapterId, pageId: page.id, regionId: region.id, parentId, authorName: user.name, body });
+              await addComment(workspace.id, { chapterId, pageId: page.id, regionId: region.id, parentId, authorName: user.name, body });
             }}
-            onResolve={(id, resolved) => void setCommentResolved(user.id, id, resolved)}
+            onResolve={(id, resolved) => void setCommentResolved(workspace.id, id, resolved)}
           />
         ) : !region || !page ? (
           <div className="space-y-3 px-4 py-6 text-[12.5px] leading-relaxed text-editor-muted">
@@ -602,10 +603,10 @@ function Editor({ chapterId }: { chapterId: string }) {
         pages={pagesWithDrafts}
         findings={findings}
         speakerName={speakerName}
-        loadOriginal={(p) => getBlob(user.id, p.originalBlobId)}
+        loadOriginal={(p) => getBlob(workspace.id, p.originalBlobId)}
         onExported={async ({ pages: n }) => {
-          await recordUsage(user.id, { pagesExported: n });
-          await updateChapter(user.id, chapterId, { lastExportedAt: new Date().toISOString() });
+          await recordUsage(workspace.id, { pagesExported: n });
+          await updateChapter(workspace.id, chapterId, { lastExportedAt: new Date().toISOString() });
           version({ kind: 'export', summary: `Exported ${n} ${n === 1 ? 'page' : 'pages'}` });
         }}
       />
@@ -618,9 +619,9 @@ function Editor({ chapterId }: { chapterId: string }) {
         body="The page image and its regions are removed from this chapter."
         onConfirm={async () => {
           if (!deletingPage) return;
-          await deletePage(user.id, deletingPage.id);
+          await deletePage(workspace.id, deletingPage.id);
           const rest = pages.filter((p) => p.id !== deletingPage.id).map((p) => p.id);
-          await reorderPages(user.id, chapterId, rest);
+          await reorderPages(workspace.id, chapterId, rest);
           toast({ message: 'Page deleted.', tone: 'ok' });
         }}
       />
@@ -629,7 +630,7 @@ function Editor({ chapterId }: { chapterId: string }) {
         draft={glossaryDraft}
         onClose={() => setGlossaryDraft(null)}
         onSave={async (entry) => {
-          await saveGlossaryEntry(user.id, {
+          await saveGlossaryEntry(workspace.id, {
             projectId: project.id,
             original: entry.original,
             translation: entry.translation,

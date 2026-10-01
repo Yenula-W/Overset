@@ -6,12 +6,13 @@ import { AppShellPage, PageHeader } from '@/components/app/page-header';
 import { NoProjects, ProjectPicker, useProjectChoice } from '@/components/app/project-picker';
 import { ConfirmModal } from '@/components/app/project-form';
 import { Button, Card, EmptyState, Input, Skeleton, Textarea, useToast } from '@/components/ui';
-import { useLiveQuery, useUser } from '@/lib/store/hooks';
+import { useLiveQuery, useUser, useActiveWorkspace } from '@/lib/store/hooks';
 import { applyTranslationGlobally, deleteMemoryEntry, listMemory, updateMemoryEntry } from '@/lib/store/repo';
 import type { MemoryRecord } from '@/lib/store/schema';
 
 export default function MemoryPage() {
   const user = useUser();
+  const workspace = useActiveWorkspace();
   const toast = useToast();
   const { projects, project, choose, loading } = useProjectChoice();
   const [query, setQuery] = React.useState('');
@@ -20,7 +21,7 @@ export default function MemoryPage() {
   const [globalFor, setGlobalFor] = React.useState<MemoryRecord | null>(null);
   const [deleting, setDeleting] = React.useState<MemoryRecord | null>(null);
 
-  const memory = useLiveQuery(() => (project ? listMemory(user.id, project.id) : Promise.resolve([])), [user.id, project?.id], ['memory']);
+  const memory = useLiveQuery(() => (project ? listMemory(workspace.id, project.id) : Promise.resolve([])), [workspace.id, project?.id], ['memory']);
 
   if (!loading && projects?.length === 0) {
     return (
@@ -91,7 +92,7 @@ export default function MemoryPage() {
                         size="sm"
                         disabled={!draft.trim()}
                         onClick={async () => {
-                          await updateMemoryEntry(user.id, m.id, draft);
+                          await updateMemoryEntry(workspace.id, m.id, draft);
                           setEditingId(null);
                           toast({ message: 'Memory updated. Existing chapters are unchanged.', tone: 'ok' });
                         }}
@@ -149,7 +150,7 @@ export default function MemoryPage() {
         }
         onConfirm={async () => {
           if (!globalFor || !project) return;
-          const n = await applyTranslationGlobally(user.id, project.id, globalFor.sourceText, globalFor.translation, user.name);
+          const n = await applyTranslationGlobally(workspace.id, project.id, globalFor.sourceText, globalFor.translation, user.name);
           toast({ message: n ? `Updated ${n} ${n === 1 ? 'region' : 'regions'}.` : 'Every matching region already uses this translation.', tone: 'ok' });
         }}
       />
@@ -161,7 +162,7 @@ export default function MemoryPage() {
         confirmLabel="Delete"
         body="It won’t be suggested again. Existing translations aren’t changed."
         onConfirm={async () => {
-          if (deleting) await deleteMemoryEntry(user.id, deleting.id);
+          if (deleting) await deleteMemoryEntry(workspace.id, deleting.id);
         }}
       />
     </AppShellPage>

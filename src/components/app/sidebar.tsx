@@ -21,7 +21,7 @@ import { Logo } from '@/components/brand';
 import { Avatar, Progress } from '@/components/ui';
 import { planById } from '@/lib/billing';
 import { logOut } from '@/lib/store/auth';
-import { useLiveQuery, useUser } from '@/lib/store/hooks';
+import { useLiveQuery, useUser, useActiveWorkspace } from '@/lib/store/hooks';
 import { getUsage } from '@/lib/store/repo';
 import { cn, formatNumber, pct } from '@/lib/utils';
 
@@ -45,9 +45,10 @@ export function AppSidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const user = useUser();
+  const workspace = useActiveWorkspace();
   const [open, setOpen] = React.useState(false);
-  const plan = planById(user.plan);
-  const usage = useLiveQuery(() => getUsage(user.id), [user.id], ['usage']);
+  const plan = planById(workspace.plan);
+  const usage = useLiveQuery(() => getUsage(workspace.id), [workspace.id], ['usage']);
   const used = usage.data?.pagesProcessed ?? 0;
   const total = plan.pageAllowance;
 

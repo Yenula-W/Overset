@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { ArrowDown, ArrowUp, Plus, Trash2 } from 'lucide-react';
-import { useObjectUrl, useUser } from '@/lib/store/hooks';
+import { useObjectUrl, useActiveWorkspace } from '@/lib/store/hooks';
 import { getBlob } from '@/lib/store/repo';
 import type { PageRecord } from '@/lib/store/schema';
 import type { DialogueRegion } from '@/lib/types/domain';
@@ -93,15 +93,15 @@ function Thumb({
   onMove: (d: -1 | 1) => void;
   onDelete: () => void;
 }) {
-  const user = useUser();
+  const workspace = useActiveWorkspace();
   const [blob, setBlob] = React.useState<Blob | undefined>();
   React.useEffect(() => {
     let alive = true;
-    getBlob(user.id, page.thumbBlobId).then((b) => alive && setBlob(b));
+    getBlob(workspace.id, page.thumbBlobId).then((b) => alive && setBlob(b));
     return () => {
       alive = false;
     };
-  }, [user.id, page.thumbBlobId]);
+  }, [workspace.id, page.thumbBlobId]);
   const url = useObjectUrl(blob);
   const translatable = regions.filter((r) => r.translate);
   const approved = translatable.filter((r) => r.status === 'approved').length;

@@ -8,7 +8,7 @@ import { AppShellPage, PageHeader } from '@/components/app/page-header';
 import { ProjectCard, chapterStatus } from '@/components/app/project-card';
 import { ProjectFormModal } from '@/components/app/project-form';
 import { Button, Card, EmptyState, Skeleton, StatusBadge, useToast } from '@/components/ui';
-import { useUser } from '@/lib/store/hooks';
+import { useActiveWorkspace, useUser } from '@/lib/store/hooks';
 import { useWorkspace } from '@/lib/store/workspace';
 import { createProject } from '@/lib/store/repo';
 import { LANGUAGE_LABELS } from '@/lib/types/domain';
@@ -16,6 +16,7 @@ import { formatNumber, greeting } from '@/lib/utils';
 
 export default function DashboardPage() {
   const user = useUser();
+  const workspace = useActiveWorkspace();
   const router = useRouter();
   const toast = useToast();
   const ws = useWorkspace();
@@ -26,7 +27,7 @@ export default function DashboardPage() {
     setSeeding(true);
     try {
       const { seedSampleProject } = await import('@/lib/sample');
-      const { chapterId } = await seedSampleProject(user.id);
+      const { chapterId } = await seedSampleProject(workspace.id);
       toast({ message: 'Sample project added.', tone: 'ok' });
       router.push(`/translate/editor?chapter=${chapterId}`);
     } catch (err) {
@@ -189,7 +190,7 @@ export default function DashboardPage() {
         title="New project"
         submitLabel="Create project"
         onSubmit={async (v) => {
-          const p = await createProject(user.id, v);
+          const p = await createProject(workspace.id, v);
           toast({ message: `Created ${p.name}.`, tone: 'ok' });
           router.push(`/projects/${p.id}`);
         }}
