@@ -171,6 +171,7 @@ export default function ProjectPage() {
           </Card>
 
           <ProjectPreferences
+            readOnly={!workspace.canEdit}
             preferences={project.preferences}
             onSave={async (preferences) => {
               await updateProject(workspace.id, project.id, { preferences });
