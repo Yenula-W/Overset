@@ -33,7 +33,9 @@ const VIEWER = '44444444-4444-4444-4444-444444444444';
 async function setup() {
   const db = new PGlite();
   await db.exec(SUPABASE_STUB);
-  await db.exec(readFileSync(new URL('../supabase/migrations/0001_overset.sql', import.meta.url), 'utf8'));
+  for (const file of ['0001_overset.sql', '0002_private_helpers.sql']) {
+    await db.exec(readFileSync(new URL(`../supabase/migrations/${file}`, import.meta.url), 'utf8'));
+  }
   await db.exec(`
     grant select, insert, update, delete on public.records to authenticated;
     grant select, insert, update, delete on storage.objects to authenticated;
@@ -163,6 +165,13 @@ test('page images follow workspace access', async () => {
   assert.equal(strangerSees.rows.length, 0);
   const ownerSees = await as(db, OWNER, `select name from storage.objects`);
   assert.equal(ownerSees.rows.length, 1);
+});
+
+test('access helpers are not exposed through the public API', async () => {
+  const db = await setup();
+  const r = await db.query(`select count(*)::int as n from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public' and p.proname in ('confirmed_email', 'workspace_role', 'can_edit_workspace')`);
+  assert.equal(r.rows[0].n, 0);
 });
 
 test('rate limits persist and are server-only', async () => {

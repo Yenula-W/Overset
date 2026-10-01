@@ -66,7 +66,7 @@ $$;
 
 create or replace function public.can_edit_workspace(workspace text)
 returns boolean
-language sql stable
+language sql stable set search_path = ''
 as $$
   select coalesce(public.workspace_role(workspace) in ('owner', 'translator', 'proofreader', 'typesetter'), false)
 $$;
@@ -98,7 +98,7 @@ create policy records_delete on public.records for delete to authenticated
 -- Only the server (service role, e.g. a billing webhook) may.
 create or replace function public.records_guard()
 returns trigger
-language plpgsql
+language plpgsql set search_path = ''
 as $$
 begin
   new.updated_at := now();
