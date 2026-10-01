@@ -3,6 +3,13 @@ import './globals.css';
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://overset.ai'),
+  icons: {
+    icon: [
+      { url: '/favicon.ico', sizes: '32x32 64x64' },
+      { url: '/brand/overset-mark.svg', type: 'image/svg+xml' },
+    ],
+    apple: [{ url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }],
+  },
   title: {
     default: 'Overset — Translate the story. Preserve the panel.',
     template: '%s · Overset',
