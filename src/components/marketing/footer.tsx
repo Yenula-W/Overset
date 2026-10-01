@@ -1,19 +1,25 @@
-import Link from 'next/link';
-import { NAV_LINKS } from './mk';
+import Link from "next/link";
+import { NAV_LINKS } from "./mk";
 
 export function MarketingFooter() {
   return (
-    <footer className="mt-10 border-t border-line">
-      <div className="mx-auto flex max-w-[1440px] flex-wrap items-start justify-between gap-8 px-4 py-12 sm:px-8">
+    <footer className="mt-16 border-t border-line bg-[#eeede8]">
+      <div className="mx-auto flex max-w-[1440px] flex-wrap items-start justify-between gap-8 px-4 pb-5 pt-10 sm:px-8">
         <div className="flex max-w-[320px] flex-col gap-2.5">
-          <span className="text-[15px] font-extrabold tracking-[0.06em]">OVERSET</span>
+          <span className="text-[15px] font-extrabold tracking-[0.06em]">
+            OVERSET
+          </span>
           <span className="text-[13px] leading-[1.5] text-ink-muted">
-            AI localization workspace for manhwa, webtoons, manga, and comics.
+            Comic localization, in one workspace.
           </span>
         </div>
         <nav className="flex flex-wrap gap-7" aria-label="Footer">
           {NAV_LINKS.map((l) => (
-            <Link key={l.href} href={l.href} className="text-[13px] text-ink-muted hover:text-ink">
+            <Link
+              key={l.href}
+              href={l.href}
+              className="text-[13px] text-ink-muted hover:text-ink"
+            >
               {l.label}
             </Link>
           ))}
@@ -30,6 +36,9 @@ export function MarketingFooter() {
             </Link>
           </span>
         </div>
+      </div>
+      <div className="footer-wordmark mk-shell" aria-hidden>
+        overset<span className="footer-period">.</span>
       </div>
     </footer>
   );

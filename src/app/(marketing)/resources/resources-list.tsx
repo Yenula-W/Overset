@@ -1,12 +1,17 @@
-'use client';
+"use client";
 
-import * as React from 'react';
-import Link from 'next/link';
-import { Check } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import * as React from "react";
+import Link from "next/link";
+import { ArrowUpRight } from "lucide-react";
+import {
+  PanelArtOne,
+  PanelArtTwo,
+  PanelArtThree,
+} from "@/components/marketing/paper-art";
+import { cn } from "@/lib/utils";
 
-type ResType = 'Guides' | 'Documentation' | 'Templates' | 'Changelog';
-type Level = 'Any' | 'Beginner' | 'Advanced';
+type ResType = "Guides" | "Documentation" | "Templates" | "Changelog";
+type Level = "Any" | "Beginner" | "Advanced";
 
 interface Resource {
   title: string;
@@ -17,106 +22,192 @@ interface Resource {
 }
 
 const RESOURCES: Resource[] = [
-  { title: 'Getting started: translate your first chapter', type: 'Guides', level: 'Beginner', meta: '6 min read', href: '/docs' },
-  { title: 'Building a glossary that holds across chapters', type: 'Guides', level: 'Advanced', meta: '9 min read', href: '/docs' },
-  { title: 'Character profiles and voice settings', type: 'Guides', level: 'Beginner', meta: '7 min read', href: '/docs' },
-  { title: 'Reading order on vertical webtoon strips', type: 'Documentation', level: 'Advanced', meta: '5 min read', href: '/docs' },
-  { title: 'Typesetting rules for tight bubbles', type: 'Guides', level: 'Advanced', meta: '8 min read', href: '/help' },
-  { title: 'Exporting at original dimensions', type: 'Documentation', level: 'Beginner', meta: '4 min read', href: '/docs' },
-  { title: 'Translation memory, explained', type: 'Documentation', level: 'Beginner', meta: '6 min read', href: '/docs' },
-  { title: 'Glossary template: action fantasy', type: 'Templates', level: 'Beginner', meta: 'CSV', href: '/docs' },
-  { title: 'Changelog — September 2026', type: 'Changelog', level: 'Any', meta: 'Release notes', href: '/changelog' },
+  {
+    title: "Your first chapter",
+    type: "Guides",
+    level: "Beginner",
+    meta: "6 min read",
+    href: "/docs",
+  },
+  {
+    title: "A consistent glossary",
+    type: "Guides",
+    level: "Advanced",
+    meta: "9 min read",
+    href: "/docs",
+  },
+  {
+    title: "Character voices",
+    type: "Guides",
+    level: "Beginner",
+    meta: "7 min read",
+    href: "/docs",
+  },
+  {
+    title: "Webtoon reading order",
+    type: "Documentation",
+    level: "Advanced",
+    meta: "5 min read",
+    href: "/docs",
+  },
+  {
+    title: "Typesetting rules for tight bubbles",
+    type: "Guides",
+    level: "Advanced",
+    meta: "8 min read",
+    href: "/help",
+  },
+  {
+    title: "Exporting at original dimensions",
+    type: "Documentation",
+    level: "Beginner",
+    meta: "4 min read",
+    href: "/docs",
+  },
+  {
+    title: "Translation memory, explained",
+    type: "Documentation",
+    level: "Beginner",
+    meta: "6 min read",
+    href: "/docs",
+  },
+  {
+    title: "Glossary template: action fantasy",
+    type: "Templates",
+    level: "Beginner",
+    meta: "CSV",
+    href: "/docs",
+  },
+  {
+    title: "Changelog — September 2026",
+    type: "Changelog",
+    level: "Any",
+    meta: "Release notes",
+    href: "/changelog",
+  },
 ];
 
-const TYPES: ResType[] = ['Guides', 'Documentation', 'Templates', 'Changelog'];
-const LEVELS: Level[] = ['Any', 'Beginner', 'Advanced'];
+const TYPES: ResType[] = ["Guides", "Documentation", "Templates", "Changelog"];
+const LEVELS: Level[] = ["Any", "Beginner", "Advanced"];
+
+const ARTS = [PanelArtOne, PanelArtTwo, PanelArtThree];
 
 export function ResourcesList() {
-  const [types, setTypes] = React.useState<Partial<Record<ResType, boolean>>>({});
-  const [level, setLevel] = React.useState<Level>('Any');
-
-  const anyType = !Object.values(types).some(Boolean);
+  const [type, setType] = React.useState<ResType | "All">("All");
+  const [level, setLevel] = React.useState<Level>("Any");
   const visible = RESOURCES.filter(
-    (r) => (anyType || types[r.type]) && (level === 'Any' || r.level === level || r.level === 'Any'),
+    (r) =>
+      (type === "All" || r.type === type) &&
+      (level === "Any" || r.level === level || r.level === "Any"),
   );
-
+  const lead = visible[0];
+  const LeadArt = lead
+    ? ARTS[RESOURCES.indexOf(lead) % ARTS.length]
+    : PanelArtOne;
   return (
-    <div className="flex flex-wrap items-start gap-10">
-      <aside className="flex min-w-[220px] flex-col gap-7" style={{ flex: '0 1 240px' }} aria-label="Filters">
-        <span className="text-[14px] text-ink-faint" aria-live="polite">
-          {visible.length} results
-        </span>
-        <fieldset className="m-0 flex flex-col gap-3.5 border-0 p-0">
-          <legend className="mb-3.5 p-0 text-[15px] font-bold">Type</legend>
-          {TYPES.map((t) => {
-            const on = Boolean(types[t]);
-            return (
-              <label key={t} className="flex cursor-pointer items-center gap-2.5 text-[14px]">
-                <input
-                  type="checkbox"
-                  className="peer sr-only"
-                  checked={on}
-                  onChange={() => setTypes((s) => ({ ...s, [t]: !s[t] }))}
-                />
-                <span
-                  className={cn(
-                    'flex h-[18px] w-[18px] items-center justify-center border-[1.5px] border-ink text-white peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-accent',
-                    on ? 'bg-ink' : 'bg-white',
-                  )}
-                  aria-hidden
-                >
-                  {on && <Check size={12} strokeWidth={3} />}
-                </span>
-                {t}
-              </label>
-            );
-          })}
-        </fieldset>
-        <fieldset className="m-0 flex flex-col gap-3.5 border-0 p-0">
-          <legend className="mb-3.5 p-0 text-[15px] font-bold">Level</legend>
-          <div className="flex gap-1.5">
+    <div>
+      <div className="mb-8 flex flex-wrap items-center justify-between gap-5 border-b border-line pb-5">
+        <div className="flex flex-wrap gap-1" aria-label="Resource categories">
+          {(["All", ...TYPES] as const).map((t) => (
+            <button
+              key={t}
+              type="button"
+              aria-pressed={type === t}
+              onClick={() => setType(t)}
+              className={cn(
+                "min-h-11 rounded-full px-4 text-[13px] transition-colors",
+                type === t ? "bg-ink text-white" : "hover:bg-[#eeede8]",
+              )}
+            >
+              {t}
+            </button>
+          ))}
+        </div>
+        <div className="flex items-center gap-4">
+          <span className="text-[11px] text-ink-muted" aria-live="polite">
+            {visible.length} resources
+          </span>
+          <label className="sr-only" htmlFor="resource-level">
+            Experience level
+          </label>
+          <select
+            id="resource-level"
+            value={level}
+            onChange={(e) => setLevel(e.target.value as Level)}
+            className="min-h-11 rounded-full border border-line bg-transparent px-4 text-[12px]"
+          >
             {LEVELS.map((l) => (
-              <button
-                key={l}
-                type="button"
-                aria-pressed={level === l}
-                onClick={() => setLevel(l)}
-                className={cn(
-                  'border border-mk-input px-3 py-[9px] text-[13px] transition-colors',
-                  level === l ? 'bg-ink text-white' : 'bg-white text-ink hover:border-ink',
-                )}
-              >
-                {l}
-              </button>
+              <option key={l} value={l}>
+                {l === "Any" ? "All levels" : l}
+              </option>
             ))}
-          </div>
-        </fieldset>
-      </aside>
-
-      <ul
-        className="m-0 grid list-none gap-x-5 gap-y-8 p-0"
-        style={{ flex: '1 1 600px', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))' }}
-      >
-        {visible.map((r) => {
-          const n = String(RESOURCES.indexOf(r) + 1).padStart(2, '0');
-          return (
-            <li key={r.title}>
-              <Link href={r.href} className="group flex flex-col gap-2.5 text-ink hover:text-ink">
-                <div className="flex aspect-[4/3] flex-col justify-between bg-mk-tile p-[18px] transition-colors group-hover:bg-accent-soft">
-                  <span className="font-mono text-[11px] font-semibold tracking-[0.1em] text-ink-muted">{r.type.toUpperCase()}</span>
-                  <span className="text-[64px] font-extrabold leading-none tracking-[-0.04em]" aria-hidden>
-                    {n}
-                  </span>
-                </div>
-                <span className="text-[16px] font-semibold leading-[1.3] tracking-[-0.01em] group-hover:text-accent">{r.title}</span>
-                <span className="text-[12.5px] text-ink-faint">
-                  {r.meta} • {r.level}
-                </span>
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
+          </select>
+        </div>
+      </div>
+      {lead ? (
+        <div className="grid items-start gap-9 lg:grid-cols-[1.1fr_1fr]">
+          <Link href={lead.href} className="resource-feature group">
+            <div className="relative h-[300px] overflow-hidden rounded-xl bg-[#ddddd2] sm:h-[400px]">
+              <div className="resource-cover">
+                <LeadArt />
+              </div>
+              <span className="absolute bottom-5 right-5 grid h-12 w-12 place-items-center rounded-full bg-white text-ink">
+                <ArrowUpRight size={20} aria-hidden />
+              </span>
+            </div>
+            <div className="mt-5 flex items-center justify-between text-[11px] text-ink-muted">
+              <span>{lead.type}</span>
+              <span>{lead.level === "Any" ? "Updates" : lead.level}</span>
+            </div>
+            <h2 className="mt-2 text-[32px] font-medium tracking-[-.035em]">
+              {lead.title}
+            </h2>
+          </Link>
+          <ul className="m-0 list-none border-t border-ink p-0">
+            {visible.slice(1).map((r) => {
+              const Art = ARTS[RESOURCES.indexOf(r) % ARTS.length];
+              return (
+                <li key={r.title}>
+                  <Link href={r.href} className="resource-row group">
+                    <div className="resource-thumb" aria-hidden>
+                      <Art />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <span className="text-[10px] text-ink-muted">
+                        {r.type}
+                      </span>
+                      <h2 className="mt-1 text-[17px] font-medium tracking-[-.015em]">
+                        {r.title}
+                      </h2>
+                    </div>
+                    <ArrowUpRight
+                      size={17}
+                      className="shrink-0 text-ink-muted transition-transform group-hover:-translate-y-1 group-hover:translate-x-1"
+                      aria-hidden
+                    />
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      ) : (
+        <div className="py-20 text-center">
+          <p className="mb-5 text-ink-muted">
+            No resources match these filters.
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              setType("All");
+              setLevel("Any");
+            }}
+            className="min-h-11 rounded-full border border-line px-5 text-[13px]"
+          >
+            Clear filters
+          </button>
+        </div>
+      )}
     </div>
   );
 }
