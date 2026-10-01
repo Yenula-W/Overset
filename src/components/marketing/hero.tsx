@@ -12,7 +12,7 @@ import {
 } from "./paper-art";
 import { useDeskScroll } from "./use-desk-scroll";
 
-type Lang = "EN" | "ES" | "FR" | "PT";
+import { setHeroLanguage, useHeroLanguage, type Lang } from "./hero-language";
 
 const LANGS: Record<Lang, [string, string, string, string]> = {
   EN: [
@@ -139,7 +139,7 @@ const PANELS = [
 
 export function Hero() {
   const section = React.useRef<HTMLElement>(null);
-  const [lang, setLang] = React.useState<Lang>("EN");
+  const lang = useHeroLanguage();
   const [step, setStep] = React.useState(-1);
   useDeskScroll(section, setStep);
 
@@ -168,7 +168,7 @@ export function Hero() {
               <Segmented
                 label="Target language"
                 value={lang}
-                onChange={setLang}
+                onChange={setHeroLanguage}
                 items={(Object.keys(LANGS) as Lang[]).map((code) => ({
                   id: code,
                   label: code,

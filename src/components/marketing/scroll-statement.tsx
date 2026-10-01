@@ -5,11 +5,12 @@ import {
   motion,
   useReducedMotion,
   useScroll,
+  useSpring,
   useTransform,
   type MotionValue,
 } from "framer-motion";
 
-const LINES = ["Read like it was", "drawn in English."];
+import { LANG_NAMES, useHeroLanguage } from "./hero-language";
 
 /** Each letter starts fanned out and tilted, and settles as the line scrolls in. */
 function Letter({
@@ -21,9 +22,9 @@ function Letter({
   offset: number;
   progress: MotionValue<number>;
 }) {
-  const x = useTransform(progress, [0, 1], [offset * 46, 0]);
-  const rotateX = useTransform(progress, [0, 1], [offset * 34, 0]);
-  const opacity = useTransform(progress, [0, 0.35, 1], [0, 0.35, 1]);
+  const x = useTransform(progress, [0, 1], [offset * 28, 0]);
+  const rotateX = useTransform(progress, [0, 1], [offset * 22, 0]);
+  const opacity = useTransform(progress, [0, 0.5, 1], [0, 0.6, 1]);
   return (
     <motion.span className="inline-block" style={{ x, rotateX, opacity }}>
       {char === " " ? " " : char}
@@ -42,17 +43,26 @@ export function ScrollStatement() {
     target: section,
     offset: ["start end", "end end"],
   });
-  const progress = useTransform(scrollYProgress, [0.15, 0.85], [0, 1], {
+  // Assembles over a short stretch of scroll, eased by a spring so wheel
+  // steps glide instead of jumping.
+  const raw = useTransform(scrollYProgress, [0.05, 0.6], [0, 1], {
     clamp: true,
   });
+  const progress = useSpring(raw, { stiffness: 220, damping: 32, mass: 0.6 });
+  const lang = useHeroLanguage();
+  const LINES = ["Read like it was", `drawn in ${LANG_NAMES[lang]}.`];
 
   return (
     <section ref={section} className="statement" data-motion={reduced ? "reduced" : "full"}>
       <div className="statement-stage">
         <p className="statement-eyebrow">Overset keeps the page. You keep the reader.</p>
-        <h2 className="statement-text" aria-label={LINES.join(" ")}>
+        <h2
+          className="statement-text"
+          aria-label={LINES.join(" ")}
+          style={{ "--chars": Math.max(...LINES.map((l) => l.length)) } as React.CSSProperties}
+        >
           {LINES.map((line, l) => (
-            <span key={l} className="block" aria-hidden>
+            <span key={`${l}-${lang}`} className="block" aria-hidden>
               {reduced
                 ? line
                 : line.split("").map((char, i) => (
