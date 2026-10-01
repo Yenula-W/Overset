@@ -272,7 +272,7 @@ export function Inspector({
           />
         </div>
 
-        {(region.embeddedInArtwork || region.type === 'sfx' || region.type === 'background') && <div className="flex gap-2"><button onClick={onCleanup} className="rounded-md border border-editor-line px-3 py-2 text-[12px] text-editor-text">Clean artwork text</button>{region.artworkCleanup && <button onClick={()=>onChange({artworkCleanup:undefined})} className="text-[12px] text-editor-muted">Remove cleanup</button>}</div>}
+        {(region.embeddedInArtwork || region.type === 'sfx' || region.type === 'background') && <div className="flex gap-2"><button onClick={onCleanup} className="rounded-md border border-editor-line px-3 py-2 text-[12px] text-editor-text">Clean artwork text</button>{region.artworkCleanup && <button onClick={()=>onChange({artworkCleanup:undefined,status:'edited'})} className="text-[12px] text-editor-muted">Remove cleanup</button>}</div>}
         <div className="flex flex-wrap gap-x-4 gap-y-1.5">
           <button onClick={addSelectionToGlossary} className="inline-flex items-center gap-1.5 text-[12px] text-editor-muted hover:text-editor-text">
             <BookPlus size={12} />

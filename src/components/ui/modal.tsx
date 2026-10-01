@@ -22,11 +22,20 @@ export function Modal({
   size?: 'sm' | 'md' | 'lg';
 }) {
   const panelRef = React.useRef<HTMLDivElement>(null);
+  const closeRef = React.useRef(onClose);
+  closeRef.current = onClose;
 
   React.useEffect(() => {
     if (!open) return;
+    const previousFocus = document.activeElement;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') { e.preventDefault(); closeRef.current(); return; }
+      if (e.key !== 'Tab') return;
+      const controls = Array.from(panelRef.current?.querySelectorAll<HTMLElement>('button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex="0"]') ?? []).filter(el => el.getClientRects().length > 0);
+      const first = controls[0], last = controls[controls.length - 1];
+      if (!first) { e.preventDefault(); panelRef.current?.focus(); return; }
+      if (e.shiftKey && (document.activeElement === first || document.activeElement === panelRef.current)) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && (document.activeElement === last || document.activeElement === panelRef.current)) { e.preventDefault(); first.focus(); }
     };
     document.addEventListener('keydown', onKey);
     const prevOverflow = document.body.style.overflow;
@@ -35,8 +44,9 @@ export function Modal({
     return () => {
       document.removeEventListener('keydown', onKey);
       document.body.style.overflow = prevOverflow;
+      if (previousFocus instanceof HTMLElement && previousFocus.isConnected) previousFocus.focus();
     };
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open) return null;
 
@@ -52,7 +62,7 @@ export function Modal({
         aria-label={title}
         tabIndex={-1}
         className={cn(
-          'relative w-full animate-fade-up rounded-t-2xl border border-line bg-surface shadow-lift outline-none sm:rounded-xl2',
+          'relative w-full animate-fade-up rounded-t-2xl border border-line bg-surface text-ink shadow-lift outline-none sm:rounded-xl2',
           width,
         )}
       >

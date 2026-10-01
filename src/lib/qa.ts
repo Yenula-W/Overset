@@ -69,6 +69,10 @@ export function runQa(pages: QaPage[], ctx: QaContext): QaFinding[] {
         push({ ...base, category: 'needs_inpainting', severity: 'warning', title: 'Text over artwork', detail: `${label} sits on artwork. Use the cleanup brush to remove the source text before export. It is otherwise left untouched.` });
       }
 
+      if (r.artworkCleanup?.strokes.length && r.status !== 'approved') {
+        push({ ...base, category: 'needs_inpainting', severity: 'warning', title: 'Review artwork cleanup', detail: `${label} has a manual cleanup mask. Compare it with the original and approve only after checking the source lettering is fully removed.` });
+      }
+
       for (const term of terms) {
         if (!contains(r.sourceText, term.original)) continue;
         if (!contains(r.finalTranslation, term.translation)) {
