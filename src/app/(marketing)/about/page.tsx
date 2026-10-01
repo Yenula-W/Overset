@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
+import { ChapterGallery } from "@/components/marketing/chapter-gallery";
 import { AboutWorkspace } from "@/components/marketing/about-workspace";
 import { FinalCta } from "@/components/marketing/home-sections";
 
@@ -48,6 +49,7 @@ export default function AboutPage() {
           context, and keep the final say.
         </p>
       </section>
+      <ChapterGallery />
       <AboutWorkspace />
       <section className="mk-shell grid gap-10 pt-20 lg:grid-cols-[.85fr_1.15fr]">
         <div>
