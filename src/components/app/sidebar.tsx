@@ -21,7 +21,7 @@ import { Logo } from '@/components/brand';
 import { Avatar, Progress } from '@/components/ui';
 import { planById } from '@/lib/billing';
 import { logOut } from '@/lib/store/auth';
-import { useLiveQuery, useUser, useActiveWorkspace } from '@/lib/store/hooks';
+import { useActiveWorkspace, useLiveQuery, useSession, useUser } from '@/lib/store/hooks';
 import { getUsage } from '@/lib/store/repo';
 import { cn, formatNumber, pct } from '@/lib/utils';
 
@@ -63,6 +63,8 @@ export function AppSidebar() {
         </button>
       </div>
 
+      <WorkspaceSwitcher />
+
       <nav className="flex-1 space-y-0.5 overflow-y-auto px-2.5 pb-4" aria-label="Workspace">
         {NAV.map((item) => (
           <NavLink key={item.href} {...item} active={pathname === item.href || pathname.startsWith(`${item.href}/`)} />
@@ -88,8 +90,8 @@ export function AppSidebar() {
         </div>
       </Link>
       <button
-        onClick={() => {
-          logOut();
+        onClick={async () => {
+          await logOut();
           router.replace('/login');
         }}
         className="mr-2 mt-3 rounded-lg p-2 text-ink-faint transition-colors hover:bg-ink/5 hover:text-ink"
@@ -121,6 +123,37 @@ export function AppSidebar() {
 
       <aside className="sticky top-0 hidden h-screen w-[248px] shrink-0 border-r border-line bg-canvas lg:block">{content}</aside>
     </>
+  );
+}
+
+/** Shown once you belong to someone else's team: picks whose projects are on screen. */
+function WorkspaceSwitcher() {
+  const { workspaces, switchWorkspace } = useSession();
+  const workspace = useActiveWorkspace();
+  const router = useRouter();
+  if (workspaces.length < 2) return null;
+  return (
+    <div className="px-2.5 pb-3">
+      <label htmlFor="workspace-switcher" className="mb-1 block px-1 text-[11px] font-medium uppercase tracking-wide text-ink-faint">
+        Workspace
+      </label>
+      <select
+        id="workspace-switcher"
+        value={workspace.id}
+        onChange={(e) => {
+          switchWorkspace(e.target.value);
+          router.push('/dashboard');
+        }}
+        className="w-full rounded-lg border border-line bg-canvas px-2.5 py-1.5 text-[13px] text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
+      >
+        {workspaces.map((w) => (
+          <option key={w.id} value={w.id}>
+            {w.isOwn ? w.name : `${w.name} · ${w.role}`}
+          </option>
+        ))}
+      </select>
+      {!workspace.canEdit && <p className="mt-1.5 px-1 text-[11.5px] text-ink-muted">View only — ask the owner for an editing role.</p>}
+    </div>
   );
 }
 

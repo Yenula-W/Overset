@@ -22,6 +22,12 @@ function LoginForm() {
   const [errors, setErrors] = React.useState<Record<string, string>>({});
   const [busy, setBusy] = React.useState(false);
 
+  // Email links that couldn't be completed come back here with the reason.
+  React.useEffect(() => {
+    const error = new URLSearchParams(window.location.search).get('error');
+    if (error) setErrors({ form: error });
+  }, []);
+
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const parsed = loginSchema.safeParse(Object.fromEntries(new FormData(e.currentTarget)));
