@@ -7,12 +7,12 @@ import { AppShellPage, PageHeader } from '@/components/app/page-header';
 import { ProjectCard } from '@/components/app/project-card';
 import { ProjectFormModal } from '@/components/app/project-form';
 import { Button, EmptyState, Skeleton, useToast } from '@/components/ui';
-import { useUser } from '@/lib/store/hooks';
+import { useActiveWorkspace } from '@/lib/store/hooks';
 import { useWorkspace } from '@/lib/store/workspace';
 import { createProject } from '@/lib/store/repo';
 
 export default function ProjectsPage() {
-  const user = useUser();
+  const workspace = useActiveWorkspace();
   const router = useRouter();
   const toast = useToast();
   const ws = useWorkspace();
@@ -69,7 +69,7 @@ export default function ProjectsPage() {
         title="New project"
         submitLabel="Create project"
         onSubmit={async (v) => {
-          const p = await createProject(user.id, v);
+          const p = await createProject(workspace.id, v);
           toast({ message: `Created ${p.name}.`, tone: 'ok' });
           router.push(`/projects/${p.id}`);
         }}

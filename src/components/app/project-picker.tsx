@@ -4,7 +4,7 @@ import * as React from 'react';
 import { useRouter } from 'next/navigation';
 import { LibraryBig } from 'lucide-react';
 import { Button, EmptyState, Select } from '@/components/ui';
-import { useLiveQuery, useUser } from '@/lib/store/hooks';
+import { useLiveQuery, useActiveWorkspace } from '@/lib/store/hooks';
 import { listProjects } from '@/lib/store/repo';
 import type { ProjectRecord } from '@/lib/store/schema';
 
@@ -13,9 +13,9 @@ import type { ProjectRecord } from '@/lib/store/schema';
  * ?project= so links and reloads keep it.
  */
 export function useProjectChoice() {
-  const user = useUser();
+  const workspace = useActiveWorkspace();
   const router = useRouter();
-  const projects = useLiveQuery(() => listProjects(user.id), [user.id], ['projects']);
+  const projects = useLiveQuery(() => listProjects(workspace.id), [workspace.id], ['projects']);
   const [projectId, setProjectId] = React.useState<string | null>(null);
 
   React.useEffect(() => {

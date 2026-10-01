@@ -6,7 +6,7 @@ import { AppShellPage, PageHeader } from '@/components/app/page-header';
 import { NoProjects, ProjectPicker, useProjectChoice } from '@/components/app/project-picker';
 import { ConfirmModal } from '@/components/app/project-form';
 import { Badge, Button, Card, Checkbox, EmptyState, Field, Input, Modal, Select, Skeleton, Table, Td, Textarea, Th, Tr, useToast } from '@/components/ui';
-import { useLiveQuery, useUser } from '@/lib/store/hooks';
+import { useLiveQuery, useActiveWorkspace } from '@/lib/store/hooks';
 import { deleteGlossaryEntry, listChapters, listCharacters, listGlossary, listPages, saveGlossaryEntry } from '@/lib/store/repo';
 import type { GlossaryRecord } from '@/lib/store/schema';
 import type { GlossaryStatus, GlossaryType } from '@/lib/types/domain';
@@ -21,7 +21,7 @@ interface Usage {
 }
 
 export default function GlossaryPage() {
-  const user = useUser();
+  const workspace = useActiveWorkspace();
   const toast = useToast();
   const { projects, project, choose, loading } = useProjectChoice();
   const [query, setQuery] = React.useState('');
@@ -32,14 +32,14 @@ export default function GlossaryPage() {
     async () => {
       if (!project) return null;
       const [entries, characters, chapters] = await Promise.all([
-        listGlossary(user.id, project.id),
-        listCharacters(user.id, project.id),
-        listChapters(user.id, project.id),
+        listGlossary(workspace.id, project.id),
+        listCharacters(workspace.id, project.id),
+        listChapters(workspace.id, project.id),
       ]);
       // Usage is counted from the actual chapters, oldest first.
       const lines: Array<{ where: string; text: string }> = [];
       for (const c of [...chapters].sort((a, b) => a.number - b.number)) {
-        for (const p of await listPages(user.id, c.id)) {
+        for (const p of await listPages(workspace.id, c.id)) {
           for (const r of [...p.regions].sort((a, b) => a.readingOrder - b.readingOrder))
             if (r.sourceText) lines.push({ where: `${c.name} · page ${p.order}`, text: r.sourceText });
         }
@@ -51,7 +51,7 @@ export default function GlossaryPage() {
       }
       return { entries, characters, usage };
     },
-    [user.id, project?.id],
+    [workspace.id, project?.id],
     ['glossary', 'characters', 'pages', 'chapters'],
   );
 
@@ -70,7 +70,7 @@ export default function GlossaryPage() {
 
   async function toggleLock(entry: GlossaryRecord) {
     const status: GlossaryStatus = entry.status === 'locked' ? 'approved' : 'locked';
-    await saveGlossaryEntry(user.id, { ...entry, status });
+    await saveGlossaryEntry(workspace.id, { ...entry, status });
     toast({ message: status === 'locked' ? `“${entry.original}” is locked.` : `“${entry.original}” is unlocked.`, tone: 'ok' });
   }
 
@@ -172,7 +172,7 @@ export default function GlossaryPage() {
           characters={data.data?.characters ?? []}
           onClose={() => setEditing(null)}
           onSave={async (v) => {
-            await saveGlossaryEntry(user.id, { ...v, projectId: project.id, occurrences: v.id ? data.data?.usage.get(v.id)?.count ?? 0 : 0 });
+            await saveGlossaryEntry(workspace.id, { ...v, projectId: project.id, occurrences: v.id ? data.data?.usage.get(v.id)?.count ?? 0 : 0 });
             toast({ message: v.id ? 'Term updated.' : 'Term added.', tone: 'ok' });
           }}
         />
@@ -185,7 +185,7 @@ export default function GlossaryPage() {
         confirmLabel="Delete term"
         body="QA will stop checking translations against it. Existing translations aren’t changed."
         onConfirm={async () => {
-          if (deleting) await deleteGlossaryEntry(user.id, deleting.id);
+          if (deleting) await deleteGlossaryEntry(workspace.id, deleting.id);
         }}
       />
     </AppShellPage>

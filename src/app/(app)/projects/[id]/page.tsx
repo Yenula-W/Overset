@@ -9,7 +9,7 @@ import { chapterStatus } from '@/components/app/project-card';
 import { ProjectPreferences } from '@/components/app/project-preferences';
 import { ConfirmModal, ProjectFormModal } from '@/components/app/project-form';
 import { Avatar, Badge, Button, Card, CardBody, CardHeader, CardTitle, EmptyState, Input, Modal, Progress, Skeleton, StatusBadge, useToast } from '@/components/ui';
-import { useLiveQuery, useUser } from '@/lib/store/hooks';
+import { useLiveQuery, useActiveWorkspace } from '@/lib/store/hooks';
 import {
   deleteChapter,
   deleteProject,
@@ -30,29 +30,29 @@ import { formatNumber } from '@/lib/utils';
 
 export default function ProjectPage() {
   const { id } = useParams<{ id: string }>();
-  const user = useUser();
+  const workspace = useActiveWorkspace();
   const router = useRouter();
   const toast = useToast();
 
   const data = useLiveQuery(
     async () => {
-      const project = await getProject(user.id, id);
+      const project = await getProject(workspace.id, id);
       const [chapters, characters, glossary, memory, team] = await Promise.all([
-        listChapters(user.id, id),
-        listCharacters(user.id, id),
-        listGlossary(user.id, id),
-        listMemory(user.id, id),
-        listTeam(user.id),
+        listChapters(workspace.id, id),
+        listCharacters(workspace.id, id),
+        listGlossary(workspace.id, id),
+        listMemory(workspace.id, id),
+        listTeam(workspace.id),
       ]);
       const withStats = await Promise.all(
         chapters.map(async (c) => {
-          const stats = chapterStats(await listPages(user.id, c.id));
+          const stats = chapterStats(await listPages(workspace.id, c.id));
           return { chapter: c, stats, status: effectiveStatus(c, stats) };
         }),
       );
       return { project, chapters: withStats, characters, glossary, memory, team };
     },
-    [user.id, id],
+    [workspace.id, id],
     ['projects', 'chapters', 'pages', 'characters', 'glossary', 'memory', 'team'],
   );
 
@@ -173,7 +173,7 @@ export default function ProjectPage() {
           <ProjectPreferences
             preferences={project.preferences}
             onSave={async (preferences) => {
-              await updateProject(user.id, project.id, { preferences });
+              await updateProject(workspace.id, project.id, { preferences });
               toast({ message: 'Preferences saved. New chapters will use them.', tone: 'ok' });
             }}
           />
@@ -245,7 +245,7 @@ export default function ProjectPage() {
         submitLabel="Save"
         initial={project}
         onSubmit={async (v) => {
-          await updateProject(user.id, project.id, v);
+          await updateProject(workspace.id, project.id, v);
           toast({ message: 'Project updated.', tone: 'ok' });
         }}
       />
@@ -257,7 +257,7 @@ export default function ProjectPage() {
         confirmLabel="Delete project"
         body={`This removes ${chapters.length} ${chapters.length === 1 ? 'chapter' : 'chapters'}, ${formatNumber(pages)} uploaded ${pages === 1 ? 'page' : 'pages'}, and the project’s glossary, characters, and translation memory.`}
         onConfirm={async () => {
-          await deleteProject(user.id, project.id);
+          await deleteProject(workspace.id, project.id);
           toast({ message: `${project.name} was deleted.`, tone: 'ok' });
           router.replace('/projects');
         }}
@@ -271,7 +271,7 @@ export default function ProjectPage() {
         body="Its pages, regions, comments, and history are removed. Translation memory from approved lines is kept."
         onConfirm={async () => {
           if (!removing) return;
-          await deleteChapter(user.id, removing.id);
+          await deleteChapter(workspace.id, removing.id);
           toast({ message: `${removing.name} was deleted.`, tone: 'ok' });
         }}
       />
@@ -290,7 +290,7 @@ export default function ProjectPage() {
               disabled={!renameValue.trim()}
               onClick={async () => {
                 if (!renaming) return;
-                await updateChapter(user.id, renaming.id, { name: renameValue.trim() });
+                await updateChapter(workspace.id, renaming.id, { name: renameValue.trim() });
                 setRenaming(null);
               }}
             >

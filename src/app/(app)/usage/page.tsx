@@ -5,26 +5,26 @@ import { AppShellPage, PageHeader } from '@/components/app/page-header';
 import { Button, Card, CardBody, CardHeader, CardTitle, Progress, Tooltip } from '@/components/ui';
 import { CREDIT_PACKS, planById } from '@/lib/billing';
 import { getAllByIndex, storageEstimate } from '@/lib/store/db';
-import { useLiveQuery, useUser } from '@/lib/store/hooks';
+import { useLiveQuery, useActiveWorkspace } from '@/lib/store/hooks';
 import { getUsage, listAllPages, periodKey } from '@/lib/store/repo';
 import type { UsageRecord } from '@/lib/store/schema';
 import { formatBytes } from '@/lib/download';
 import { formatNumber, pct } from '@/lib/utils';
 
 export default function UsagePage() {
-  const user = useUser();
-  const plan = planById(user.plan);
+  const workspace = useActiveWorkspace();
+  const plan = planById(workspace.plan);
   const data = useLiveQuery(
     async () => {
       const [usage, history, pages, storage] = await Promise.all([
-        getUsage(user.id),
-        getAllByIndex<UsageRecord>('usage', 'ownerId', user.id),
-        listAllPages(user.id),
+        getUsage(workspace.id),
+        getAllByIndex<UsageRecord>('usage', 'ownerId', workspace.id),
+        listAllPages(workspace.id),
         storageEstimate(),
       ]);
       return { usage, history: history.sort((a, b) => b.period.localeCompare(a.period)), pages, storage };
     },
-    [user.id],
+    [workspace.id],
     ['usage', 'pages', 'blobs'],
   );
 

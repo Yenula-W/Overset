@@ -26,7 +26,7 @@ async function deliver(payload: ContactPayload) {
 
 export async function POST(request: Request) {
   const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
-  const limit = rateLimit(`contact:${ip}`, 5, 10 * 60_000);
+  const limit = await rateLimit(`contact:${ip}`, 5, 10 * 60_000);
   if (!limit.ok) {
     return NextResponse.json(
       { error: { code: 'rate_limited', message: 'Too many messages from this connection. Try again in a few minutes.' } },

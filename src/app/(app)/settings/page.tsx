@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
+import { ImportLocalCard } from '@/components/app/import-local';
 import { AppShellPage, PageHeader } from '@/components/app/page-header';
 import {
   Badge,
@@ -20,7 +21,7 @@ import {
 } from '@/components/ui';
 import { planById } from '@/lib/billing';
 import { passwordSchema } from '@/lib/auth';
-import { AuthError, changePassword, logOut, updateProfile } from '@/lib/store/auth';
+import { AuthError, changePassword, cloudEnabled, logOut, updateProfile } from '@/lib/store/auth';
 import { useLiveQuery, useUser } from '@/lib/store/hooks';
 import { deleteAccount, deleteAllUploads, exportAccountData, getUsage, listAllPages } from '@/lib/store/repo';
 import { storageEstimate } from '@/lib/store/db';
@@ -78,8 +79,12 @@ function AccountTab() {
     if (Object.keys(errs).length) return;
     setSavingProfile(true);
     try {
-      await updateProfile(user.id, { name, email });
-      toast({ message: 'Profile saved.', tone: 'ok' });
+      const saved = await updateProfile(user.id, { name, email });
+      toast(
+        saved.pendingEmail
+          ? { message: `Profile saved. Open the link we sent to ${saved.pendingEmail} to finish changing your email.`, tone: 'info' }
+          : { message: 'Profile saved.', tone: 'ok' },
+      );
     } catch (err) {
       setProfileError({ [err instanceof AuthError ? (err.field ?? 'form') : 'form']: err instanceof Error ? err.message : 'Couldn’t save.' });
     } finally {
@@ -165,8 +170,8 @@ function AccountTab() {
         <CardBody>
           <Button
             variant="secondary"
-            onClick={() => {
-              logOut();
+            onClick={async () => {
+              await logOut();
               router.replace('/login');
             }}
           >
@@ -306,9 +311,11 @@ function DataTab() {
         setConfirm(null);
       } else if (confirm === 'account') {
         await deleteAccount(user.id);
-        logOut();
+        await logOut();
         router.replace('/');
       }
+    } catch (err) {
+      toast({ message: err instanceof Error ? err.message : 'That didn’t work. Try again.', tone: 'warn' });
     } finally {
       setBusy(false);
       setTyped('');
@@ -317,13 +324,14 @@ function DataTab() {
 
   return (
     <>
+      <ImportLocalCard />
       <Card>
         <CardHeader>
           <CardTitle>Your content</CardTitle>
         </CardHeader>
         <CardBody className="space-y-4">
           <p className="text-[14px] leading-relaxed text-ink-muted">
-            You retain the rights to everything you upload. Your projects and page images are stored in this browser
+            You retain the rights to everything you upload. Your projects and page images are stored {cloudEnabled ? 'in your Overset account' : 'in this browser'}
             {storage.data ? ` — ${formatBytes(storage.data.usedBytes)} used` : ''}, and {formatNumber(pages.data?.length ?? 0)}{' '}
             uploaded {pages.data?.length === 1 ? 'page takes' : 'pages take'} {formatBytes(uploadBytes)}.
           </p>

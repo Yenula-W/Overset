@@ -1,7 +1,7 @@
 'use client';
 
 import { getAllByIndex } from './db';
-import { useLiveQuery, useUser } from './hooks';
+import { useLiveQuery, useActiveWorkspace } from './hooks';
 import type { ChapterRecord, GlossaryRecord, PageRecord, ProjectRecord } from './schema';
 import { listAllChapters, listAllPages, listProjects } from './repo';
 import { chapterStats, effectiveStatus, groupPagesByChapter, type ChapterStats } from '@/lib/stats';
@@ -23,14 +23,14 @@ export interface WorkspaceView {
 
 /** Everything the dashboard and project list need, kept live. */
 export function useWorkspace() {
-  const user = useUser();
+  const workspace = useActiveWorkspace();
   return useLiveQuery<WorkspaceView>(
     async () => {
       const [projects, chapters, pages, glossary] = await Promise.all([
-        listProjects(user.id),
-        listAllChapters(user.id),
-        listAllPages(user.id),
-        getAllByIndex<GlossaryRecord>('glossary', 'ownerId', user.id),
+        listProjects(workspace.id),
+        listAllChapters(workspace.id),
+        listAllPages(workspace.id),
+        getAllByIndex<GlossaryRecord>('glossary', 'ownerId', workspace.id),
       ]);
       const byChapter = groupPagesByChapter(pages);
       const projectById = new Map(projects.map((p) => [p.id, p]));
@@ -53,7 +53,7 @@ export function useWorkspace() {
       }
       return { projects, chapters: views, pages, totalsByProject };
     },
-    [user.id],
+    [workspace.id],
     ['projects', 'chapters', 'pages', 'glossary'],
   );
 }

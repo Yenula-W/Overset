@@ -22,6 +22,7 @@ function SignupForm() {
   const router = useRouter();
   const [errors, setErrors] = React.useState<Record<string, string>>({});
   const [busy, setBusy] = React.useState(false);
+  const [notice, setNotice] = React.useState<string | null>(null);
   const [requestedPlan, setRequestedPlan] = React.useState<string | null>(null);
 
   React.useEffect(() => {
@@ -43,7 +44,8 @@ function SignupForm() {
       router.replace('/onboarding');
     } catch (err) {
       setBusy(false);
-      if (err instanceof AuthError) setErrors({ [err.field ?? 'form']: err.message });
+      if (err instanceof AuthError && err.tone === 'notice') setNotice(err.message);
+      else if (err instanceof AuthError) setErrors({ [err.field ?? 'form']: err.message });
       else setErrors({ form: 'Your account couldn’t be created because this browser blocked storage. Turn off private browsing and try again.' });
     }
   }
@@ -65,6 +67,11 @@ function SignupForm() {
         {requestedPlan && requestedPlan !== 'free' && (
           <p className="rounded-lg bg-accent-soft px-3.5 py-3 text-[13px] leading-relaxed text-ink-muted">
             Paid plans need billing, which isn’t connected yet. You’ll start on Free and can switch once payments are live.
+          </p>
+        )}
+        {notice && (
+          <p role="status" className="rounded-lg bg-accent-soft px-3.5 py-3 text-[13px] leading-relaxed text-ink">
+            {notice}
           </p>
         )}
         {errors.form && (

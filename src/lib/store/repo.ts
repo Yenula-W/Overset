@@ -1,4 +1,4 @@
-import { get, getAllByIndex, newId, notify, put, putMany, remove, removeMany } from './db';
+import { cloudEnabled, get, getAllByIndex, newId, notify, put, putMany, remove, removeMany } from './db';
 import type {
   BlobRecord,
   ChapterRecord,
@@ -430,7 +430,7 @@ export async function removeMember(ownerId: string, id: string) {
 /* ------------------------------------------------------------------ usage */
 
 export function periodKey(d = new Date()) {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
 }
 
 export async function getUsage(ownerId: string, period = periodKey()): Promise<UsageRecord> {
@@ -467,6 +467,15 @@ export async function deleteAllUploads(ownerId: string) {
 }
 
 export async function deleteAccount(ownerId: string) {
+  if (cloudEnabled) {
+    // Removing a login needs the server; it also deletes every record and image.
+    const res = await fetch('/api/account', { method: 'DELETE' });
+    if (!res.ok) {
+      const body = (await res.json().catch(() => null)) as { error?: { message?: string } } | null;
+      throw new Error(body?.error?.message ?? 'Your account couldn’t be deleted. Try again.');
+    }
+    return;
+  }
   for (const store of OWNED_STORES) {
     const rows = await getAllByIndex<{ id: string }>(store, 'ownerId', ownerId);
     await removeMany(store, rows.map((r) => r.id));

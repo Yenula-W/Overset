@@ -6,7 +6,7 @@ import { AppShellPage, PageHeader } from '@/components/app/page-header';
 import { NoProjects, ProjectPicker, useProjectChoice } from '@/components/app/project-picker';
 import { ConfirmModal } from '@/components/app/project-form';
 import { Badge, Button, Card, EmptyState, Field, Input, Modal, Select, Skeleton, Textarea, useToast } from '@/components/ui';
-import { useLiveQuery, useUser } from '@/lib/store/hooks';
+import { useLiveQuery, useActiveWorkspace } from '@/lib/store/hooks';
 import { deleteCharacter, listChapters, listCharacters, listMemory, listPages, saveCharacter } from '@/lib/store/repo';
 import type { CharacterRecord } from '@/lib/store/schema';
 import type { Character } from '@/lib/types/domain';
@@ -17,7 +17,7 @@ const COLORS = ['#6C63E8', '#4F8A5B', '#B4833A', '#B4544A', '#3F7CAC', '#8A5BA8'
 const splitList = (s: string) => s.split(',').map((x) => x.trim()).filter(Boolean);
 
 export default function CharactersPage() {
-  const user = useUser();
+  const workspace = useActiveWorkspace();
   const toast = useToast();
   const { projects, project, choose, loading } = useProjectChoice();
   const [editing, setEditing] = React.useState<Partial<CharacterRecord> | null>(null);
@@ -26,18 +26,18 @@ export default function CharactersPage() {
     async () => {
       if (!project) return null;
       const [characters, memory, chapters] = await Promise.all([
-        listCharacters(user.id, project.id),
-        listMemory(user.id, project.id),
-        listChapters(user.id, project.id),
+        listCharacters(workspace.id, project.id),
+        listMemory(workspace.id, project.id),
+        listChapters(workspace.id, project.id),
       ]);
       // Lines per speaker come from the chapters themselves.
       const lines = new Map<string, number>();
       for (const c of chapters)
-        for (const p of await listPages(user.id, c.id))
+        for (const p of await listPages(workspace.id, c.id))
           for (const r of p.regions) if (r.speakerId) lines.set(r.speakerId, (lines.get(r.speakerId) ?? 0) + 1);
       return { characters, memory, lines };
     },
-    [user.id, project?.id],
+    [workspace.id, project?.id],
     ['characters', 'memory', 'pages', 'chapters'],
   );
 
@@ -130,11 +130,11 @@ export default function CharactersPage() {
           history={editing?.id ? (data.data?.memory ?? []).filter((m) => m.speakerId === editing.id) : []}
           onClose={() => setEditing(null)}
           onSave={async (c) => {
-            await saveCharacter(user.id, { ...c, projectId: project.id });
+            await saveCharacter(workspace.id, { ...c, projectId: project.id });
             toast({ message: c.id ? 'Character updated.' : `${c.name} added.`, tone: 'ok' });
           }}
           onDelete={async (id) => {
-            await deleteCharacter(user.id, id);
+            await deleteCharacter(workspace.id, id);
             toast({ message: 'Character deleted.', tone: 'ok' });
           }}
         />

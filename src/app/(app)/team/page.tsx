@@ -7,8 +7,8 @@ import { AppShellPage, PageHeader } from '@/components/app/page-header';
 import { ConfirmModal } from '@/components/app/project-form';
 import { Avatar, Badge, Button, Card, CardBody, CardHeader, CardTitle, Field, Input, Modal, Select, StatusBadge, useToast } from '@/components/ui';
 import { planById } from '@/lib/billing';
-import { getAllByIndex } from '@/lib/store/db';
-import { useLiveQuery, useUser } from '@/lib/store/hooks';
+import { cloudEnabled, getAllByIndex } from '@/lib/store/db';
+import { useLiveQuery, useUser, useActiveWorkspace } from '@/lib/store/hooks';
 import { inviteMember, listTeam, removeMember, updateMemberRole } from '@/lib/store/repo';
 import type { CommentRecord, TeamRecord } from '@/lib/store/schema';
 import type { TeamRole } from '@/lib/types/domain';
@@ -26,12 +26,13 @@ const ROLE_TONE = { owner: 'dark', translator: 'accent', proofreader: 'ok', type
 
 export default function TeamPage() {
   const user = useUser();
+  const workspace = useActiveWorkspace();
   const toast = useToast();
-  const plan = planById(user.plan);
-  const team = useLiveQuery(() => listTeam(user.id), [user.id], ['team']);
+  const plan = planById(workspace.plan);
+  const team = useLiveQuery(() => listTeam(workspace.id), [workspace.id], ['team']);
   const comments = useLiveQuery(
-    () => getAllByIndex<CommentRecord>('comments', 'ownerId', user.id).then((c) => c.filter((x) => !x.parentId).sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 8)),
-    [user.id],
+    () => getAllByIndex<CommentRecord>('comments', 'ownerId', workspace.id).then((c) => c.filter((x) => !x.parentId).sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 8)),
+    [workspace.id],
     ['comments'],
   );
   const [inviting, setInviting] = React.useState(false);
@@ -39,6 +40,9 @@ export default function TeamPage() {
 
   const members = team.data ?? [];
   const seatsUsed = members.length + 1;
+  // Only the owner manages the team; members see who they're working with.
+  const manages = workspace.isOwn;
+  const isMe = (m: TeamRecord) => m.email.toLowerCase() === user.email.toLowerCase();
 
   return (
     <AppShellPage>
@@ -46,10 +50,12 @@ export default function TeamPage() {
         title="Team"
         lede="Roles decide who does which step, and comments stay attached to the region they’re about."
         actions={
-          <Button onClick={() => setInviting(true)}>
-            <UserPlus size={15} />
-            Invite member
-          </Button>
+          manages && (
+            <Button onClick={() => setInviting(true)}>
+              <UserPlus size={15} />
+              Invite member
+            </Button>
+          )
         }
       />
 
@@ -64,10 +70,10 @@ export default function TeamPage() {
             </CardHeader>
             <ul className="divide-y divide-line">
               <li className="flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-3.5">
-                <Avatar name={user.name} size={32} />
+                <Avatar name={manages ? user.name : workspace.name} size={32} />
                 <div className="min-w-0 flex-1">
-                  <p className="text-[14px] font-medium">{user.name} (you)</p>
-                  <p className="text-[12.5px] text-ink-muted">{user.email}</p>
+                  <p className="text-[14px] font-medium">{manages ? `${user.name} (you)` : workspace.name}</p>
+                  {manages && <p className="text-[12.5px] text-ink-muted">{user.email}</p>}
                 </div>
                 <Badge tone="dark">Owner</Badge>
               </li>
@@ -75,35 +81,42 @@ export default function TeamPage() {
                 <li key={m.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-3.5">
                   <Avatar name={m.name} color={m.avatarColor} size={32} />
                   <div className="min-w-0 flex-1">
-                    <p className="text-[14px] font-medium">{m.name}</p>
+                    <p className="text-[14px] font-medium">{isMe(m) ? `${m.name} (you)` : m.name}</p>
                     <p className="text-[12.5px] text-ink-muted">{m.email}</p>
                   </div>
-                  <Select
-                    aria-label={`Role for ${m.name}`}
-                    value={m.role}
-                    onChange={async (e) => {
-                      await updateMemberRole(user.id, m.id, e.target.value as TeamRole);
-                      toast({ message: `${m.name} is now a ${e.target.value}.`, tone: 'ok' });
-                    }}
-                    className="h-8 w-auto py-0 text-[12.5px] capitalize"
-                  >
-                    {ROLES.map((r) => (
-                      <option key={r} value={r}>
-                        {r[0].toUpperCase() + r.slice(1)}
-                      </option>
-                    ))}
-                  </Select>
+                  {manages ? (
+                    <Select
+                      aria-label={`Role for ${m.name}`}
+                      value={m.role}
+                      onChange={async (e) => {
+                        await updateMemberRole(workspace.id, m.id, e.target.value as TeamRole);
+                        toast({ message: `${m.name} is now a ${e.target.value}.`, tone: 'ok' });
+                      }}
+                      className="h-8 w-auto py-0 text-[12.5px] capitalize"
+                    >
+                      {ROLES.map((r) => (
+                        <option key={r} value={r}>
+                          {r[0].toUpperCase() + r.slice(1)}
+                        </option>
+                      ))}
+                    </Select>
+                  ) : (
+                    <Badge tone={ROLE_TONE[m.role]} className="capitalize">{m.role}</Badge>
+                  )}
                   <StatusBadge tone={m.status === 'active' ? 'ok' : 'neutral'} label={m.status === 'active' ? 'Active' : 'Invited'} />
-                  <button onClick={() => setRemoving(m)} className="rounded-md p-1.5 text-ink-faint hover:bg-ink/5 hover:text-danger" aria-label={`Remove ${m.name}`}>
-                    <Trash2 size={13} />
-                  </button>
+                  {manages && (
+                    <button onClick={() => setRemoving(m)} className="rounded-md p-1.5 text-ink-faint hover:bg-ink/5 hover:text-danger" aria-label={`Remove ${m.name}`}>
+                      <Trash2 size={13} />
+                    </button>
+                  )}
                 </li>
               ))}
             </ul>
-            {members.length > 0 && (
+            {manages && members.length > 0 && (
               <p className="border-t border-line px-5 py-3 text-[12px] leading-relaxed text-ink-faint">
-                Invitations are saved, but none are emailed yet, and invited people can’t sign in from their own devices until
-                accounts move to a server.
+                {cloudEnabled
+                  ? 'Invitations aren’t emailed yet. Ask people to sign up or log in with the email you invited — once it’s confirmed, your workspace appears in their sidebar.'
+                  : 'Invitations are saved, but none are emailed yet, and invited people can’t sign in from their own devices until accounts move to a server.'}
               </p>
             )}
           </Card>
@@ -168,7 +181,7 @@ export default function TeamPage() {
         planName={plan.name}
         onClose={() => setInviting(false)}
         onInvite={async (v) => {
-          await inviteMember(user.id, v);
+          await inviteMember(workspace.id, v);
           toast({ message: `${v.name || v.email} added as ${v.role}.`, tone: 'ok' });
         }}
       />
@@ -180,7 +193,7 @@ export default function TeamPage() {
         confirmLabel="Remove"
         body="Their comments stay on the regions they were left on."
         onConfirm={async () => {
-          if (removing) await removeMember(user.id, removing.id);
+          if (removing) await removeMember(workspace.id, removing.id);
         }}
       />
     </AppShellPage>

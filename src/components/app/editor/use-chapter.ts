@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { useLiveQuery, useUser } from '@/lib/store/hooks';
+import { useLiveQuery, useActiveWorkspace } from '@/lib/store/hooks';
 import {
   getChapter,
   getProject,
@@ -20,7 +20,7 @@ const SAVE_DELAY_MS = 400;
 
 /** Resolves the chapter to open: ?chapter=, else the most recently touched one. */
 export function useChapterId() {
-  const user = useUser();
+  const workspace = useActiveWorkspace();
   const [id, setId] = React.useState<string | null | undefined>(undefined);
   React.useEffect(() => {
     const fromUrl = new URLSearchParams(window.location.search).get('chapter');
@@ -28,28 +28,28 @@ export function useChapterId() {
       setId(fromUrl);
       return;
     }
-    listAllChapters(user.id).then((all) => setId(all[0]?.id ?? null), () => setId(null));
-  }, [user.id]);
+    listAllChapters(workspace.id).then((all) => setId(all[0]?.id ?? null), () => setId(null));
+  }, [workspace.id]);
   return id;
 }
 
 export function useChapterData(chapterId: string) {
-  const user = useUser();
+  const workspace = useActiveWorkspace();
   const live = useLiveQuery(
     async () => {
-      const chapter = await getChapter(user.id, chapterId);
+      const chapter = await getChapter(workspace.id, chapterId);
       const [project, pages, glossary, characters, memory, comments, versions] = await Promise.all([
-        getProject(user.id, chapter.projectId),
-        listPages(user.id, chapterId),
-        listGlossary(user.id, chapter.projectId),
-        listCharacters(user.id, chapter.projectId),
-        listMemory(user.id, chapter.projectId),
-        listComments(user.id, chapterId),
-        listVersions(user.id, chapterId),
+        getProject(workspace.id, chapter.projectId),
+        listPages(workspace.id, chapterId),
+        listGlossary(workspace.id, chapter.projectId),
+        listCharacters(workspace.id, chapter.projectId),
+        listMemory(workspace.id, chapter.projectId),
+        listComments(workspace.id, chapterId),
+        listVersions(workspace.id, chapterId),
       ]);
       return { chapter, project, pages, glossary, characters, memory, comments, versions };
     },
-    [user.id, chapterId],
+    [workspace.id, chapterId],
     ['chapters', 'projects', 'pages', 'glossary', 'characters', 'memory', 'comments', 'versions'],
   );
 
@@ -80,7 +80,7 @@ export function useChapterData(chapterId: string) {
       if (!regions) return;
       setSaving(true);
       try {
-        await savePageRegions(user.id, pageId, regions);
+        await savePageRegions(workspace.id, pageId, regions);
         setSaveError(null);
       } catch (err) {
         setSaveError(err instanceof Error ? err.message : 'Changes couldn’t be saved.');
@@ -88,7 +88,7 @@ export function useChapterData(chapterId: string) {
         setSaving(pending.current.size > 0);
       }
     },
-    [user.id],
+    [workspace.id],
   );
 
   const updateRegions = React.useCallback(

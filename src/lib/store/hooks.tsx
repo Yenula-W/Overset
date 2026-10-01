@@ -3,26 +3,63 @@
 import * as React from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { subscribe, type StoreName } from './db';
-import { currentUser } from './auth';
+import { currentUser, listSharedWorkspaces, watchAuth, type SharedWorkspace } from './auth';
+import type { PlanId, TeamRole } from '@/lib/types/domain';
 import type { PublicUser } from './schema';
 
 /* ---------------------------------------------------------------- session */
+
+/** The workspace whose projects are on screen: your own, or a team you joined. */
+export interface Workspace {
+  id: string;
+  name: string;
+  role: TeamRole;
+  canEdit: boolean;
+  isOwn: boolean;
+  /** The owner's plan: allowances follow whoever pays for the workspace. */
+  plan: PlanId;
+}
 
 interface SessionValue {
   user: PublicUser | null;
   loading: boolean;
   refresh: () => Promise<void>;
+  workspaces: Workspace[];
+  workspace: Workspace | null;
+  switchWorkspace: (id: string) => void;
 }
 
-const SessionContext = React.createContext<SessionValue>({ user: null, loading: true, refresh: async () => {} });
+const SessionContext = React.createContext<SessionValue>({
+  user: null,
+  loading: true,
+  refresh: async () => {},
+  workspaces: [],
+  workspace: null,
+  switchWorkspace: () => {},
+});
+
+const WORKSPACE_KEY = 'overset.workspace';
+
+function readSavedWorkspace(userId: string) {
+  try {
+    return localStorage.getItem(`${WORKSPACE_KEY}.${userId}`);
+  } catch {
+    return null;
+  }
+}
 
 export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = React.useState<PublicUser | null>(null);
   const [loading, setLoading] = React.useState(true);
+  const [shared, setShared] = React.useState<SharedWorkspace[]>([]);
+  const [selected, setSelected] = React.useState<string | null>(null);
 
   const refresh = React.useCallback(async () => {
     try {
-      setUser(await currentUser());
+      const next = await currentUser();
+      setUser(next);
+      setShared(next ? await listSharedWorkspaces() : []);
+      setSelected((cur) => cur ?? (next ? readSavedWorkspace(next.id) : null));
     } catch {
       setUser(null);
     } finally {
@@ -33,8 +70,9 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   React.useEffect(() => {
     void refresh();
     const unsub = subscribe((store) => {
-      if (store === 'users') void refresh();
+      if (store === 'users' || store === 'team') void refresh();
     });
+    const unwatch = watchAuth(() => void refresh());
     // Session changes in another tab arrive as storage events.
     const onStorage = (e: StorageEvent) => {
       if (e.key === 'overset.session') void refresh();
@@ -42,16 +80,58 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     window.addEventListener('storage', onStorage);
     return () => {
       unsub();
+      unwatch();
       window.removeEventListener('storage', onStorage);
     };
   }, [refresh]);
 
-  const value = React.useMemo(() => ({ user, loading, refresh }), [user, loading, refresh]);
+  const workspaces = React.useMemo<Workspace[]>(() => {
+    if (!user) return [];
+    const own: Workspace = { id: user.id, name: 'My workspace', role: 'owner', canEdit: true, isOwn: true, plan: user.plan };
+    return [
+      own,
+      ...shared
+        .filter((w) => w.ownerId !== user.id)
+        .map((w) => ({ id: w.ownerId, name: w.ownerName, role: w.role, canEdit: w.role !== 'viewer', isOwn: false, plan: w.plan })),
+    ];
+  }, [user, shared]);
+
+  // A removed membership falls back to your own workspace.
+  const workspace = workspaces.find((w) => w.id === selected) ?? workspaces[0] ?? null;
+
+  const switchWorkspace = React.useCallback(
+    (id: string) => {
+      setSelected(id);
+      try {
+        if (user) localStorage.setItem(`${WORKSPACE_KEY}.${user.id}`, id);
+      } catch {
+        // Private windows may block storage; the choice just won't persist.
+      }
+    },
+    [user],
+  );
+
+  const value = React.useMemo(
+    () => ({ user, loading, refresh, workspaces, workspace, switchWorkspace }),
+    [user, loading, refresh, workspaces, workspace, switchWorkspace],
+  );
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }
 
 export function useSession() {
   return React.useContext(SessionContext);
+}
+
+/** The active workspace. Only call beneath <RequireAuth>, where it is never null. */
+export function useActiveWorkspace(): Workspace {
+  const { workspace } = useSession();
+  if (!workspace) throw new Error('useActiveWorkspace() called outside an authenticated route.');
+  return workspace;
+}
+
+/** Owner id that scopes every project, page and glossary query. */
+export function useWorkspaceId(): string {
+  return useActiveWorkspace().id;
 }
 
 /** The signed-in user. Only call beneath <RequireAuth>, where it is never null. */
