@@ -101,3 +101,19 @@ test('QA flags untranslated text, drifted terminology, and voice slips — and o
   assert.ok(cats.includes('character_voice'));
   assert.equal(pages[0].regions[0].finalTranslation, 'The Dark Gate opened.', 'QA never rewrites');
 });
+
+test('detection estimates the source lettering size from glyph rows', () => {
+  // A realistically sized page: the bubble covers ~3% of it.
+  const w = 900, h = 700;
+  const lum = new Uint8Array(w * h).fill(150);
+  const cx = 150, cy = 100, rx = 110, ry = 60;
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const d = ((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2;
+    if (d <= 1) lum[y * w + x] = 250; else if (d <= 1.12) lum[y * w + x] = 20;
+  }
+  // One line of "glyphs" 18px tall.
+  for (let y = 91; y < 109; y++) for (let x = 90; x < 210; x++) if (x % 6 < 3) lum[y * w + x] = 15;
+  const [b] = detectBubbles(lum, w, h);
+  assert.ok(b, 'bubble found');
+  assert.ok(Math.abs(b.fontSizePx - 18 / 0.72) < 3, `estimated ${b.fontSizePx}`);
+});

@@ -20,6 +20,8 @@ export interface DetectedBubble extends PxRect {
   /** 0–1: how bubble-like the component looked. Not an OCR confidence. */
   score: number;
   shape: 'ellipse' | 'box';
+  /** Estimated source lettering size in analysis pixels, from the glyph rows. */
+  fontSizePx: number;
 }
 
 export interface DetectOptions {
@@ -92,16 +94,26 @@ export function detectBubbles(lum: Uint8Array, width: number, height: number, op
     // count dark pixels with bubble on both sides of them in the same row, so
     // the bubble's own outline (bubble on one side only) isn't mistaken for text.
     let dark = 0, inner = 0;
+    let textRows = 0, runs = 0, inRun = false;
     const iy0 = minY + Math.floor(bh * 0.1), iy1 = maxY - Math.floor(bh * 0.1);
     for (let y = iy0; y <= iy1; y++) {
       const row = y * width;
       let first = -1, last = -1;
       for (let x = minX; x <= maxX; x++) if (labels[row + x] === next) { if (first < 0) first = x; last = x; }
-      if (first < 0) continue;
-      for (let x = first + 1; x < last; x++) {
-        inner++;
-        if (labels[row + x] !== next && lum[row + x] < o.darkThreshold) dark++;
+      let rowDark = 0;
+      if (first >= 0) {
+        for (let x = first + 1; x < last; x++) {
+          inner++;
+          if (labels[row + x] !== next && lum[row + x] < o.darkThreshold) rowDark++;
+        }
       }
+      dark += rowDark;
+      // Rows holding glyph ink, grouped into runs ≈ lines of lettering.
+      if (rowDark > 0) {
+        textRows++;
+        if (!inRun) runs++;
+        inRun = true;
+      } else inRun = false;
     }
     const darkRatio = inner ? dark / inner : 0;
     if (darkRatio < 0.008 || darkRatio > 0.4) continue;
@@ -112,7 +124,9 @@ export function detectBubbles(lum: Uint8Array, width: number, height: number, op
       0,
       Math.min(1, 0.45 + Math.min(0.3, darkRatio * 3) + (fill > 0.6 && fill < 0.95 ? 0.2 : 0) - (areaRatio > 0.04 ? 0.15 : 0)),
     );
-    found.push({ x: minX, y: minY, width: bw, height: bh, score, shape });
+    // Glyph ink spans ~72% of the font's em height.
+    const lineInk = runs ? textRows / runs : bh * 0.2;
+    found.push({ x: minX, y: minY, width: bw, height: bh, score, shape, fontSizePx: lineInk / 0.72 });
   }
 
   return found;

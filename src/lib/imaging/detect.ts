@@ -51,8 +51,14 @@ export async function detectRegions(
       embeddedInArtwork: false,
       translate: true,
       contextUsed: [],
-      typesetting: { ...DEFAULT_TYPESETTING, align: b.shape === 'box' ? 'left' : 'center' },
-      ambiguityNote: b.score < 0.6 ? 'Detected with low certainty — check this is really a text region.' : undefined,
+      // Start the English at the measured size of the original lettering
+      // (expressed in 840px reference units); auto-fit shrinks it if needed.
+      typesetting: {
+        ...DEFAULT_TYPESETTING,
+        fontSize: Math.round(Math.max(10, Math.min(48, (b.fontSizePx * 840) / w)) * 2) / 2,
+        align: b.shape === 'box' ? 'left' : 'center',
+      },
+      ambiguityNote: b.score < 0.5 ? 'Detected with low certainty — check this is really a text region.' : undefined,
     }));
   } finally {
     bitmap.close();

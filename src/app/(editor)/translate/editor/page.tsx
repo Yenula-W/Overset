@@ -197,7 +197,8 @@ function Editor({ chapterId }: { chapterId: string }) {
       embeddedInArtwork: false,
       translate: true,
       contextUsed: [],
-      typesetting: { ...DEFAULT_TYPESETTING },
+      // No source glyphs to measure, so start from the region's height.
+      typesetting: { ...DEFAULT_TYPESETTING, fontSize: Math.round(Math.max(10, Math.min(36, (bounds.height / 100) * page.height * (840 / page.width) * 0.17)) * 2) / 2 },
     };
     updateRegions(page.id, (rs) => renumber([...rs, region]));
     setSelectedId(id);
