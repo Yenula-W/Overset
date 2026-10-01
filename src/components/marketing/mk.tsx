@@ -2,6 +2,7 @@ import * as React from "react";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { TextRoll } from "./text-roll";
 
 /**
  * Shared primitives for the 2026 marketing redesign: square corners, flat
@@ -31,7 +32,7 @@ export function MkButton({
     <Link
       href={href}
       className={cn(
-        "inline-flex items-center justify-center gap-2 rounded-full text-[14px] font-medium transition-colors",
+        "roll-host inline-flex items-center justify-center gap-2 rounded-full text-[14px] font-medium transition-colors",
         variant === "solid" &&
           "bg-ink px-4 py-2.5 text-white hover:bg-accent hover:text-white",
         variant === "accent" &&
@@ -41,7 +42,13 @@ export function MkButton({
         className,
       )}
     >
-      {children}
+      {React.Children.map(children, (child) =>
+        typeof child === "string" && child.trim() ? (
+          <TextRoll>{child.trim()}</TextRoll>
+        ) : (
+          child
+        ),
+      )}
     </Link>
   );
 }

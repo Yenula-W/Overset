@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import NumberFlow from "@number-flow/react";
 import { CREDIT_PACKS, PLANS } from "@/lib/billing";
 import { cn } from "@/lib/utils";
 import { Segmented } from "./mk";
@@ -54,7 +55,7 @@ function PlanGrid({ billing }: { billing: Billing }) {
           const hl = Boolean(plan.highlighted);
           // Publisher is quoted per organization, so it always shows its monthly floor.
           const custom = plan.id === "publisher";
-          const price = `$${custom || billing === "monthly" ? plan.priceMonthly : plan.priceYearly}`;
+          const price = custom || billing === "monthly" ? plan.priceMonthly : plan.priceYearly;
           const per = custom || billing === "monthly" ? "/month" : "/year";
           const href = custom ? "/contact" : plan.href;
           return (
@@ -89,12 +90,12 @@ function PlanGrid({ billing }: { billing: Billing }) {
                     From
                   </span>
                 )}
-                <span
-                  key={`${billing}-${plan.id}`}
-                  className="about-demo-reveal whitespace-nowrap text-[40px] font-extrabold tracking-[-0.03em]"
-                >
-                  {price}
-                </span>
+                {/* Rolling digits, adapted from Skiper UI's animated number (skiper37). */}
+                <NumberFlow
+                  value={price}
+                  format={{ style: "currency", currency: "USD", maximumFractionDigits: 0 }}
+                  className="whitespace-nowrap text-[40px] font-extrabold tracking-[-0.03em]"
+                />
                 {plan.priceMonthly > 0 && (
                   <span
                     className={cn(

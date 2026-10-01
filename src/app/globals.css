@@ -182,3 +182,22 @@
 .resource-row { display: flex; align-items: center; gap: 18px; min-height: 96px; border-bottom: 1px solid #deded7; padding: 18px 0; }
 .resource-thumb { width: 66px; height: 66px; flex-shrink: 0; overflow: hidden; border-radius: 6px; background: #eeede8; transition: width 250ms; }
 @media(hover:hover) { .resource-row:hover .resource-thumb { width: 88px; } }
+
+/* Text roll (adapted from Skiper UI skiper58): the top row lifts out while a
+   copy rises from below, letters staggered from the centre. */
+.roll { position: relative; display: inline-flex; flex-direction: column; overflow: hidden; line-height: 1.2; vertical-align: bottom; }
+.roll-row { display: inline-flex; white-space: pre; }
+.roll-row + .roll-row { position: absolute; inset: 0; }
+.roll-letter { display: inline-block; transition: transform 360ms cubic-bezier(.65,0,.35,1) var(--roll-delay); }
+.roll-letter[data-under] { transform: translateY(100%); }
+.roll-host:hover .roll-letter, .roll-host:focus-visible .roll-letter { transform: translateY(-100%); }
+.roll-host:hover .roll-letter[data-under], .roll-host:focus-visible .roll-letter[data-under] { transform: none; }
+
+/* Scroll statement (adapted from Skiper UI skiper31). */
+.statement { position: relative; height: 170svh; background: #fbfbf9; }
+.statement-stage { position: sticky; top: 64px; display: flex; height: calc(100svh - 64px); flex-direction: column; align-items: center; justify-content: center; gap: 22px; overflow: hidden; padding: 0 16px; text-align: center; }
+.statement-eyebrow { margin: 0; font: 600 11px ui-monospace, monospace; letter-spacing: .1em; text-transform: uppercase; color: #8a8a82; }
+.statement-text { margin: 0; perspective: 600px; font-size: clamp(34px, 7.4vw, 112px); font-weight: 800; line-height: .95; letter-spacing: -.035em; text-transform: uppercase; }
+.statement-text .block + .block { color: #5049d0; }
+.statement[data-motion=reduced] { height: auto; }
+.statement[data-motion=reduced] .statement-stage { position: relative; top: 0; height: auto; padding: 120px 16px; }
