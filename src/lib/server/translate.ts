@@ -64,7 +64,7 @@ export async function processPage(chapterId: string, input: z.infer<typeof proce
         const pending = selected.filter(r=>!r.sourceText.trim()&&r.status!=='approved'&&r.status!=='edited');
         if (page.regions.length && !pending.length) continue;
         const png = await sharp(original,{limitInputPixels:100_000_000}).extract({left:0,top:y,width:page.width,height}).resize({width:1600,height:2400,fit:'inside',withoutEnlargement:true}).png().toBuffer();
-        const boxes = pending.map(r=>({id:r.id,bounds:{...r.bounds,y:Math.max(0,(r.bounds.y*page.height/100-y)/height*100),height:Math.min(100,r.bounds.height*page.height/height)}}));
+        const boxes = pending.map(r=>({id:r.id,bounds:{...r.bounds,y:Math.max(0,(r.bounds.y*page.height/100-y)/height*100),height:Math.min(100-Math.max(0,(r.bounds.y*page.height/100-y)/height*100),r.bounds.height*page.height/height)}}));
         const output = await provider.readPage(png,boxes,chapter.sourceLanguage);
         tokensIn+=output.inputTokens; tokensOut+=output.outputTokens; model=output.model;
         for (const detected of output.data.regions) {

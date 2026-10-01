@@ -134,6 +134,8 @@ export default function TranslatePage() {
 
   const processing = step >= 2;
 
+  if (!workspace.canEdit) return <AppShellPage><PageHeader title="View only" lede="Your role can review chapters. Ask the workspace owner for translation access." /><Button className="mt-6" onClick={() => router.push('/projects')}>View projects</Button></AppShellPage>;
+
   return (
     <AppShellPage>
       <PageHeader title="Start a translation" lede="Upload a chapter you own or are authorized to translate." />

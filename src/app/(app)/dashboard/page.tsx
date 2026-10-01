@@ -62,7 +62,7 @@ export default function DashboardPage() {
                 ? 'Everything is up to date.'
                 : 'Start by creating a project or trying the sample.'
         }
-        actions={
+        actions={workspace.canEdit &&
           <Button href="/translate" size="md">
             <Plus size={15} />
             New translation
@@ -95,7 +95,7 @@ export default function DashboardPage() {
           icon={<LibraryBig size={18} />}
           title="No projects yet."
           body="Create your first project to keep chapters, characters, and terminology organized — or open the sample to see the whole workflow."
-          action={
+          action={workspace.canEdit &&
             <div className="flex flex-wrap justify-center gap-2">
               <Button onClick={() => setCreating(true)}>Create project</Button>
               <Button variant="secondary" onClick={() => void loadSample()} loading={seeding}>
@@ -162,9 +162,9 @@ export default function DashboardPage() {
             <section className="mt-10">
               <div className="flex items-end justify-between">
                 <h2 className="text-[17px] font-semibold tracking-[-0.015em]">Projects</h2>
-                <button onClick={() => setCreating(true)} className="text-[13px] text-ink-muted transition-colors hover:text-ink">
+                {workspace.canEdit && <button onClick={() => setCreating(true)} className="text-[13px] text-ink-muted transition-colors hover:text-ink">
                   + New project
-                </button>
+                </button>}
               </div>
               <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                 {data.projects.map((p) => {

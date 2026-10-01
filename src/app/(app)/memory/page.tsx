@@ -113,7 +113,7 @@ export default function MemoryPage() {
                     <Button size="sm" onClick={() => void copy(m.translation)}>
                       Use translation
                     </Button>
-                    <Button
+                    {workspace.canEdit && <><Button
                       size="sm"
                       variant="secondary"
                       onClick={() => {
@@ -128,7 +128,7 @@ export default function MemoryPage() {
                     </Button>
                     <Button size="sm" variant="ghost" className="ml-auto" onClick={() => setDeleting(m)} aria-label="Delete memory entry">
                       <Trash2 size={13} />
-                    </Button>
+                    </Button></>}
                   </div>
                 )}
               </Card>

@@ -1,5 +1,6 @@
 import 'server-only';
 
+import { ServiceError } from './http';
 import { serverClient, serviceClient } from '@/lib/supabase/server';
 
 /**
@@ -51,6 +52,7 @@ export async function rateLimit(key: string, limit: number, windowMs: number): P
     const { data, error } = await admin.rpc('take_rate_token', { bucket: key, max_tokens: limit, window_ms: windowMs });
     const row = Array.isArray(data) ? (data[0] as { ok: boolean; retry_after_ms: number } | undefined) : undefined;
     if (!error && row) return { ok: row.ok, retryAfterMs: row.retry_after_ms };
+    throw new ServiceError('rate_limit_unavailable', 'Processing is temporarily unavailable. Please try again shortly.');
   }
   return memoryRateLimit(key, limit, windowMs);
 }

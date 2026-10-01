@@ -24,7 +24,9 @@ const TOGGLES: Array<{ key: keyof TranslationPreferences; label: string; descrip
 export function ProjectPreferences({
   preferences,
   onSave,
+  readOnly = false,
 }: {
+  readOnly?: boolean;
   preferences: TranslationPreferences;
   onSave: (prefs: TranslationPreferences) => Promise<void>;
 }) {
@@ -40,7 +42,7 @@ export function ProjectPreferences({
         <CardTitle>Translation preferences</CardTitle>
         <span className="text-[12px] text-ink-muted">Applied to every new chapter</span>
       </CardHeader>
-      <CardBody className="space-y-5">
+      <CardBody><fieldset disabled={readOnly} className="space-y-5">
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Translation style" htmlFor="style" hint={STYLE_HINTS[prefs.style]}>
             <Select
@@ -87,7 +89,7 @@ export function ProjectPreferences({
           />
         </Field>
 
-        <div className="flex items-center gap-3 border-t border-line pt-4">
+        {!readOnly && <div className="flex items-center gap-3 border-t border-line pt-4">
           <Button
             disabled={!dirty}
             loading={saving}
@@ -103,8 +105,8 @@ export function ProjectPreferences({
             Save preferences
           </Button>
           {dirty && <span className="text-[12.5px] text-ink-muted">Unsaved changes</span>}
-        </div>
-      </CardBody>
+        </div>}
+      </fieldset></CardBody>
     </Card>
   );
 }
