@@ -364,7 +364,7 @@ function Editor({ chapterId }: { chapterId: string }) {
   React.useEffect(() => {
     function onKey(e: KeyboardEvent) {
       const t = e.target as HTMLElement | null;
-      if (t && (/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) || t.isContentEditable)) return;
+      if (t && (t.closest('[role="dialog"]') || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) || t.isContentEditable)) return;
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       const step = (d: number) => {
         if (!ordered.length) return;
@@ -654,7 +654,7 @@ function Editor({ chapterId }: { chapterId: string }) {
         </div>
       )}
 
-      {region && <CleanupModal open={cleanupOpen} onClose={()=>setCleanupOpen(false)} image={image} region={region} onSave={cleanup=>{patch(region.id,{artworkCleanup:cleanup});version({pageId:page.id,regionId:region.id,kind:'typeset',summary:'Applied masked artwork cleanup'});setView('cleaned');}} />}
+      {region && <CleanupModal open={cleanupOpen} onClose={()=>setCleanupOpen(false)} image={image} region={region} onSave={cleanup=>{patch(region.id,{artworkCleanup:cleanup,status:'edited'});version({pageId:page.id,regionId:region.id,kind:'typeset',summary:'Applied masked artwork cleanup'});setView('cleaned');}} />}
       <ConfirmModal open={regenerateOpen} onClose={()=>setRegenerateOpen(false)} title="Replace this human translation?" body="A new AI draft will replace this region. The current version is kept in history." confirmLabel="Generate draft" onConfirm={async()=>{setRegenerateOpen(false);await runAi('regenerate');}} />
       <ExportModal
         open={exportOpen}

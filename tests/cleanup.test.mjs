@@ -16,3 +16,13 @@ test('cleanup at boundaries is clipped and cannot erase with transparent source 
  cloneMaskedPixels(target,transparent,8,8,[{x:0,y:0,radius:100},{x:NaN,y:0,radius:1}]);
  assert.deepEqual(target,before);
 });
+
+import { runQa } from '../src/lib/qa.ts';
+test('a cleanup stroke does not certify that all artwork text was removed', () => {
+ const region={id:'sfx',pageId:'p1',readingOrder:1,type:'sfx',translate:true,sourceText:'쾅',finalTranslation:'BOOM',status:'edited',artworkCleanup:{offsetX:0,offsetY:1,strokes:[{x:50,y:50,radius:1}]}};
+ const context={glossary:[],characters:[]};
+ const findings=runQa([{id:'p1',order:1,regions:[region]}],context);
+ assert.ok(findings.some(f=>f.title==='Review artwork cleanup'));
+ const approved=runQa([{id:'p1',order:1,regions:[{...region,status:'approved'}]}],context);
+ assert.ok(!approved.some(f=>f.title==='Review artwork cleanup'));
+});
