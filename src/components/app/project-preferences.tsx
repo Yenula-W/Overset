@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { Card, CardBody, CardHeader, CardTitle, Checkbox, Field, Select } from '@/components/ui';
+import { Button, Card, CardBody, CardHeader, CardTitle, Checkbox, Field, Select, Textarea } from '@/components/ui';
 import type { TranslationPreferences, TranslationStyle } from '@/lib/types/domain';
 
 const STYLE_HINTS: Record<TranslationStyle, string> = {
@@ -21,8 +21,18 @@ const TOGGLES: Array<{ key: keyof TranslationPreferences; label: string; descrip
   { key: 'runQaAfterTranslation', label: 'Run QA after translation', description: 'Checks terminology, voice, and missing text before export.' },
 ];
 
-export function ProjectPreferences({ preferences }: { preferences: TranslationPreferences }) {
+export function ProjectPreferences({
+  preferences,
+  onSave,
+}: {
+  preferences: TranslationPreferences;
+  onSave: (prefs: TranslationPreferences) => Promise<void>;
+}) {
   const [prefs, setPrefs] = React.useState(preferences);
+  const [saving, setSaving] = React.useState(false);
+  const dirty = JSON.stringify(prefs) !== JSON.stringify(preferences);
+
+  React.useEffect(() => setPrefs(preferences), [preferences]);
 
   return (
     <Card>
@@ -67,6 +77,32 @@ export function ProjectPreferences({ preferences }: { preferences: TranslationPr
               onChange={(e) => setPrefs({ ...prefs, [t.key]: e.target.checked })}
             />
           ))}
+        </div>
+
+        <Field label="Project rules" htmlFor="rules" hint="One per line — e.g. “Hyunwoo never uses contractions.” Shown beside every translation.">
+          <Textarea
+            id="rules"
+            value={prefs.customRules.join('\n')}
+            onChange={(e) => setPrefs({ ...prefs, customRules: e.target.value.split('\n') })}
+          />
+        </Field>
+
+        <div className="flex items-center gap-3 border-t border-line pt-4">
+          <Button
+            disabled={!dirty}
+            loading={saving}
+            onClick={async () => {
+              setSaving(true);
+              try {
+                await onSave({ ...prefs, customRules: prefs.customRules.map((r) => r.trim()).filter(Boolean) });
+              } finally {
+                setSaving(false);
+              }
+            }}
+          >
+            Save preferences
+          </Button>
+          {dirty && <span className="text-[12.5px] text-ink-muted">Unsaved changes</span>}
         </div>
       </CardBody>
     </Card>

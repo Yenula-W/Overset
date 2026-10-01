@@ -1,16 +1,28 @@
 'use client';
 
 import * as React from 'react';
+import { useRouter } from 'next/navigation';
 import { ArrowRight } from 'lucide-react';
 import { AppShellPage, PageHeader } from '@/components/app/page-header';
-import { UploadZone, type UploadedFile } from '@/components/app/upload-zone';
+import { UploadZone, type UploadItem } from '@/components/app/upload-zone';
 import { ProcessingScreen } from '@/components/app/processing';
-import { Button, Card, CardBody, Checkbox, Field, Select } from '@/components/ui';
-import { DEMO_PROJECTS } from '@/lib/data/workspace';
-import { DEFAULT_TRANSLATION_PREFERENCES, LANGUAGE_LABELS, type TranslationPreferences, type TranslationStyle } from '@/lib/types/domain';
-import { cn } from '@/lib/utils';
+import { Button, Card, CardBody, Checkbox, Field, Input, Select } from '@/components/ui';
+import { planById } from '@/lib/billing';
+import { processChapter, STAGES, type StageView } from '@/lib/processing';
+import type { IngestProblem } from '@/lib/imaging/ingest';
+import { useLiveQuery, useUser } from '@/lib/store/hooks';
+import { createChapter, createProject, getUsage, listChapters, listProjects } from '@/lib/store/repo';
+import {
+  DEFAULT_TRANSLATION_PREFERENCES,
+  LANGUAGE_LABELS,
+  type LanguageCode,
+  type TranslationPreferences,
+  type TranslationStyle,
+} from '@/lib/types/domain';
+import { cn, formatNumber } from '@/lib/utils';
 
 const STEPS = ['Upload', 'Settings', 'Process', 'Review'];
+const NEW_PROJECT = '__new__';
 
 const ADVANCED: Array<{ key: keyof TranslationPreferences; label: string }> = [
   { key: 'preserveHonorifics', label: 'Preserve honorifics' },
@@ -23,13 +35,103 @@ const ADVANCED: Array<{ key: keyof TranslationPreferences; label: string }> = [
 ];
 
 export default function TranslatePage() {
+  const user = useUser();
+  const router = useRouter();
+  const projects = useLiveQuery(() => listProjects(user.id), [user.id], ['projects']);
+
   const [step, setStep] = React.useState(0);
-  const [files, setFiles] = React.useState<UploadedFile[]>([]);
-  const [source, setSource] = React.useState('auto');
-  const [target, setTarget] = React.useState('en');
-  const [projectId, setProjectId] = React.useState(DEMO_PROJECTS[0].id);
+  const [items, setItems] = React.useState<UploadItem[]>([]);
+  const [projectId, setProjectId] = React.useState<string>('');
+  const [newProjectName, setNewProjectName] = React.useState('');
+  const [chapterName, setChapterName] = React.useState('');
+  const [source, setSource] = React.useState<LanguageCode>(user.preferences.primarySourceLanguage ?? 'ko');
+  const [target, setTarget] = React.useState<LanguageCode>('en');
   const [style, setStyle] = React.useState<TranslationStyle>('natural');
-  const [prefs, setPrefs] = React.useState(DEFAULT_TRANSLATION_PREFERENCES);
+  const [prefs, setPrefs] = React.useState<TranslationPreferences>(DEFAULT_TRANSLATION_PREFERENCES);
+  const [detect, setDetect] = React.useState(true);
+  const [formError, setFormError] = React.useState<string | null>(null);
+
+  // Processing state
+  const [stages, setStages] = React.useState<StageView[]>(STAGES.map((s) => ({ ...s, state: 'pending' })));
+  const [progress, setProgress] = React.useState({ done: 0, total: 0, label: '' });
+  const [result, setResult] = React.useState<{ chapterId: string; projectId: string } | null>(null);
+  const [failed, setFailed] = React.useState<string | null>(null);
+  const [problems, setProblems] = React.useState<IngestProblem[]>([]);
+  const [overAllowance, setOverAllowance] = React.useState<string | null>(null);
+  const [processingName, setProcessingName] = React.useState('your chapter');
+
+  // Pick a project: ?project= wins, then the most recent one, else "new".
+  React.useEffect(() => {
+    if (!projects.data || projectId) return;
+    const wanted = new URLSearchParams(window.location.search).get('project');
+    const match = projects.data.find((p) => p.id === wanted) ?? projects.data[0];
+    setProjectId(match ? match.id : NEW_PROJECT);
+  }, [projects.data, projectId]);
+
+  // Follow the chosen project's languages and preferences.
+  React.useEffect(() => {
+    const p = projects.data?.find((x) => x.id === projectId);
+    if (!p) return;
+    setSource(p.sourceLanguage === 'auto' ? 'ko' : p.sourceLanguage);
+    setTarget(p.targetLanguage);
+    setStyle(p.preferences.style);
+    setPrefs(p.preferences);
+  }, [projectId, projects.data]);
+
+  async function start() {
+    setFormError(null);
+    if (projectId === NEW_PROJECT && !newProjectName.trim()) {
+      setFormError('Name the new project.');
+      return;
+    }
+    setStep(2);
+    setStages(STAGES.map((s) => ({ ...s, state: 'pending' })));
+    setFailed(null);
+    setProblems([]);
+    setOverAllowance(null);
+    try {
+      const chapterPrefs = { ...prefs, style };
+      const project =
+        projectId === NEW_PROJECT
+          ? await createProject(user.id, { name: newProjectName, sourceLanguage: source, targetLanguage: target, preferences: chapterPrefs })
+          : projects.data!.find((p) => p.id === projectId)!;
+      const chapter = await createChapter(user.id, project.id, {
+        name: chapterName || undefined,
+        sourceLanguage: source,
+        targetLanguage: target,
+        preferences: chapterPrefs,
+      });
+      setProcessingName(chapter.name);
+      const res = await processChapter({
+        ownerId: user.id,
+        chapterId: chapter.id,
+        files: items.map((i) => i.file),
+        sourceLanguage: source,
+        detect,
+        onStage: (id, state, message) => setStages((prev) => prev.map((s) => (s.id === id ? { ...s, state, message } : s))),
+        onProgress: (done, total, label) => setProgress({ done, total, label }),
+      });
+      setProblems(res.problems);
+      if (res.pageCount === 0) {
+        setFailed('None of the uploaded files could be read as pages.');
+        return;
+      }
+      setResult({ chapterId: chapter.id, projectId: project.id });
+      setStep(3);
+
+      const plan = planById(user.plan);
+      const usage = await getUsage(user.id);
+      if (usage.pagesProcessed > plan.pageAllowance) {
+        setOverAllowance(
+          `You’ve processed ${formatNumber(usage.pagesProcessed)} pages this month, over the ${plan.name} plan’s ${formatNumber(plan.pageAllowance)}. Billing isn’t connected yet, so nothing was blocked.`,
+        );
+      }
+    } catch (err) {
+      setFailed(err instanceof Error ? err.message : 'Processing stopped unexpectedly.');
+    }
+  }
+
+  const processing = step >= 2;
 
   return (
     <AppShellPage>
@@ -55,9 +157,9 @@ export default function TranslatePage() {
       <div className="mt-7">
         {step === 0 && (
           <>
-            <UploadZone files={files} onFilesChange={setFiles} />
+            <UploadZone items={items} onChange={setItems} />
             <div className="mt-5 flex justify-end">
-              <Button size="lg" disabled={files.length === 0} onClick={() => setStep(1)}>
+              <Button size="lg" disabled={items.length === 0} onClick={() => setStep(1)}>
                 Continue to settings
                 <ArrowRight size={16} />
               </Button>
@@ -69,29 +171,37 @@ export default function TranslatePage() {
           <>
             <Card>
               <CardBody className="space-y-6">
-                <div className="grid gap-4 sm:grid-cols-3">
-                  <Field label="Source language" htmlFor="src">
-                    <Select id="src" value={source} onChange={(e) => setSource(e.target.value)}>
-                      <option value="auto">Auto detect</option>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field label="Project" htmlFor="proj" hint="Glossary, characters, and memory come from the project.">
+                    <Select id="proj" value={projectId} onChange={(e) => setProjectId(e.target.value)}>
+                      {projects.data?.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name}
+                        </option>
+                      ))}
+                      <option value={NEW_PROJECT}>+ New project…</option>
+                    </Select>
+                  </Field>
+                  {projectId === NEW_PROJECT ? (
+                    <Field label="New project name" htmlFor="pname" error={formError ?? undefined}>
+                      <Input id="pname" value={newProjectName} onChange={(e) => setNewProjectName(e.target.value)} placeholder="e.g. The Fallen Hero" autoFocus />
+                    </Field>
+                  ) : (
+                    <ChapterNameField ownerId={user.id} projectId={projectId} value={chapterName} onChange={setChapterName} />
+                  )}
+                  {projectId === NEW_PROJECT && <ChapterNameField ownerId={user.id} projectId="" value={chapterName} onChange={setChapterName} />}
+                  <Field label="Source language" htmlFor="src" hint="Sets reading order — Japanese reads right to left.">
+                    <Select id="src" value={source} onChange={(e) => setSource(e.target.value as LanguageCode)}>
                       <option value="ko">Korean</option>
                       <option value="ja">Japanese</option>
                       <option value="zh">Chinese</option>
                     </Select>
                   </Field>
                   <Field label="Target language" htmlFor="tgt">
-                    <Select id="tgt" value={target} onChange={(e) => setTarget(e.target.value)}>
+                    <Select id="tgt" value={target} onChange={(e) => setTarget(e.target.value as LanguageCode)}>
                       {(['en', 'es', 'fr', 'de', 'pt', 'id'] as const).map((l) => (
                         <option key={l} value={l}>
                           {LANGUAGE_LABELS[l]}
-                        </option>
-                      ))}
-                    </Select>
-                  </Field>
-                  <Field label="Project" htmlFor="proj" hint="Glossary, characters, and memory come from the project.">
-                    <Select id="proj" value={projectId} onChange={(e) => setProjectId(e.target.value)}>
-                      {DEMO_PROJECTS.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.name}
                         </option>
                       ))}
                     </Select>
@@ -120,6 +230,12 @@ export default function TranslatePage() {
                 <div className="border-t border-line pt-5">
                   <p className="text-[13px] font-medium">Advanced</p>
                   <div className="mt-3 grid gap-2.5 sm:grid-cols-2">
+                    <Checkbox
+                      label="Detect speech bubbles on this device"
+                      description="Finds likely text regions for you to review."
+                      checked={detect}
+                      onChange={(e) => setDetect(e.target.checked)}
+                    />
                     {ADVANCED.map((a) => (
                       <Checkbox
                         key={a.key}
@@ -129,6 +245,10 @@ export default function TranslatePage() {
                       />
                     ))}
                   </div>
+                  <p className="mt-4 text-[12.5px] leading-relaxed text-ink-faint">
+                    Automatic OCR and AI translation need an AI provider, which isn’t connected yet. Everything else —
+                    detection, cleaning, typesetting, QA, and export — runs here.
+                  </p>
                 </div>
               </CardBody>
             </Card>
@@ -136,16 +256,53 @@ export default function TranslatePage() {
               <Button variant="ghost" size="lg" onClick={() => setStep(0)}>
                 Back
               </Button>
-              <Button size="lg" onClick={() => setStep(2)}>
-                Translate chapter
+              <Button size="lg" onClick={() => void start()} disabled={!projects.data}>
+                Process chapter
                 <ArrowRight size={16} />
               </Button>
             </div>
           </>
         )}
 
-        {step >= 2 && <ProcessingScreen />}
+        {processing && (
+          <ProcessingScreen
+            chapterName={processingName}
+            stages={stages}
+            progress={progress}
+            done={step === 3}
+            failed={failed}
+            problems={problems}
+            overAllowance={overAllowance}
+            onOpenEditor={() => result && router.push(`/translate/editor?chapter=${result.chapterId}`)}
+            onBack={() => {
+              if (failed) {
+                setStep(1);
+                setFailed(null);
+              } else if (result) router.push(`/projects/${result.projectId}`);
+            }}
+          />
+        )}
       </div>
     </AppShellPage>
+  );
+}
+
+function ChapterNameField({
+  ownerId,
+  projectId,
+  value,
+  onChange,
+}: {
+  ownerId: string;
+  projectId: string;
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const chapters = useLiveQuery(() => (projectId ? listChapters(ownerId, projectId) : Promise.resolve([])), [ownerId, projectId], ['chapters']);
+  const nextNumber = (chapters.data ?? []).reduce((m, c) => Math.max(m, c.number), 0) + 1;
+  return (
+    <Field label="Chapter name" htmlFor="cname" hint="Leave blank to number it automatically.">
+      <Input id="cname" value={value} onChange={(e) => onChange(e.target.value)} placeholder={`Chapter ${String(nextNumber).padStart(2, '0')}`} />
+    </Field>
   );
 }

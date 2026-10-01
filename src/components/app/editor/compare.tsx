@@ -1,31 +1,55 @@
 'use client';
 
 import * as React from 'react';
-import { TriangleAlert } from 'lucide-react';
-import { ComicPage } from '@/components/demo/comic-page';
+import { CheckCircle2, TriangleAlert } from 'lucide-react';
+import { pixelsChangedOutsideRegions, renderPage } from '@/lib/imaging/render';
 import type { DialogueRegion } from '@/lib/types/domain';
 import { cn } from '@/lib/utils';
 
 type Mode = 'side' | 'slider' | 'overlay';
 
 /**
- * Compare exists to answer the single most important product question: did
- * anything change that didn't need to change? Overlay mode is the strict one —
- * artwork outside the text regions should be invisible in the difference.
+ * Compare answers the product's central question — did anything change that
+ * didn't need to? The check below diffs the real renders pixel by pixel
+ * outside every text region.
  */
-export function CompareView({ regions }: { regions: DialogueRegion[] }) {
+export function CompareView({ image, regions }: { image: ImageBitmap | null; regions: DialogueRegion[] }) {
   const [mode, setMode] = React.useState<Mode>('slider');
-  const [position, setPosition] = React.useState(52);
+  const [position, setPosition] = React.useState(50);
+  const [urls, setUrls] = React.useState<{ original: string; translated: string } | null>(null);
+  const [changed, setChanged] = React.useState<number | null>(null);
+
+  React.useEffect(() => {
+    if (!image) return;
+    let cancelled = false;
+    let made: string[] = [];
+    (async () => {
+      const a = await renderPage(image, regions, 'original');
+      const b = await renderPage(image, regions, 'translated');
+      if (cancelled) return;
+      const ctxA = a.getContext('2d', { willReadFrequently: true })!;
+      const ctxB = b.getContext('2d', { willReadFrequently: true })!;
+      setChanged(pixelsChangedOutsideRegions(ctxA.getImageData(0, 0, a.width, a.height), ctxB.getImageData(0, 0, b.width, b.height), regions));
+      const toUrl = (c: HTMLCanvasElement) => new Promise<string>((res) => c.toBlob((blob) => res(blob ? URL.createObjectURL(blob) : ''), 'image/png'));
+      const [o, t] = await Promise.all([toUrl(a), toUrl(b)]);
+      made = [o, t];
+      if (!cancelled) setUrls({ original: o, translated: t });
+    })();
+    return () => {
+      cancelled = true;
+      made.forEach((u) => URL.revokeObjectURL(u));
+    };
+  }, [image, regions]);
 
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="inline-flex gap-1 rounded-lg border border-editor-line bg-editor-panel p-1">
+        <div className="inline-flex gap-1 rounded-lg border border-editor-line bg-editor-panel p-1" role="group" aria-label="Compare mode">
           {(
             [
               ['side', 'Side by side'],
               ['slider', 'Slider'],
-              ['overlay', 'Overlay'],
+              ['overlay', 'Difference'],
             ] as Array<[Mode, string]>
           ).map(([id, label]) => (
             <button
@@ -44,72 +68,77 @@ export function CompareView({ regions }: { regions: DialogueRegion[] }) {
         <span className="text-[11.5px] text-editor-muted">Original · Translated</span>
       </div>
 
-      {mode === 'side' && (
+      {!urls ? (
+        <div className="aspect-[3/4] skeleton rounded-md" aria-label="Rendering comparison" />
+      ) : mode === 'side' ? (
         <div className="grid gap-3 sm:grid-cols-2">
           <Framed label="Original">
-            <ComicPage view="original" regions={regions} />
+            <img src={urls.original} alt="Original page" className="block w-full" />
           </Framed>
           <Framed label="Translated">
-            <ComicPage view="typeset" regions={regions} />
+            <img src={urls.translated} alt="Translated page" className="block w-full" />
           </Framed>
         </div>
-      )}
-
-      {mode === 'slider' && (
+      ) : mode === 'slider' ? (
         <>
-          <Framed label={`Original ${position}% · Translated ${100 - position}%`}>
+          <Framed label={`Original left · Translated right`}>
             <div className="relative">
-              <ComicPage view="typeset" regions={regions} />
-              <div className="absolute inset-0 overflow-hidden" style={{ width: `${position}%` }}>
-                <div style={{ width: `${(100 / position) * 100}%` }}>
-                  <ComicPage view="original" regions={regions} />
-                </div>
-              </div>
+              <img src={urls.translated} alt="Translated page" className="block w-full" />
+              <img
+                src={urls.original}
+                alt="Original page"
+                className="absolute inset-0 block w-full"
+                style={{ clipPath: `inset(0 ${100 - position}% 0 0)` }}
+              />
               <div className="pointer-events-none absolute inset-y-0 w-0.5 bg-accent" style={{ left: `${position}%` }} aria-hidden />
             </div>
           </Framed>
           <label className="block">
             <span className="sr-only">Comparison position</span>
-            <input
-              type="range"
-              min={0}
-              max={100}
-              value={position}
-              onChange={(e) => setPosition(Number(e.target.value))}
-              className="w-full accent-accent"
-            />
+            <input type="range" min={0} max={100} value={position} onChange={(e) => setPosition(Number(e.target.value))} className="w-full accent-accent" />
           </label>
         </>
-      )}
-
-      {mode === 'overlay' && (
-        <Framed label="Difference — text regions only">
-          <div className="relative">
-            <ComicPage view="original" regions={regions} />
-            <div className="absolute inset-0 mix-blend-difference">
-              <ComicPage view="typeset" regions={regions} />
-            </div>
+      ) : (
+        <Framed label="Difference — anything that lights up changed">
+          <div className="relative bg-black">
+            <img src={urls.original} alt="" className="block w-full" />
+            <img src={urls.translated} alt="Difference between original and translated" className="absolute inset-0 block w-full mix-blend-difference" />
           </div>
         </Framed>
       )}
 
-      <div className="flex items-start gap-2.5 rounded-lg border border-editor-line bg-editor-panel px-3 py-2.5">
-        <TriangleAlert size={13} className="mt-0.5 shrink-0 text-editor-muted" aria-hidden />
-        <div>
-          <p className="text-[12px] text-editor-text">No artwork difference detected outside translation regions.</p>
-          <p className="mt-0.5 text-[11.5px] leading-relaxed text-editor-muted">
-            Page dimensions, panel positions, and bubble shapes are unchanged. If this ever reports a difference,
-            inspect it before exporting.
-          </p>
+      {changed !== null && (
+        <div
+          role="status"
+          className={cn(
+            'flex items-start gap-2.5 rounded-lg border px-3 py-2.5',
+            changed === 0 ? 'border-editor-line bg-editor-panel' : 'border-warn/40 bg-warn/10',
+          )}
+        >
+          {changed === 0 ? (
+            <CheckCircle2 size={14} className="mt-0.5 shrink-0 text-ok" aria-hidden />
+          ) : (
+            <TriangleAlert size={14} className="mt-0.5 shrink-0 text-warn" aria-hidden />
+          )}
+          <div>
+            <p className="text-[12px] text-editor-text">
+              {changed === 0
+                ? 'No artwork changed outside the text regions.'
+                : `Artwork difference detected outside translation regions: ${changed.toLocaleString()} pixels.`}
+            </p>
+            <p className="mt-0.5 text-[11.5px] leading-relaxed text-editor-muted">
+              Checked pixel by pixel against the original. Page dimensions are unchanged.
+            </p>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
 
 function Framed({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <figure className="min-w-0">
+    <figure className="m-0 min-w-0">
       <div className="overflow-hidden rounded-md bg-white">{children}</div>
       <figcaption className="mt-1.5 text-center text-[11px] text-editor-muted">{label}</figcaption>
     </figure>

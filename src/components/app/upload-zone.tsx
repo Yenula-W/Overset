@@ -3,41 +3,27 @@
 import * as React from 'react';
 import { FileStack, GripVertical, Upload, X } from 'lucide-react';
 import { Button, ErrorState, StatusBadge } from '@/components/ui';
+import { validateFiles } from '@/lib/imaging/ingest';
+import { extensionOf, naturalCompare } from '@/lib/imaging/sort';
+import { formatBytes } from '@/lib/download';
 import { cn } from '@/lib/utils';
 
-const ACCEPTED = ['image/png', 'image/jpeg', 'image/webp', 'application/pdf', 'application/zip', 'application/x-zip-compressed'];
 const ACCEPTED_LABEL = 'PNG · JPG · WEBP · PDF · ZIP';
-const MAX_BYTES = 2 * 1024 * 1024 * 1024;
 
-export interface UploadedFile {
+export interface UploadItem {
   id: string;
-  name: string;
-  sizeLabel: string;
-  pageCount: number;
+  file: File;
 }
 
-/** Filenames usually encode page order, so sort numerically rather than
- *  lexically — otherwise page 10 lands before page 2. */
-export function sortByFilename(names: string[]): string[] {
-  return [...names].sort((a, b) =>
-    a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }),
-  );
+function describe(file: File) {
+  const ext = extensionOf(file.name);
+  if (ext === 'zip') return 'ZIP archive · pages counted on upload';
+  if (ext === 'pdf') return 'PDF · pages counted on upload';
+  return '1 page';
 }
 
-function formatBytes(bytes: number) {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 ** 2) return `${(bytes / 1024).toFixed(0)} KB`;
-  if (bytes < 1024 ** 3) return `${(bytes / 1024 ** 2).toFixed(1)} MB`;
-  return `${(bytes / 1024 ** 3).toFixed(2)} GB`;
-}
-
-export function UploadZone({
-  files,
-  onFilesChange,
-}: {
-  files: UploadedFile[];
-  onFilesChange: (files: UploadedFile[]) => void;
-}) {
+/** Filenames usually encode page order, so new files are sorted numerically. */
+export function UploadZone({ items, onChange }: { items: UploadItem[]; onChange: (items: UploadItem[]) => void }) {
   const [dragging, setDragging] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const inputRef = React.useRef<HTMLInputElement>(null);
@@ -45,39 +31,23 @@ export function UploadZone({
   function accept(list: FileList | null) {
     if (!list || list.length === 0) return;
     const incoming = Array.from(list);
-
-    const wrongType = incoming.find((f) => f.type && !ACCEPTED.includes(f.type));
-    if (wrongType) {
-      setError(`“${wrongType.name}” isn’t a supported file type. Overset accepts ${ACCEPTED_LABEL}.`);
-      return;
-    }
-    const tooLarge = incoming.find((f) => f.size > MAX_BYTES);
-    if (tooLarge) {
-      setError(`“${tooLarge.name}” is ${formatBytes(tooLarge.size)}, over the 2 GB limit for a single upload.`);
-      return;
-    }
-
-    setError(null);
-    const sorted = sortByFilename(incoming.map((f) => f.name));
-    const added: UploadedFile[] = sorted.map((name, i) => {
-      const file = incoming.find((f) => f.name === name)!;
-      const isArchive = /\.(zip|pdf)$/i.test(name);
-      return {
-        id: `${name}-${i}`,
-        name,
-        sizeLabel: formatBytes(file.size),
-        pageCount: isArchive ? 46 : 1,
-      };
-    });
-    onFilesChange([...files, ...added]);
+    const problems = validateFiles(incoming);
+    setError(problems.length ? problems.map((p) => p.reason).join(' ') : null);
+    const bad = new Set(problems.map((p) => p.file));
+    const added = incoming
+      .filter((f) => !bad.has(f.name))
+      .sort((a, b) => naturalCompare(a.name, b.name))
+      .map((file) => ({ id: `${file.name}-${file.size}-${file.lastModified}-${Math.random().toString(36).slice(2, 7)}`, file }));
+    onChange([...items, ...added]);
+    if (inputRef.current) inputRef.current.value = '';
   }
 
   function move(index: number, direction: -1 | 1) {
     const target = index + direction;
-    if (target < 0 || target >= files.length) return;
-    const next = [...files];
+    if (target < 0 || target >= items.length) return;
+    const next = [...items];
     [next[index], next[target]] = [next[target], next[index]];
-    onFilesChange(next);
+    onChange(next);
   }
 
   return (
@@ -108,36 +78,37 @@ export function UploadZone({
           ref={inputRef}
           type="file"
           multiple
-          accept=".png,.jpg,.jpeg,.webp,.pdf,.zip"
+          accept=".png,.jpg,.jpeg,.webp,.pdf,.zip,image/png,image/jpeg,image/webp,application/pdf,application/zip"
           className="sr-only"
           onChange={(e) => accept(e.target.files)}
           aria-label="Choose chapter files"
+          data-testid="chapter-file-input"
         />
       </div>
 
-      {error && <ErrorState title="That file can’t be uploaded" detail={error} onAction={() => setError(null)} actionLabel="Dismiss" />}
+      {error && <ErrorState title="Some files can’t be uploaded" detail={error} onAction={() => setError(null)} actionLabel="Dismiss" />}
 
-      {files.length > 0 && (
+      {items.length > 0 && (
         <ul className="divide-y divide-line overflow-hidden rounded-xl2 border border-line bg-surface">
-          {files.map((f, i) => (
-            <li key={f.id} className="flex items-center gap-3 px-4 py-3">
+          {items.map((item, i) => (
+            <li key={item.id} className="flex items-center gap-3 px-4 py-3">
               <GripVertical size={14} className="shrink-0 text-ink-faint" aria-hidden />
               <FileStack size={16} className="shrink-0 text-ink-muted" aria-hidden />
               <div className="min-w-0 flex-1">
-                <p className="truncate text-[13.5px] font-medium">{f.name}</p>
+                <p className="truncate text-[13.5px] font-medium">{item.file.name}</p>
                 <p className="text-[12px] text-ink-muted">
-                  {f.pageCount} {f.pageCount === 1 ? 'page' : 'pages'} · {f.sizeLabel}
+                  {describe(item.file)} · {formatBytes(item.file.size)}
                 </p>
               </div>
               <StatusBadge tone="ok" label="Ready" />
               <div className="flex shrink-0 gap-0.5">
-                <button onClick={() => move(i, -1)} disabled={i === 0} className="rounded p-1 text-[11px] text-ink-muted hover:bg-ink/5 disabled:opacity-30" aria-label={`Move ${f.name} earlier`}>
+                <button onClick={() => move(i, -1)} disabled={i === 0} className="rounded p-1 text-[11px] text-ink-muted hover:bg-ink/5 disabled:opacity-30" aria-label={`Move ${item.file.name} earlier`}>
                   ↑
                 </button>
-                <button onClick={() => move(i, 1)} disabled={i === files.length - 1} className="rounded p-1 text-[11px] text-ink-muted hover:bg-ink/5 disabled:opacity-30" aria-label={`Move ${f.name} later`}>
+                <button onClick={() => move(i, 1)} disabled={i === items.length - 1} className="rounded p-1 text-[11px] text-ink-muted hover:bg-ink/5 disabled:opacity-30" aria-label={`Move ${item.file.name} later`}>
                   ↓
                 </button>
-                <button onClick={() => onFilesChange(files.filter((x) => x.id !== f.id))} className="rounded p-1 text-ink-muted hover:bg-ink/5" aria-label={`Remove ${f.name}`}>
+                <button onClick={() => onChange(items.filter((x) => x.id !== item.id))} className="rounded p-1 text-ink-muted hover:bg-ink/5" aria-label={`Remove ${item.file.name}`}>
                   <X size={13} />
                 </button>
               </div>

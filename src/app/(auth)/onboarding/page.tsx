@@ -4,7 +4,9 @@ import * as React from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui';
-import { readSession, writeSession } from '@/lib/auth';
+import { updateProfile } from '@/lib/store/auth';
+import { RequireAuth, useUser } from '@/lib/store/hooks';
+import type { LanguageCode, UserPreferences } from '@/lib/types/domain';
 import { cn } from '@/lib/utils';
 
 interface Step {
@@ -51,21 +53,46 @@ const STEPS: Step[] = [
 ];
 
 export default function OnboardingPage() {
+  return (
+    <RequireAuth>
+      <Onboarding />
+    </RequireAuth>
+  );
+}
+
+function Onboarding() {
   const router = useRouter();
+  const user = useUser();
+  const [saving, setSaving] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
   const [index, setIndex] = React.useState(0);
   const [answers, setAnswers] = React.useState<Record<string, string>>({});
   const step = STEPS[index];
   const answered = answers[step.key];
   const last = index === STEPS.length - 1;
 
-  function next() {
+  async function next() {
     if (!last) {
       setIndex((i) => i + 1);
       return;
     }
-    const session = readSession();
-    if (session) writeSession({ ...session, onboardingComplete: true });
-    router.push('/translate');
+    setSaving(true);
+    setError(null);
+    try {
+      const language = answers.language;
+      await updateProfile(user.id, {
+        onboardingComplete: true,
+        preferences: {
+          primaryMedium: answers.medium as UserPreferences['primaryMedium'],
+          role: answers.role as UserPreferences['role'],
+          primarySourceLanguage: language && language !== 'other' ? (language as LanguageCode) : undefined,
+        },
+      });
+      router.push('/translate');
+    } catch (err) {
+      setSaving(false);
+      setError(err instanceof Error ? err.message : 'Your answers couldn’t be saved.');
+    }
   }
 
   return (
@@ -79,7 +106,9 @@ export default function OnboardingPage() {
         ))}
       </div>
 
-      <h1 className="text-[30px] font-semibold tracking-[-0.03em]">{step.title}</h1>
+      <h1 className="text-[30px] font-semibold tracking-[-0.03em]">
+        {index === 0 ? `Welcome to Overset, ${user.name.split(' ')[0]}.` : step.title}
+      </h1>
       <p className="mt-2 text-[15.5px] text-ink-muted">{step.question}</p>
 
       <div className="mt-7 grid gap-2.5 sm:grid-cols-2">
@@ -102,6 +131,12 @@ export default function OnboardingPage() {
         })}
       </div>
 
+      {error && (
+        <p role="alert" className="mt-6 rounded-lg bg-dangerSoft px-3.5 py-3 text-[13px] text-danger">
+          {error}
+        </p>
+      )}
+
       <div className="mt-8 flex items-center justify-between">
         <button
           onClick={() => setIndex((i) => Math.max(0, i - 1))}
@@ -110,7 +145,7 @@ export default function OnboardingPage() {
         >
           Back
         </button>
-        <Button size="lg" onClick={next} disabled={!answered}>
+        <Button size="lg" onClick={() => void next()} disabled={!answered} loading={saving}>
           {last ? 'Start your first translation' : 'Continue'}
           <ArrowRight size={16} />
         </Button>

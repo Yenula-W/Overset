@@ -1,4 +1,5 @@
 import { ToastProvider } from '@/components/ui';
+import { RequireAuth, SessionProvider } from '@/lib/store/hooks';
 
 /**
  * The editor takes the whole viewport. Losing 250px of artwork to workspace
@@ -6,8 +7,12 @@ import { ToastProvider } from '@/components/ui';
  */
 export default function EditorLayout({ children }: { children: React.ReactNode }) {
   return (
-    <ToastProvider>
-      <div id="main">{children}</div>
-    </ToastProvider>
+    <SessionProvider>
+      <ToastProvider>
+        <RequireAuth>
+          <div id="main">{children}</div>
+        </RequireAuth>
+      </ToastProvider>
+    </SessionProvider>
   );
 }

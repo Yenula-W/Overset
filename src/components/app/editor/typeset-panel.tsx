@@ -1,65 +1,68 @@
 'use client';
 
 import * as React from 'react';
-import { Sparkles, TriangleAlert } from 'lucide-react';
+import { Maximize, TriangleAlert } from 'lucide-react';
 import type { DialogueRegion, TypesettingProperties } from '@/lib/types/domain';
-import { wrapText } from '@/components/demo/comic-page';
-import { PAGE_W } from '@/components/demo/artwork';
-
-const FONTS = ['Comic Neue', 'Anime Ace', 'Wild Words', 'CC Wild Words', 'Manga Temple'];
-const MIN_READABLE_PX = 11;
+import { LETTERING_FONTS, measureFit, REFERENCE_WIDTH } from '@/lib/imaging/render';
 
 /**
- * Estimates whether the translation fits at its current size. This mirrors the
- * server-side typesetting provider, but it is advisory only — the editor warns
- * and offers options rather than silently shrinking text.
+ * Typesetting controls. "Fit to bubble" runs the same fitting the renderer
+ * uses: line breaks first, size last, never below the readable floor.
  */
-export function measureFit(region: DialogueRegion): { fits: boolean; lines: number; capacity: number } {
-  const t = region.typesetting;
-  const widthPx = (region.bounds.width / 100) * PAGE_W;
-  const charsPerLine = Math.max(6, Math.floor((widthPx * 0.82) / (t.fontSize * 1.25 * 0.5)));
-  const lines = wrapText(region.finalTranslation, charsPerLine).length;
-  const heightPx = (region.bounds.height / 100) * 1180;
-  const capacity = Math.max(1, Math.floor(heightPx / (t.fontSize * 1.25 * t.lineHeight)));
-  return { fits: lines <= capacity, lines, capacity };
-}
-
 export function TypesetPanel({
   region,
+  pageWidth,
+  pageHeight,
   onChange,
 }: {
   region: DialogueRegion;
+  pageWidth: number;
+  pageHeight: number;
   onChange: (patch: Partial<TypesettingProperties>) => void;
 }) {
   const t = region.typesetting;
-  const fit = measureFit(region);
+  const fit = region.finalTranslation.trim() ? measureFit(region, pageWidth, pageHeight) : null;
+  const scale = pageWidth / REFERENCE_WIDTH;
 
-  /** AI Fit adjusts line breaks and spacing first, and only then nudges size —
-   *  never below the readable floor. */
-  function aiFit() {
-    if (fit.fits) return;
-    const tighter = Math.max(MIN_READABLE_PX, t.fontSize - 1);
-    onChange({ fontSize: tighter, lineHeight: Math.max(1.02, t.lineHeight - 0.04), autoFit: true });
+  function fitToBubble() {
+    // Measure with auto-fit on, then store the result as a fixed size.
+    const fitted = measureFit({ ...region, typesetting: { ...t, autoFit: true } }, pageWidth, pageHeight);
+    onChange({ fontSize: Math.round((fitted.fontSizePx / scale) * 4) / 4, autoFit: false });
   }
 
   return (
     <div className="space-y-4 px-4 py-4">
-      {!fit.fits && (
-        <div className="rounded-lg border border-warn/40 bg-warn/10 px-3 py-2.5">
+      {!region.finalTranslation.trim() ? (
+        <p className="rounded-lg bg-editor-panel px-3 py-2.5 text-[12px] leading-relaxed text-editor-muted">
+          Add a translation to see how it fits.
+        </p>
+      ) : fit && !fit.fits ? (
+        <div className="rounded-lg border border-warn/40 bg-warn/10 px-3 py-2.5" role="status">
           <div className="flex items-center gap-1.5">
             <TriangleAlert size={12} className="text-warn" aria-hidden />
             <p className="text-[11.5px] font-semibold text-warn">Fit warning</p>
           </div>
           <p className="mt-1 text-[12px] leading-relaxed text-editor-muted">
-            This translation needs {fit.lines} lines but the bubble comfortably holds {fit.capacity}. Try a shorter
-            translation, reduce the font slightly, or adjust it by hand.
+            This translation doesn’t fit the bubble at a readable size. Try a shorter translation, tighten the line
+            spacing, or resize the region.
           </p>
-          <button onClick={aiFit} className="mt-2 inline-flex items-center gap-1.5 rounded-md bg-accent px-2.5 py-1.5 text-[11.5px] font-medium text-white">
-            <Sparkles size={11} />
-            AI Fit
-          </button>
         </div>
+      ) : (
+        fit && (
+          <p className="rounded-lg bg-editor-panel px-3 py-2 text-[12px] text-editor-muted">
+            Fits on {fit.lines.length} {fit.lines.length === 1 ? 'line' : 'lines'} at {Math.round(fit.fontSizePx)} px.
+          </p>
+        )
       )}
+
+      <button
+        onClick={fitToBubble}
+        disabled={!region.finalTranslation.trim()}
+        className="inline-flex items-center gap-1.5 rounded-md bg-accent px-2.5 py-1.5 text-[12px] font-medium text-white disabled:opacity-40"
+      >
+        <Maximize size={12} />
+        Fit to bubble
+      </button>
 
       <Row label="Font">
         <select
@@ -68,15 +71,16 @@ export function TypesetPanel({
           className="w-full rounded-md border border-editor-line bg-editor-panel px-2 py-1 text-[12px] text-editor-text"
           aria-label="Font family"
         >
-          {FONTS.map((f) => (
+          {!LETTERING_FONTS.includes(t.fontFamily as (typeof LETTERING_FONTS)[number]) && <option>{t.fontFamily}</option>}
+          {LETTERING_FONTS.map((f) => (
             <option key={f}>{f}</option>
           ))}
         </select>
       </Row>
 
-      <Slider label="Size" value={t.fontSize} min={MIN_READABLE_PX} max={48} onChange={(v) => onChange({ fontSize: v })} suffix="px" />
+      <Slider label="Size" value={t.fontSize} min={6} max={60} step={0.5} onChange={(v) => onChange({ fontSize: v, autoFit: false })} suffix=" pt" />
       <Slider label="Weight" value={t.fontWeight} min={300} max={900} step={100} onChange={(v) => onChange({ fontWeight: v })} />
-      <Slider label="Line spacing" value={t.lineHeight} min={0.9} max={2} step={0.05} onChange={(v) => onChange({ lineHeight: v })} />
+      <Slider label="Line spacing" value={t.lineHeight} min={0.85} max={2} step={0.05} onChange={(v) => onChange({ lineHeight: v })} />
       <Slider label="Letter spacing" value={t.letterSpacing} min={-0.05} max={0.3} step={0.01} onChange={(v) => onChange({ letterSpacing: v })} suffix="em" />
       <Slider label="Rotation" value={t.rotation} min={-45} max={45} onChange={(v) => onChange({ rotation: v })} suffix="°" />
 
@@ -95,33 +99,21 @@ export function TypesetPanel({
         </div>
       </Row>
 
-      <Row label="Text direction">
-        <div className="flex gap-1">
-          {(['horizontal', 'vertical'] as const).map((d) => (
-            <button
-              key={d}
-              onClick={() => onChange({ direction: d })}
-              aria-pressed={t.direction === d}
-              className={`flex-1 rounded-md border px-2 py-1 text-[11.5px] capitalize ${t.direction === d ? 'border-accent bg-accent/15 text-editor-text' : 'border-editor-line text-editor-muted'}`}
-            >
-              {d}
-            </button>
-          ))}
-        </div>
-      </Row>
-
       <div className="flex items-center justify-between rounded-lg bg-editor-panel px-3 py-2">
         <label htmlFor="outline" className="text-[12px] text-editor-muted">
-          Outline
+          White outline
         </label>
         <input id="outline" type="checkbox" checked={t.outline} onChange={(e) => onChange({ outline: e.target.checked })} className="accent-accent" />
       </div>
 
-      <div className="flex items-center justify-between rounded-lg bg-editor-panel px-3 py-2">
-        <label htmlFor="autofit" className="text-[12px] text-editor-muted">
-          Auto fit
-        </label>
-        <input id="autofit" type="checkbox" checked={t.autoFit} onChange={(e) => onChange({ autoFit: e.target.checked })} className="accent-accent" />
+      <div className="rounded-lg bg-editor-panel px-3 py-2">
+        <div className="flex items-center justify-between">
+          <label htmlFor="autofit" className="text-[12px] text-editor-muted">
+            Auto fit
+          </label>
+          <input id="autofit" type="checkbox" checked={t.autoFit} onChange={(e) => onChange({ autoFit: e.target.checked })} className="accent-accent" />
+        </div>
+        <p className="mt-0.5 text-[11px] leading-relaxed text-editor-muted/80">Shrinks from the chosen size when needed, never below a readable floor.</p>
       </div>
     </div>
   );
@@ -165,16 +157,7 @@ function Slider({
           {suffix}
         </span>
       </div>
-      <input
-        id={id}
-        type="range"
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
-        className="w-full accent-accent"
-      />
+      <input id={id} type="range" min={min} max={max} step={step} value={value} onChange={(e) => onChange(Number(e.target.value))} className="w-full accent-accent" />
     </div>
   );
 }
