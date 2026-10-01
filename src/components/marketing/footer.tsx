@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { OversetMark } from "@/components/brand";
 import { NAV_LINKS } from "./mk";
 
 export function MarketingFooter() {
@@ -6,7 +7,8 @@ export function MarketingFooter() {
     <footer className="mt-16 border-t border-line bg-[#eeede8]">
       <div className="mx-auto flex max-w-[1440px] flex-wrap items-start justify-between gap-8 px-4 pb-5 pt-10 sm:px-8">
         <div className="flex max-w-[320px] flex-col gap-2.5">
-          <span className="text-[15px] font-extrabold tracking-[0.06em]">
+          <span className="flex items-center gap-2.5 text-[15px] font-extrabold tracking-[0.06em]">
+            <OversetMark size={28} />
             OVERSET
           </span>
           <span className="text-[13px] leading-[1.5] text-ink-muted">

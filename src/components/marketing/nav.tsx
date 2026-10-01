@@ -58,7 +58,7 @@ export function MarketingNav() {
           className="flex items-center gap-2.5 text-ink hover:text-ink"
           aria-label="Overset home"
         >
-          <OversetMark size={24} className="text-ink" />
+          <OversetMark size={32} className="text-ink" />
           <span className="text-[15px] font-extrabold tracking-[0.06em]">
             OVERSET
           </span>
