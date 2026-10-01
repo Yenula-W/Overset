@@ -1,3 +1,4 @@
+import { callService } from '@/lib/client-services';
 import { cloudEnabled, get, getAllByIndex, newId, notify, put, putMany, remove, removeMany } from './db';
 import type {
   BlobRecord,
@@ -375,6 +376,7 @@ export async function listComments(ownerId: string, chapterId: string) {
 }
 
 export async function addComment(ownerId: string, input: Omit<CommentRecord, 'id' | 'ownerId' | 'createdAt' | 'resolved'>) {
+  if (cloudEnabled) { const result = await callService<CommentRecord>('/api/comments', input); notify('comments'); return result; }
   return put<CommentRecord>('comments', { ...input, id: newId('cmt'), ownerId, createdAt: now(), resolved: false });
 }
 
@@ -402,6 +404,7 @@ export async function listTeam(ownerId: string) {
 const AVATAR_COLORS = ['#4F8A5B', '#B4833A', '#B4544A', '#3F7CAC', '#8A5BA8'];
 
 export async function inviteMember(ownerId: string, input: { name: string; email: string; role: TeamRole }) {
+  if (cloudEnabled) { const result = await callService<{member: TeamRecord}>('/api/team/invite', input); notify('team'); return result.member; }
   const team = await listTeam(ownerId);
   const email = input.email.trim().toLowerCase();
   if (team.some((m) => m.email === email)) throw new Error('That person is already on your team.');
@@ -434,6 +437,7 @@ export function periodKey(d = new Date()) {
 }
 
 export async function getUsage(ownerId: string, period = periodKey()): Promise<UsageRecord> {
+  if (cloudEnabled && period === periodKey()) return callService<UsageRecord>(`/api/usage?workspace=${encodeURIComponent(ownerId)}`);
   return (
     (await get<UsageRecord>('usage', `${ownerId}:${period}`)) ?? {
       id: `${ownerId}:${period}`,
@@ -446,6 +450,7 @@ export async function getUsage(ownerId: string, period = periodKey()): Promise<U
 }
 
 export async function recordUsage(ownerId: string, delta: { pagesProcessed?: number; pagesExported?: number }) {
+  if (cloudEnabled) { notify('usage'); return getUsage(ownerId); }
   const usage = await getUsage(ownerId);
   return put<UsageRecord>('usage', {
     ...usage,

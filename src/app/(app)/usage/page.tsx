@@ -2,9 +2,10 @@
 
 import * as React from 'react';
 import { AppShellPage, PageHeader } from '@/components/app/page-header';
-import { Button, Card, CardBody, CardHeader, CardTitle, Progress, Tooltip } from '@/components/ui';
-import { CREDIT_PACKS, planById } from '@/lib/billing';
-import { getAllByIndex, storageEstimate } from '@/lib/store/db';
+import { Button, Card, CardBody, CardHeader, CardTitle, Progress, useToast } from '@/components/ui';
+import { billingAction } from '@/lib/client-services';
+import { CREDIT_PACKS, PLANS, planById } from '@/lib/billing';
+import { cloudEnabled, getAllByIndex, storageEstimate } from '@/lib/store/db';
 import { useLiveQuery, useActiveWorkspace } from '@/lib/store/hooks';
 import { getUsage, listAllPages, periodKey } from '@/lib/store/repo';
 import type { UsageRecord } from '@/lib/store/schema';
@@ -13,6 +14,9 @@ import { formatNumber, pct } from '@/lib/utils';
 
 export default function UsagePage() {
   const workspace = useActiveWorkspace();
+  const toast = useToast();
+  const [billingBusy,setBillingBusy] = React.useState(false);
+  async function buy(item?: string) { setBillingBusy(true);try { await billingAction(item); } catch(error){ toast({message:error instanceof Error?error.message:'Billing is unavailable.',tone:'warn'});setBillingBusy(false); } }
   const plan = planById(workspace.plan);
   const data = useLiveQuery(
     async () => {
@@ -29,9 +33,10 @@ export default function UsagePage() {
   );
 
   const now = new Date();
-  const resets = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  const resets = data.data?.usage.resetsAt ? new Date(data.data.usage.resetsAt) : new Date(now.getFullYear(), now.getMonth() + 1, 1);
   const used = data.data?.usage.pagesProcessed ?? 0;
-  const remaining = Math.max(0, plan.pageAllowance - used);
+  const remaining = data.data?.usage.remaining ?? Math.max(0, plan.pageAllowance - used);
+  const allowance = plan.pageAllowance + (data.data?.usage.creditsUsed ?? 0) + (data.data?.usage.additionalCredits ?? 0);
   const regions = (data.data?.pages ?? []).flatMap((p) => p.regions);
   const uploadBytes = (data.data?.pages ?? []).reduce((s, p) => s + p.bytes, 0);
   const monthName = now.toLocaleDateString(undefined, { month: 'long' });
@@ -50,12 +55,12 @@ export default function UsagePage() {
             <CardBody>
               <p className="text-[34px] font-semibold tabular-nums tracking-[-0.035em]">
                 {formatNumber(used)}
-                <span className="text-[20px] font-normal text-ink-muted"> / {formatNumber(plan.pageAllowance)} pages</span>
+                <span className="text-[20px] font-normal text-ink-muted"> / {formatNumber(allowance)} pages</span>
               </p>
-              <Progress value={pct(used, plan.pageAllowance)} tone={used > plan.pageAllowance ? 'warn' : 'accent'} className="mt-4" label="Pages used this month" />
+              <Progress value={pct(used, allowance)} tone={used > allowance ? 'warn' : 'accent'} className="mt-4" label="Pages used this month" />
               <p className="mt-3 text-[13.5px] text-ink-muted">
-                {used > plan.pageAllowance
-                  ? `${formatNumber(used - plan.pageAllowance)} pages over the allowance — nothing is blocked while billing isn’t connected.`
+                {used > allowance
+                  ? `No pages remaining — upgrade or add credits to continue.`
                   : `${formatNumber(remaining)} pages remaining`}
               </p>
             </CardBody>
@@ -89,11 +94,11 @@ export default function UsagePage() {
               </CardHeader>
               <ul className="divide-y divide-line">
                 {data.data!.history
-                  .filter((h) => h.period !== periodKey())
+                  .filter((h) => h.period !== data.data?.usage.period)
                   .map((h) => (
                     <li key={h.id} className="flex items-baseline justify-between px-5 py-3">
                       <span className="text-[13.5px] text-ink-muted">
-                        {new Date(`${h.period}-01T00:00:00`).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}
+                        {(h.period.startsWith('cycle-') ? new Date(Number(h.period.slice(6))*1000) : new Date(`${h.period}-01T00:00:00`)).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}
                       </span>
                       <span className="text-[13.5px] tabular-nums">
                         {formatNumber(h.pagesProcessed)} processed · {formatNumber(h.pagesExported)} exported
@@ -105,7 +110,7 @@ export default function UsagePage() {
           )}
 
           <p className="text-[12.5px] leading-relaxed text-ink-faint">
-            A page counts when it’s uploaded and processed. Editing, re-rendering, and exporting it again don’t count twice.
+            Cloud usage counts a verified original page when AI processing starts. Re-running that saved page does not count it twice.
           </p>
         </div>
 
@@ -116,18 +121,14 @@ export default function UsagePage() {
             </CardHeader>
             <CardBody className="space-y-3">
               {CREDIT_PACKS.map((pack) => (
-                <Tooltip key={pack.id} label="Needs a payment provider">
-                  <Button variant="secondary" className="w-full" disabled aria-describedby="billing-note">
-                    Buy {pack.pages} pages — ${pack.priceUsd}
-                  </Button>
-                </Tooltip>
+                <Button key={pack.id} variant="secondary" className="w-full" disabled={!cloudEnabled || !workspace.isOwn || billingBusy} onClick={()=>void buy(pack.id)}>
+                  Buy {pack.pages} pages — ${pack.priceUsd}
+                </Button>
               ))}
-              <Button href="/pricing" className="w-full">
-                Compare plans
-              </Button>
-              <p id="billing-note" className="text-[12px] leading-relaxed text-ink-faint">
-                Purchases and upgrades need a payment provider, which isn’t connected yet.
-              </p>
+              {workspace.isOwn && <><select aria-label="Upgrade plan" defaultValue="" disabled={!cloudEnabled || billingBusy} className="w-full rounded-lg border border-line bg-white px-3 py-2 text-[13px]" onChange={e=>{if(e.target.value)void buy(e.target.value);e.target.value='';}}>
+                <option value="">Choose a plan…</option>{PLANS.filter(p=>p.id!=='free').map(p=><option key={p.id} value={p.id}>{p.name} — ${p.priceMonthly}/month</option>)}
+              </select><Button variant="secondary" className="w-full" disabled={!cloudEnabled || billingBusy || !data.data?.usage.hasSubscription} onClick={()=>void buy()}>Manage billing</Button></>}
+              <p className="text-[12px] leading-relaxed text-ink-faint">{workspace.isOwn ? 'Checkout opens securely in Stripe. Plans change after payment is confirmed.' : 'Only the workspace owner can purchase credits or manage billing.'}</p>
             </CardBody>
           </Card>
 
@@ -138,7 +139,7 @@ export default function UsagePage() {
             <CardBody>
               <p className="text-[24px] font-semibold tabular-nums">{data.data?.storage ? formatBytes(data.data.storage.usedBytes) : '—'}</p>
               <p className="mt-1 text-[12.5px] leading-relaxed text-ink-muted">
-                Stored in this browser
+                {cloudEnabled ? 'Stored privately in your cloud workspace' : 'Stored in this browser'}
                 {data.data?.storage?.quotaBytes ? `, out of about ${formatBytes(data.data.storage.quotaBytes)} available` : ''}.
               </p>
             </CardBody>

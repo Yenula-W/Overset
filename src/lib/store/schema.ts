@@ -135,4 +135,9 @@ export interface UsageRecord {
   period: string;
   pagesProcessed: number;
   pagesExported: number;
+  additionalCredits?: number;
+  creditsUsed?: number;
+  remaining?: number;
+  resetsAt?: string;
+  hasSubscription?: boolean;
 }

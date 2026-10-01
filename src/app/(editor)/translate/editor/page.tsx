@@ -28,7 +28,8 @@ import {
   setCommentResolved,
   updateChapter,
 } from '@/lib/store/repo';
-import { newId } from '@/lib/store/db';
+import { aiPage, callService } from '@/lib/client-services';
+import { cloudEnabled, newId } from '@/lib/store/db';
 import { ingestFiles } from '@/lib/imaging/ingest';
 import { detectRegions } from '@/lib/imaging/detect';
 import { readingOrder } from '@/lib/imaging/detect-core';
@@ -102,6 +103,11 @@ function Editor({ chapterId }: { chapterId: string }) {
   const [deletingPage, setDeletingPage] = React.useState<PageRecord | null>(null);
   const [addingPages, setAddingPages] = React.useState(false);
   const [glossaryDraft, setGlossaryDraft] = React.useState<{ original: string; translation: string } | null>(null);
+  const [aiBusy, setAiBusy] = React.useState(false);
+  const [aiMessage, setAiMessage] = React.useState('');
+  const [regenerateOpen, setRegenerateOpen] = React.useState(false);
+  const [aiReady, setAiReady] = React.useState(false);
+  React.useEffect(() => { if (cloudEnabled) void callService<{ai:boolean}>('/api/services').then(v=>setAiReady(v.ai)).catch(()=>{}); }, []);
   const [image, setImage] = React.useState<ImageBitmap | null>(null);
 
   const pages = data.data?.pages ?? [];
@@ -164,10 +170,10 @@ function Editor({ chapterId }: { chapterId: string }) {
 
   const patch = React.useCallback(
     (id: string, next: Partial<DialogueRegion>) => {
-      if (!page) return;
+      if (!page || !workspace.canEdit || aiBusy) return;
       updateRegions(page.id, (rs) => rs.map((r) => (r.id === id ? { ...r, ...next } : r)));
     },
-    [page, updateRegions],
+    [page, updateRegions, workspace.canEdit, aiBusy],
   );
 
   function renumber(rs: DialogueRegion[]) {
@@ -315,6 +321,32 @@ function Editor({ chapterId }: { chapterId: string }) {
     }
   }
 
+  async function runAi(action: 'ocr' | 'translate' | 'regenerate' | 'proofread') {
+    if (!workspace.canEdit || !page || aiBusy) return;
+    setAiBusy(true);
+    try {
+      await data.flush(page.id);
+      setAiMessage(action === 'ocr' ? 'Reading source text…' : action === 'proofread' ? 'Proofreading dialogue…' : 'Translating with project context…');
+      let result = await aiPage(chapterId, page.id, action === 'translate' ? 'ocr' : action, action === 'regenerate' ? region?.id : undefined);
+      if (action === 'translate') {
+        for (const r of result.page.regions.slice().sort((a,b)=>a.readingOrder-b.readingOrder)) {
+          if (r.translate && r.sourceText.trim() && !r.finalTranslation.trim() && r.status !== 'approved' && r.status !== 'edited') {
+            setAiMessage(`Translating region ${r.readingOrder}…`);
+            result = await aiPage(chapterId,page.id,'translate',r.id);
+          }
+        }
+        await callService(`/api/chapters/${encodeURIComponent(chapterId)}/complete`,{}).catch(()=>{});
+      }
+      data.reload();
+      if (result.qa?.length) {
+        const notes = new Map(result.qa.map(f=>[f.regionId,f.message]));
+        updateRegions(page.id,rs=>rs.map(r=>notes.has(r.id)?{...r,ambiguityNote:[r.ambiguityNote,notes.get(r.id)].filter(Boolean).join(' · ')}:r));
+        toast({message:`${result.qa.length} proofreading findings added to region notes.`,tone:'warn'});
+      } else toast({message: action==='proofread'?'No proofreading findings.': 'AI results saved. Review each draft before export.',tone:'ok'});
+    } catch(error) { toast({message:error instanceof Error?error.message:'Processing failed. Retry this page.',tone:'warn'}); }
+    finally { setAiBusy(false);setAiMessage(''); }
+  }
+
   // Region-to-region navigation is what a translator repeats hundreds of times
   // a chapter, so it gets keyboard shortcuts.
   React.useEffect(() => {
@@ -333,9 +365,9 @@ function Editor({ chapterId }: { chapterId: string }) {
       } else if (e.key === 'k' || e.key === 'ArrowUp') {
         e.preventDefault();
         step(-1);
-      } else if (e.key === 'a' && region) void approve();
-      else if ((e.key === 'Delete' || e.key === 'Backspace') && region) deleteRegion(region.id);
-      else if (e.key === 'd') setTool((x) => (x === 'draw' ? 'select' : 'draw'));
+      } else if (workspace.canEdit && !aiBusy && e.key === 'a' && region) void approve();
+      else if (workspace.canEdit && !aiBusy && (e.key === 'Delete' || e.key === 'Backspace') && region) deleteRegion(region.id);
+      else if (workspace.canEdit && !aiBusy && e.key === 'd') setTool((x) => (x === 'draw' ? 'select' : 'draw'));
       else if (e.key === 'Escape') {
         setTool('select');
         setSelectedId(null);
@@ -363,7 +395,7 @@ function Editor({ chapterId }: { chapterId: string }) {
   const rightPanel = (
     <>
       <div className="flex gap-0.5 overflow-x-auto border-b border-editor-line px-3 pt-3 no-scrollbar" role="tablist">
-        {RIGHT_TABS.map((t) => (
+        {RIGHT_TABS.filter(t => workspace.canEdit || t.id !== 'typeset').map((t) => (
           <button
             key={t.id}
             onClick={() => setRightTab(t.id)}
@@ -386,6 +418,8 @@ function Editor({ chapterId }: { chapterId: string }) {
           <QaPanel findings={findings} onGo={goTo} />
         ) : rightTab === 'history' ? (
           <HistoryPanel versions={versions} onRestore={(v) => void restore(v)} />
+        ) : rightTab === 'comments' && !workspace.canEdit ? (
+          <div className="space-y-3 p-4">{comments.filter(c=>c.regionId===region?.id).map(c=><p key={c.id} className="text-[12px]"><strong>{c.authorName}</strong><br />{c.body}</p>)}</div>
         ) : rightTab === 'comments' ? (
           <CommentsPanel
             hasRegion={!!region}
@@ -405,11 +439,13 @@ function Editor({ chapterId }: { chapterId: string }) {
                 ? 'Click a region on the page, or press j / k to step through them.'
                 : 'Choose the draw tool (d) and drag over each speech bubble, caption, or sound effect.'}
             </p>
-            <button onClick={() => setTool('draw')} className="inline-flex items-center gap-1.5 rounded-md bg-accent px-2.5 py-1.5 text-[12px] font-medium text-white">
+            {workspace.canEdit && <button onClick={() => setTool('draw')} className="inline-flex items-center gap-1.5 rounded-md bg-accent px-2.5 py-1.5 text-[12px] font-medium text-white">
               <SquareDashed size={12} />
               Draw a region
-            </button>
+            </button>}
           </div>
+        ) : !workspace.canEdit ? (
+          <div className="space-y-4 p-4"><p className="text-[11px] text-editor-muted">View only · Region #{index + 1}</p><p className="text-[13px]">{region.sourceText}</p><p className="text-[14px]">{region.finalTranslation || 'Not translated yet'}</p>{region.ambiguityNote && <p className="text-[12px] text-warn">{region.ambiguityNote}</p>}</div>
         ) : rightTab === 'typeset' ? (
           <TypesetPanel
             region={region}
@@ -419,6 +455,8 @@ function Editor({ chapterId }: { chapterId: string }) {
           />
         ) : (
           <Inspector
+            busy={aiBusy || !aiReady}
+            onRegenerate={() => region.status === 'approved' || region.status === 'edited' ? setRegenerateOpen(true) : void runAi('regenerate')}
             region={region}
             index={index}
             total={ordered.length}
@@ -454,6 +492,13 @@ function Editor({ chapterId }: { chapterId: string }) {
           /
         </span>
         <span className="text-[12.5px] text-editor-text">{chapter.name}</span>
+        {!workspace.canEdit && <span className="text-[11px] text-editor-muted">View only</span>}
+        {workspace.canEdit && <div className="flex items-center gap-2 text-[12px]">
+          <button disabled={aiBusy || !aiReady} onClick={()=>void runAi('ocr')} className="rounded-md border border-editor-line px-2.5 py-1.5 disabled:opacity-40">Read text</button>
+          <button disabled={aiBusy || !aiReady} onClick={()=>void runAi('translate')} className="rounded-md bg-accent px-2.5 py-1.5 text-white disabled:opacity-40">Translate page</button>
+          <button disabled={aiBusy || !aiReady} onClick={()=>void runAi('proofread')} className="rounded-md border border-editor-line px-2.5 py-1.5 disabled:opacity-40">AI proofread</button>
+          <span role="status" className="text-editor-muted">{aiMessage || (!aiReady ? 'AI not connected' : '')}</span>
+        </div>}
         <span className="hidden text-[11.5px] text-editor-muted sm:inline">
           {LANGUAGE_LABELS[chapter.sourceLanguage]} → {LANGUAGE_LABELS[chapter.targetLanguage]}
         </span>
@@ -516,15 +561,15 @@ function Editor({ chapterId }: { chapterId: string }) {
 
           <section className={cn('min-h-0 overflow-auto border-r border-editor-line bg-editor-panel p-4', mobileTab === 'panel' ? 'block' : 'hidden lg:block')}>
             <div className="mb-3 flex flex-wrap items-center justify-center gap-1.5">
-              <div className="inline-flex gap-0.5 rounded-md border border-editor-line p-0.5" role="group" aria-label="Tool">
+              {workspace.canEdit && <div className="inline-flex gap-0.5 rounded-md border border-editor-line p-0.5" role="group" aria-label="Tool">
                 <ToolBtn active={tool === 'select'} onClick={() => setTool('select')} label="Select and move (Esc)">
                   <MousePointer2 size={12} />
                 </ToolBtn>
                 <ToolBtn active={tool === 'draw'} onClick={() => setTool('draw')} label="Draw a region (d)">
                   <SquareDashed size={12} />
                 </ToolBtn>
-              </div>
-              {region && (
+              </div>}
+              {region && workspace.canEdit && (
                 <div className="inline-flex gap-0.5 rounded-md border border-editor-line p-0.5" role="group" aria-label="Reading order">
                   <ToolBtn onClick={() => moveOrder(-1)} label="Read this region earlier">
                     <ArrowUpNarrowWide size={12} />
@@ -567,6 +612,7 @@ function Editor({ chapterId }: { chapterId: string }) {
                 <CompareView image={image} regions={regions} />
               ) : (
                 <PageCanvas
+                  readOnly={!workspace.canEdit || aiBusy}
                   image={image}
                   width={page.width}
                   height={page.height}
@@ -595,6 +641,7 @@ function Editor({ chapterId }: { chapterId: string }) {
         </div>
       )}
 
+      <ConfirmModal open={regenerateOpen} onClose={()=>setRegenerateOpen(false)} title="Replace this human translation?" body="A new AI draft will replace this region. The current version is kept in history." confirmLabel="Generate draft" onConfirm={async()=>{setRegenerateOpen(false);await runAi('regenerate');}} />
       <ExportModal
         open={exportOpen}
         onClose={() => setExportOpen(false)}
@@ -605,6 +652,7 @@ function Editor({ chapterId }: { chapterId: string }) {
         speakerName={speakerName}
         loadOriginal={(p) => getBlob(workspace.id, p.originalBlobId)}
         onExported={async ({ pages: n }) => {
+          if (!workspace.canEdit) return;
           await recordUsage(workspace.id, { pagesExported: n });
           await updateChapter(workspace.id, chapterId, { lastExportedAt: new Date().toISOString() });
           version({ kind: 'export', summary: `Exported ${n} ${n === 1 ? 'page' : 'pages'}` });

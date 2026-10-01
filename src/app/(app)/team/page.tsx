@@ -115,7 +115,7 @@ export default function TeamPage() {
             {manages && members.length > 0 && (
               <p className="border-t border-line px-5 py-3 text-[12px] leading-relaxed text-ink-faint">
                 {cloudEnabled
-                  ? 'Invitations aren’t emailed yet. Ask people to sign up or log in with the email you invited — once it’s confirmed, your workspace appears in their sidebar.'
+                  ? 'Invitations are queued for email delivery. Teammates join after signing in with their invited address and confirming it.'
                   : 'Invitations are saved, but none are emailed yet, and invited people can’t sign in from their own devices until accounts move to a server.'}
               </p>
             )}
@@ -250,7 +250,7 @@ function InviteModal({
           <Button variant="ghost" onClick={onClose}>
             Cancel
           </Button>
-          <Button onClick={() => void submit()} loading={busy}>
+          <Button onClick={() => void submit()} loading={busy} disabled={overSeats}>
             Add to team
           </Button>
         </>
@@ -259,7 +259,7 @@ function InviteModal({
       <div className="space-y-4">
         {overSeats && (
           <p className="rounded-lg bg-accent-soft px-3.5 py-3 text-[13px] leading-relaxed text-ink-muted">
-            The {planName} plan includes no more seats. Billing isn’t connected yet, so you can still add people for now.
+            The {planName} plan has no available seats. Upgrade or remove a team member before inviting someone else.
           </p>
         )}
         <Field label="Email" htmlFor="i-email" error={error ?? undefined}>

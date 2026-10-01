@@ -22,7 +22,11 @@ export function Inspector({
   onReject,
   onDelete,
   onAddGlossary,
+  onRegenerate,
+  busy = false,
 }: {
+  onRegenerate: () => void;
+  busy?: boolean;
   region: DialogueRegion;
   index: number;
   total: number;
@@ -136,7 +140,7 @@ export function Inspector({
         <TextField
           refEl={sourceRef}
           label="Source text"
-          hint="Type or paste the original — automatic OCR needs an AI provider."
+          hint="Read source text with OCR, or edit it here."
           value={region.sourceText}
           rows={2}
           onFocus={(v) => (focusValue.current = v)}
@@ -303,12 +307,13 @@ export function Inspector({
           Reject
         </button>
         <button
-          disabled
-          title="Regenerating needs an AI provider, which isn’t connected yet."
-          className="flex cursor-not-allowed items-center gap-1.5 rounded-lg border border-editor-line px-3 py-2 text-[13px] text-editor-muted opacity-50"
+          disabled={busy}
+          onClick={onRegenerate}
+          title="Generate a fresh translation with project context"
+          className="flex items-center gap-1.5 rounded-lg border border-editor-line px-3 py-2 text-[13px] text-editor-muted disabled:opacity-50"
         >
           <RefreshCw size={13} />
-          <span className="sr-only">Regenerate — needs an AI provider</span>
+          <span className="sr-only">Regenerate translation</span>
         </button>
       </div>
     </div>

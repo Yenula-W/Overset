@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { rateLimit } from '@/lib/server/authz';
+import { queueEmail, emailConfigured } from '@/lib/server/email';
+import { failure, ServiceError } from '@/lib/server/http';
 
 /**
  * Contact form endpoint.
@@ -20,9 +22,6 @@ const schema = z.object({
 
 export type ContactPayload = z.infer<typeof schema>;
 
-async function deliver(payload: ContactPayload) {
-  console.info('[contact]', JSON.stringify({ ...payload, receivedAt: new Date().toISOString() }));
-}
 
 export async function POST(request: Request) {
   const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
@@ -44,6 +43,10 @@ export async function POST(request: Request) {
     );
   }
 
-  await deliver(parsed.data);
-  return NextResponse.json({ ok: true });
+  try {
+    if (!process.env.OVERSET_CONTACT_EMAIL || !emailConfigured()) throw new ServiceError('email_not_configured', 'The contact form is not available yet. Please try again later.');
+    const p = parsed.data;
+    const delivery = await queueEmail({ to: process.env.OVERSET_CONTACT_EMAIL, subject: `[Overset ${p.topic}] ${p.name}`, replyTo: p.email, text: `${p.name} <${p.email}>${p.company ? ` · ${p.company}` : ''}\n\n${p.message}` });
+    return NextResponse.json({ ok: true, queued: !delivery.delivered });
+  } catch(error) { return failure(error); }
 }

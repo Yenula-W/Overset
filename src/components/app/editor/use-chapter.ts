@@ -77,22 +77,24 @@ export function useChapterData(chapterId: string) {
       if (timer) clearTimeout(timer);
       pending.current.delete(pageId);
       const regions = latest.current[pageId];
-      if (!regions) return;
+      if (!regions || !workspace.canEdit) return;
       setSaving(true);
       try {
         await savePageRegions(workspace.id, pageId, regions);
         setSaveError(null);
       } catch (err) {
         setSaveError(err instanceof Error ? err.message : 'Changes couldn’t be saved.');
+        throw err;
       } finally {
         setSaving(pending.current.size > 0);
       }
     },
-    [workspace.id],
+    [workspace.id, workspace.canEdit],
   );
 
   const updateRegions = React.useCallback(
     (pageId: string, fn: (regions: DialogueRegion[]) => DialogueRegion[]) => {
+      if (!workspace.canEdit) return;
       setDrafts((prev) => {
         const next = { ...prev, [pageId]: fn(prev[pageId] ?? []) };
         latest.current = next;
@@ -100,10 +102,10 @@ export function useChapterData(chapterId: string) {
       });
       const existing = pending.current.get(pageId);
       if (existing) clearTimeout(existing);
-      pending.current.set(pageId, setTimeout(() => void flush(pageId), SAVE_DELAY_MS));
+      pending.current.set(pageId, setTimeout(() => void flush(pageId).catch(() => {}), SAVE_DELAY_MS));
       setSaving(true);
     },
-    [flush],
+    [flush, workspace.canEdit],
   );
 
   // Never lose an edit: flush on unmount and warn before closing with unsaved work.
@@ -111,14 +113,14 @@ export function useChapterData(chapterId: string) {
     const map = pending.current;
     const beforeUnload = (e: BeforeUnloadEvent) => {
       if (map.size > 0) {
-        for (const id of map.keys()) void flush(id);
+        for (const id of map.keys()) void flush(id).catch(() => {});
         e.preventDefault();
       }
     };
     window.addEventListener('beforeunload', beforeUnload);
     return () => {
       window.removeEventListener('beforeunload', beforeUnload);
-      for (const id of [...map.keys()]) void flush(id);
+      for (const id of [...map.keys()]) void flush(id).catch(() => {});
     };
   }, [flush]);
 
