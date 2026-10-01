@@ -79,7 +79,7 @@ export default function GlossaryPage() {
       <PageHeader
         title="Project glossary"
         lede={project ? `${project.name} · terminology QA checks every chapter against.` : ' '}
-        actions={
+        actions={workspace.canEdit &&
           <Button onClick={() => setEditing({ status: 'approved', type: 'term', alternatives: [], characterIds: [] })} disabled={!project}>
             <Plus size={15} />
             Add term
@@ -107,7 +107,7 @@ export default function GlossaryPage() {
               ? 'Try a different spelling, or add the term so future chapters use it consistently.'
               : 'Add names, places, techniques, and titles. QA flags any translation that drifts from the approved wording.'
           }
-          action={q ? <Button onClick={() => setQuery('')}>Clear search</Button> : <Button onClick={() => setEditing({ status: 'approved', type: 'term', alternatives: [], characterIds: [] })}>Add term</Button>}
+          action={q ? <Button onClick={() => setQuery('')}>Clear search</Button> : workspace.canEdit ? <Button onClick={() => setEditing({ status: 'approved', type: 'term', alternatives: [], characterIds: [] })}>Add term</Button> : undefined}
         />
       ) : (
         <Card className="mt-5 overflow-hidden">
@@ -145,7 +145,7 @@ export default function GlossaryPage() {
                       </Badge>
                     </Td>
                     <Td>
-                      <div className="flex gap-0.5">
+                      <div hidden={!workspace.canEdit} className={workspace.canEdit ? "flex gap-0.5" : "hidden"}>
                         <IconBtn label={e.status === 'locked' ? `Unlock ${e.original}` : `Lock ${e.original}`} onClick={() => void toggleLock(e)}>
                           {e.status === 'locked' ? <Unlock size={13} /> : <Lock size={13} />}
                         </IconBtn>
@@ -244,23 +244,24 @@ function TermModal({
     }
   }
 
+  const readOnly = !useActiveWorkspace().canEdit;
   return (
     <Modal
       open={entry !== null}
       onClose={onClose}
-      title={entry?.id ? 'Edit term' : 'Add term'}
+      title={readOnly ? 'Term details' : entry?.id ? 'Edit term' : 'Add term'}
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>
             Cancel
           </Button>
-          <Button onClick={() => void save()} loading={busy}>
+          {!readOnly && <Button onClick={() => void save()} loading={busy}>
             {entry?.id ? 'Save' : 'Add term'}
-          </Button>
+          </Button>}
         </>
       }
     >
-      <div className="space-y-4">
+      <fieldset disabled={readOnly} className="space-y-4">
         {error && <p role="alert" className="rounded-lg bg-dangerSoft px-3 py-2.5 text-[13px] text-danger">{error}</p>}
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Original" htmlFor="t-orig">
@@ -330,7 +331,7 @@ function TermModal({
             </div>
           </dl>
         )}
-      </div>
+      </fieldset>
     </Modal>
   );
 }

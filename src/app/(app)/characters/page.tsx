@@ -58,7 +58,7 @@ export default function CharactersPage() {
       <PageHeader
         title="Characters"
         lede={project ? `${project.name} · voice, formality, and speech rules shown beside each speaker’s lines.` : ' '}
-        actions={
+        actions={workspace.canEdit &&
           <Button onClick={() => setEditing(blank)} disabled={!project}>
             <Plus size={15} />
             Add character
@@ -82,7 +82,7 @@ export default function CharactersPage() {
           icon={<UsersRound size={18} />}
           title="No characters yet."
           body="Add recurring speakers so their voice and speech rules sit beside every line they say, and QA can catch slips."
-          action={<Button onClick={() => setEditing(blank)}>Add character</Button>}
+          action={workspace.canEdit ? <Button onClick={() => setEditing(blank)}>Add character</Button> : undefined}
         />
       ) : (
         <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -208,6 +208,7 @@ function CharacterModal({
     }
   }
 
+  const readOnly = !useActiveWorkspace().canEdit;
   return (
     <>
       <Modal
@@ -217,7 +218,7 @@ function CharacterModal({
         size="lg"
         footer={
           <>
-            {character?.id && (
+            {!readOnly && character?.id && (
               <Button variant="ghost" className="mr-auto text-danger" onClick={() => setConfirming(true)}>
                 <Trash2 size={14} />
                 Delete
@@ -226,13 +227,13 @@ function CharacterModal({
             <Button variant="ghost" onClick={onClose}>
               Cancel
             </Button>
-            <Button onClick={() => void save()} loading={busy}>
+            {!readOnly && <Button onClick={() => void save()} loading={busy}>
               {character?.id ? 'Save' : 'Add character'}
-            </Button>
+            </Button>}
           </>
         }
       >
-        <div className="space-y-5">
+        <fieldset disabled={readOnly} className="space-y-5">
           {error && <p role="alert" className="rounded-lg bg-dangerSoft px-3 py-2.5 text-[13px] text-danger">{error}</p>}
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Name" htmlFor="c-name">
@@ -364,7 +365,7 @@ function CharacterModal({
               )}
             </div>
           )}
-        </div>
+        </fieldset>
       </Modal>
 
       <ConfirmModal

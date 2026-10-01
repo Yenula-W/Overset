@@ -19,6 +19,7 @@ import {
   Tabs,
   useToast,
 } from '@/components/ui';
+import { callService } from '@/lib/client-services';
 import { planById } from '@/lib/billing';
 import { passwordSchema } from '@/lib/auth';
 import { AuthError, changePassword, cloudEnabled, logOut, updateProfile } from '@/lib/store/auth';
@@ -49,13 +50,35 @@ export default function SettingsPage() {
       <PageHeader title="Settings" />
       <Tabs items={TABS} value={tab} onChange={setTab} className="mt-6" />
       <div className="mt-6 space-y-6">
-        {tab === 'account' && <AccountTab />}
+        {tab === 'account' && <><AccountTab /><ServiceStatus /></>}
         {tab === 'preferences' && <PreferencesTab />}
         {tab === 'billing' && <BillingTab />}
         {tab === 'data' && <DataTab />}
       </div>
     </AppShellPage>
   );
+}
+
+function ServiceStatus() {
+  const [services, setServices] = React.useState<{ai:boolean;email:boolean;billing:boolean} | null>(null);
+  const [error, setError] = React.useState('');
+  const [retrying, setRetrying] = React.useState(false);
+  const toast = useToast();
+  React.useEffect(() => {
+    if (cloudEnabled) void callService<{ai:boolean;email:boolean;billing:boolean}>('/api/services').then(setServices).catch(() => setError('Service status is temporarily unavailable.'));
+  }, []);
+  if (!cloudEnabled) return null;
+  return <Card><CardHeader><CardTitle>Connected services</CardTitle></CardHeader><CardBody>
+    {error ? <p role="alert" className="text-[13px] text-danger">{error}</p> : <dl className="space-y-3 text-[13px]">
+      {([['ai','AI processing'],['email','Email delivery'],['billing','Payments']] as const).map(([id,label]) => <div key={id} className="flex items-center justify-between gap-4"><dt>{label}</dt><dd><Badge tone={services?.[id] ? 'ok' : 'neutral'}>{services ? services[id] ? 'Connected' : 'Not connected' : 'Checking…'}</Badge></dd></div>)}
+    </dl>}
+    {services?.email && <Button className="mt-4" size="sm" variant="secondary" loading={retrying} onClick={async () => {
+      setRetrying(true);
+      try { await callService('/api/email/retry',{method:'POST'}); toast({message:'Queued email delivery retried.',tone:'ok'}); }
+      catch (e) { toast({message:e instanceof Error ? e.message : 'Could not retry email.',tone:'warn'}); }
+      finally { setRetrying(false); }
+    }}>Retry queued emails</Button>}
+  </CardBody></Card>;
 }
 
 function AccountTab() {

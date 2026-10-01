@@ -24,7 +24,7 @@ export default function ProjectsPage() {
       <PageHeader
         title="Projects"
         lede="Chapters, characters, terminology, and memory live inside a project."
-        actions={
+        actions={workspace.canEdit &&
           <Button onClick={() => setCreating(true)}>
             <Plus size={15} />
             New project
@@ -43,7 +43,7 @@ export default function ProjectsPage() {
           icon={<LibraryBig size={18} />}
           title="No projects yet."
           body="Create your first project to keep chapters, characters, and terminology organized."
-          action={<Button onClick={() => setCreating(true)}>Create project</Button>}
+          action={workspace.canEdit ? <Button onClick={() => setCreating(true)}>Create project</Button> : undefined}
         />
       ) : (
         <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">

@@ -33,7 +33,7 @@ const VIEWER = '44444444-4444-4444-4444-444444444444';
 async function setup() {
   const db = new PGlite();
   await db.exec(SUPABASE_STUB);
-  for (const file of ['0001_overset.sql', '0002_private_helpers.sql', '0003_services.sql']) {
+  for (const file of ['0001_overset.sql', '0002_private_helpers.sql', '0003_services.sql', '0004_record_identity.sql']) {
     await db.exec(readFileSync(new URL(`../supabase/migrations/${file}`, import.meta.url), 'utf8'));
   }
   await db.exec(`
@@ -122,3 +122,10 @@ test('billing events with stale timestamps cannot downgrade newer entitlements',
  assert.equal((await db.query(`select data->>'plan' as plan from records where store='users'`)).rows[0].plan,'team');
  await db.close();
 });
+
+ test('record collections cannot be changed to bypass team seat limits', async()=>{
+ const db=await setup(); await profile(db);
+ await as(db,OWNER,`insert into records(store,id,owner_id,data) values('projects','project-1',$1::uuid,$2)`,[OWNER,rec('projects','project-1',OWNER,{name:'Private project'})]);
+ await assert.rejects(as(db,OWNER,`update records set store='team',data=$1 where store='projects' and id='project-1'`,[rec('team','project-1',OWNER,{email:'member@example.com',role:'translator'})]),/identity cannot be changed/);
+ await db.close();
+ });

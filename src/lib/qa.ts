@@ -65,8 +65,8 @@ export function runQa(pages: QaPage[], ctx: QaContext): QaFinding[] {
       if ((r.type === 'dialogue' || r.type === 'thought') && !r.speakerId) {
         push({ ...base, category: 'missing_speaker', severity: 'info', title: 'Speaker not set', detail: `${label} has no speaker, so character voice can’t be checked.` });
       }
-      if (r.embeddedInArtwork || r.type === 'sfx') {
-        push({ ...base, category: 'needs_inpainting', severity: 'warning', title: 'Text over artwork', detail: `${label} sits on artwork. Removing it cleanly needs an AI image provider, so it is left untouched on export.` });
+      if ((r.embeddedInArtwork || r.type === 'sfx') && !r.artworkCleanup?.strokes.length) {
+        push({ ...base, category: 'needs_inpainting', severity: 'warning', title: 'Text over artwork', detail: `${label} sits on artwork. Use the cleanup brush to remove the source text before export. It is otherwise left untouched.` });
       }
 
       for (const term of terms) {

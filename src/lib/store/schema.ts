@@ -118,6 +118,7 @@ export interface CommentRecord {
 }
 
 export interface VersionRecord extends VersionEvent {
+  regionSnapshot?: DialogueRegion[];
   ownerId: string;
   pageId?: string;
   /** Which field a restore should write `before` back into. */
