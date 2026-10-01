@@ -38,7 +38,14 @@ export async function POST(request:Request){
    // Retrieve current state, instead of trusting potentially out-of-order event snapshots.
    const current=await stripe.subscriptions.retrieve(subscription);
    if(idOf(current.customer)!==customer)throw new ServiceError('customer_mismatch','The subscription customer is invalid.',400);
-   if(account.subscription_id&&account.subscription_id!==subscription){const old=await stripe.subscriptions.retrieve(account.subscription_id);if(['active','trialing','past_due','unpaid'].includes(old.status))throw new ServiceError('duplicate_subscription','Another active subscription already exists.',409);}
+   if(account.subscription_id&&account.subscription_id!==subscription){
+    const old=await stripe.subscriptions.retrieve(account.subscription_id);
+    if(['active','trialing','past_due','unpaid'].includes(old.status)){
+     // A delayed cancellation for the replaced subscription must not downgrade its successor.
+     if(current.status==='canceled')return NextResponse.json({received:true});
+     throw new ServiceError('duplicate_subscription','Another active subscription already exists.',409);
+    }
+   }
    const item=current.items.data[0];const mapped=planForPrice(item?.price.id??'');
    if(current.items.data.length!==1||!mapped)throw new ServiceError('unknown_price','This subscription uses an unconfigured price.',400);
    plan=['active','trialing'].includes(current.status)?mapped.id:'free';
