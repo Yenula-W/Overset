@@ -89,7 +89,7 @@ export function ProjectPreferences({
           />
         </Field>
 
-        <div className="flex items-center gap-3 border-t border-line pt-4">
+        {!readOnly && <div className="flex items-center gap-3 border-t border-line pt-4">
           <Button
             disabled={!dirty}
             loading={saving}
@@ -105,7 +105,7 @@ export function ProjectPreferences({
             Save preferences
           </Button>
           {dirty && <span className="text-[12.5px] text-ink-muted">Unsaved changes</span>}
-        </div>
+        </div>}
       </fieldset></CardBody>
     </Card>
   );
