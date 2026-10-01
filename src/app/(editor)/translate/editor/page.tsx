@@ -4,6 +4,7 @@ import * as React from 'react';
 import Link from 'next/link';
 import { ArrowDownNarrowWide, ArrowLeft, ArrowUpNarrowWide, Download, Maximize2, Minus, MousePointer2, Plus, SquareDashed } from 'lucide-react';
 import { PageCanvas } from '@/components/app/editor/page-canvas';
+import { CleanupModal } from '@/components/app/editor/cleanup-modal';
 import { Inspector } from '@/components/app/editor/inspector';
 import { TypesetPanel } from '@/components/app/editor/typeset-panel';
 import { CompareView } from '@/components/app/editor/compare';
@@ -103,6 +104,7 @@ function Editor({ chapterId }: { chapterId: string }) {
   const [deletingPage, setDeletingPage] = React.useState<PageRecord | null>(null);
   const [addingPages, setAddingPages] = React.useState(false);
   const [glossaryDraft, setGlossaryDraft] = React.useState<{ original: string; translation: string } | null>(null);
+  const [cleanupOpen,setCleanupOpen] = React.useState(false);
   const [aiBusy, setAiBusy] = React.useState(false);
   const [aiMessage, setAiMessage] = React.useState('');
   const [regenerateOpen, setRegenerateOpen] = React.useState(false);
@@ -265,6 +267,16 @@ function Editor({ chapterId }: { chapterId: string }) {
   }
 
   async function restore(v: VersionRecord) {
+    if (!workspace.canEdit) return;
+    if (v.regionSnapshot && v.pageId) {
+      const target = pages.find(p => p.id === v.pageId);
+      if (!target) return;
+      version({pageId:target.id, kind:'human_edit', summary:'Restored the page before AI processing', regionSnapshot:drafts[target.id] ?? target.regions});
+      updateRegions(target.id, () => v.regionSnapshot!);
+      setPageId(target.id);
+      toast({message:'Earlier page restored.',tone:'ok'});
+      return;
+    }
     if (!v.field || v.before === undefined || !v.regionId) return;
     const target = pages.find((p) => (drafts[p.id] ?? p.regions).some((r) => r.id === v.regionId));
     if (!target) {
@@ -417,7 +429,7 @@ function Editor({ chapterId }: { chapterId: string }) {
         {rightTab === 'qa' ? (
           <QaPanel findings={findings} onGo={goTo} />
         ) : rightTab === 'history' ? (
-          <HistoryPanel versions={versions} onRestore={(v) => void restore(v)} />
+          <HistoryPanel readOnly={!workspace.canEdit} versions={versions} onRestore={(v) => void restore(v)} />
         ) : rightTab === 'comments' && !workspace.canEdit ? (
           <div className="space-y-3 p-4">{comments.filter(c=>c.regionId===region?.id).map(c=><p key={c.id} className="text-[12px]"><strong>{c.authorName}</strong><br />{c.body}</p>)}</div>
         ) : rightTab === 'comments' ? (
@@ -456,6 +468,7 @@ function Editor({ chapterId }: { chapterId: string }) {
         ) : (
           <Inspector
             busy={aiBusy || !aiReady}
+            onCleanup={()=>setCleanupOpen(true)}
             onRegenerate={() => region.status === 'approved' || region.status === 'edited' ? setRegenerateOpen(true) : void runAi('regenerate')}
             region={region}
             index={index}
@@ -641,6 +654,7 @@ function Editor({ chapterId }: { chapterId: string }) {
         </div>
       )}
 
+      {region && <CleanupModal open={cleanupOpen} onClose={()=>setCleanupOpen(false)} image={image} region={region} onSave={cleanup=>{patch(region.id,{artworkCleanup:cleanup});version({pageId:page.id,regionId:region.id,kind:'typeset',summary:'Applied masked artwork cleanup'});setView('cleaned');}} />}
       <ConfirmModal open={regenerateOpen} onClose={()=>setRegenerateOpen(false)} title="Replace this human translation?" body="A new AI draft will replace this region. The current version is kept in history." confirmLabel="Generate draft" onConfirm={async()=>{setRegenerateOpen(false);await runAi('regenerate');}} />
       <ExportModal
         open={exportOpen}

@@ -66,7 +66,7 @@ const KIND_LABEL: Record<string, string> = {
   export: 'Export',
 };
 
-export function HistoryPanel({ versions, onRestore }: { versions: VersionRecord[]; onRestore: (v: VersionRecord) => void }) {
+export function HistoryPanel({ versions, onRestore, readOnly = false }: { readOnly?: boolean; versions: VersionRecord[]; onRestore: (v: VersionRecord) => void }) {
   return (
     <div className="space-y-3 px-4 py-4">
       <div className="flex items-center gap-2">
@@ -95,7 +95,7 @@ export function HistoryPanel({ versions, onRestore }: { versions: VersionRecord[
                   {v.after || '(empty)'}
                 </p>
               )}
-              {v.field && v.before !== undefined && v.regionId && (
+              {!readOnly && (v.regionSnapshot || (v.field && v.before !== undefined && v.regionId)) && (
                 <button
                   onClick={() => onRestore(v)}
                   className="mt-1.5 inline-flex items-center gap-1 text-[11px] text-editor-muted transition-colors hover:text-editor-text"

@@ -1,3 +1,4 @@
+import { cloneMaskedPixels } from './clone-core';
 import { fitText, usableBox, type FitResult } from './typeset-core';
 import type { DialogueRegion, RegionType } from '@/lib/types/domain';
 
@@ -32,7 +33,7 @@ export function regionPx(region: DialogueRegion, pageW: number, pageH: number) {
   };
 }
 
-/** Text embedded in artwork needs real inpainting, which this renderer doesn't attempt. */
+/** Embedded artwork requires an explicit cleanup mask; it is never erased automatically. */
 export function canCleanLocally(region: DialogueRegion) {
   return region.translate && !region.embeddedInArtwork && region.type !== 'sfx' && region.type !== 'background';
 }
@@ -157,6 +158,21 @@ export async function ensureFonts(regions: DialogueRegion[]) {
   await Promise.all([...wanted].map((f) => document.fonts.load(f).catch(() => [])));
 }
 
+function cloneRegion(ctx:CanvasRenderingContext2D, image:ImageBitmap|HTMLImageElement,region:DialogueRegion,pageW:number,pageH:number) {
+  const cleanup=region.artworkCleanup;
+  if(!cleanup?.strokes.length)return;
+  const px=regionPx(region,pageW,pageH);
+  const x=Math.max(0,Math.floor(px.x)),y=Math.max(0,Math.floor(px.y));
+  const w=Math.min(pageW-x,Math.ceil(px.w)),h=Math.min(pageH-y,Math.ceil(px.h));
+  if(w<=0||h<=0||w*h>20_000_000)return;
+  const source=document.createElement('canvas');source.width=w;source.height=h;
+  const sample=source.getContext('2d',{willReadFrequently:true});if(!sample)return;
+  sample.drawImage(image,-x-cleanup.offsetX/100*pageW,-y-cleanup.offsetY/100*pageH);
+  const target=ctx.getImageData(x,y,w,h),pixels=sample.getImageData(0,0,w,h);
+  cloneMaskedPixels(target.data,pixels.data,w,h,cleanup.strokes.slice(0,3000).map(s=>({x:s.x/100*pageW-x,y:s.y/100*pageH-y,radius:s.radius/100*pageW})));
+  ctx.putImageData(target,x,y);
+}
+
 /**
  * Draws the page at its original pixel dimensions. Returns the canvas so the
  * caller can display or encode it.
@@ -178,8 +194,11 @@ export async function renderPage(
   ctx.drawImage(image, 0, 0, w, h);
   if (mode === 'original') return canvas;
 
-  const active = regions.filter(canCleanLocally);
-  for (const r of active) cleanRegion(ctx, r, w, h);
+  const active = regions.filter(r => r.translate && (canCleanLocally(r) || Boolean(r.artworkCleanup?.strokes.length)));
+  for (const r of active) {
+    if (r.artworkCleanup?.strokes.length) cloneRegion(ctx,image,r,w,h);
+    else cleanRegion(ctx,r,w,h);
+  }
   if (mode === 'translated') {
     await ensureFonts(active);
     for (const r of active) typesetRegion(ctx, r, w, h);

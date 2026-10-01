@@ -94,7 +94,7 @@ export default function ProjectPage() {
           className="flex-1"
           title={project.name}
           lede={`${LANGUAGE_LABELS[project.sourceLanguage]} → ${LANGUAGE_LABELS[project.targetLanguage]} · ${chapters.length} ${chapters.length === 1 ? 'chapter' : 'chapters'} · ${formatNumber(pages)} pages`}
-          actions={
+          actions={workspace.canEdit &&
             <>
               <Button variant="ghost" size="sm" onClick={() => setEditing(true)} aria-label="Edit project">
                 <Pencil size={14} />
@@ -148,7 +148,7 @@ export default function ProjectPage() {
                         <Progress value={stats.progress} label={`${c.name} progress`} />
                       </div>
                       <StatusBadge tone={tone.tone} label={tone.label} />
-                      <div className="flex gap-0.5">
+                      <div hidden={!workspace.canEdit} className={workspace.canEdit ? "flex gap-0.5" : "hidden"}>
                         <button
                           onClick={() => {
                             setRenaming(c);
