@@ -1,82 +1,107 @@
-import type { Metadata } from 'next';
-import { DemoComicPage } from '@/components/demo/artwork';
-import { MkSection } from '@/components/marketing/mk';
+import type { Metadata } from "next";
+import Link from "next/link";
+import { ArrowRight } from "lucide-react";
+import { AboutWorkspace } from "@/components/marketing/about-workspace";
+import { FinalCta } from "@/components/marketing/home-sections";
 
 export const metadata: Metadata = {
-  title: 'About',
-  description: 'Same artwork. Different language. Why Overset exists and the principles it is built on.',
+  title: "About",
+  description:
+    "Comic localization built around artwork, story context, and human control.",
 };
 
-const PRINCIPLES: Array<[string, string]> = [
+const TOOLS = [
   [
-    'Preserve the artwork.',
-    'A translated page differs from the original in one respect only: the language of the text. Panels, bubbles, expressions, line art, and page dimensions are untouched. The pipeline never sends a whole page through generative regeneration to remove dialogue.',
+    "Smart OCR",
+    "Find dialogue, narration, signs, and SFX as separate regions. Correct the recognized text before translation.",
   ],
   [
-    'Translate the story, not isolated sentences.',
-    'Every bubble is translated with the chapter, scene, conversation, speaker profile, glossary, and translation memory as structured context.',
+    "Story context",
+    "Bring character voice, relationships, earlier dialogue, and chapter context into each translation.",
   ],
   [
-    'AI assists; humans decide.',
-    'Recognized text, speaker, region boundaries, reading order, wording, and typesetting are all editable. Uncertainty is flagged rather than papered over.',
+    "Glossary & memory",
+    "Keep approved names and terminology consistent. Reuse translations from earlier chapters.",
   ],
-];
-
-const OWNERSHIP: Array<[string, string]> = [
-  ['You keep your rights', 'You retain the rights to everything you upload. Overset processes your files to produce your translation — nothing more.'],
-  ['Private by default', 'Projects are private to you and the people you invite. Uploaded chapters are not published as public content.'],
-  ['Upload what you may translate', 'Only upload material you own or are authorized to translate and process. Overset is localization software, not a distribution platform.'],
-  ['Delete whenever you want', 'You can delete projects, chapters, and uploaded files from your account at any time.'],
+  [
+    "Typesetting",
+    "Fit translated dialogue into the existing bubble with readable type and natural line breaks.",
+  ],
+  [
+    "Review & QA",
+    "Edit any line. Review uncertain OCR, inconsistent terms, missing text, and overflow before export.",
+  ],
+  [
+    "Teams",
+    "Keep translator, proofreader, and typesetter handoffs together, with comments attached to the relevant dialogue.",
+  ],
 ];
 
 export default function AboutPage() {
   return (
     <>
       <section className="mk-shell pt-14">
-        <div className="mb-9 flex flex-wrap items-end justify-between gap-x-14 gap-y-6">
-          <h1 className="mk-display" style={{ flex: '1 1 560px' }}>
-            Same artwork.
+        <span className="mk-eyebrow">About Overset</span>
+        <h1 className="mk-display mt-4">Made for the story.</h1>
+        <p className="mt-6 max-w-xl text-[17px] leading-relaxed text-ink-muted">
+          One workspace for comic localization. Preserve the art, translate in
+          context, and keep the final say.
+        </p>
+      </section>
+      <AboutWorkspace />
+      <section className="mk-shell grid gap-10 pt-20 lg:grid-cols-[.85fr_1.15fr]">
+        <div>
+          <span className="mk-eyebrow">The toolkit</span>
+          <h2 className="mk-h2 mt-4">
+            Everything stays
             <br />
-            Different language.
-          </h1>
-          <p className="m-0 max-w-[460px] text-pretty text-[15px] leading-[1.6] text-ink-muted" style={{ flex: '1 1 340px' }}>
-            <strong className="font-semibold text-ink">Overset</strong> is the typographic term for text that runs past
-            the frame holding it — the exact condition a translated speech bubble falls into, and the problem this
-            product spends most of its effort solving well.
+            with the chapter.
+          </h2>
+          <p className="mt-4 max-w-sm text-[15px] leading-relaxed text-ink-muted">
+            Open a tool to explore the details.
           </p>
         </div>
-        {/* Original art from the Overset demo chapter, standing in for a studio photo. */}
-        <div className="aspect-[16/7] min-h-[280px] overflow-hidden border-2 border-ink bg-mk-frame">
-          <svg viewBox="44 44 752 292" className="block h-full w-full" preserveAspectRatio="xMidYMid slice" role="img" aria-label="A panel from an original Overset demo chapter: two figures beneath a tower at dusk">
-            <DemoComicPage showArtworkText={false} />
-          </svg>
+        <div className="border-t border-ink">
+          {TOOLS.map(([title, body], i) => (
+            <details
+              key={title}
+              className="marketing-details border-b border-line py-5"
+            >
+              <summary className="min-h-10 text-[18px] font-semibold">
+                <span>
+                  <span className="mr-5 font-mono text-[11px] font-normal text-ink-muted">
+                    {String(i + 1).padStart(2, "0")}
+                  </span>
+                  {title}
+                </span>
+              </summary>
+              <p className="max-w-lg pb-2 pl-9 pt-3 text-[14px] leading-relaxed text-ink-muted">
+                {body}
+              </p>
+            </details>
+          ))}
         </div>
       </section>
-
-      <MkSection>
-        <span className="mk-eyebrow">THREE PRINCIPLES</span>
-        <div className="mt-7 grid gap-10 border-t border-ink pt-8" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))' }}>
-          {PRINCIPLES.map(([title, body], i) => (
-            <div key={title} className="flex flex-col gap-3">
-              <span className="font-mono text-[12px] font-semibold text-accent">{String(i + 1).padStart(2, '0')}</span>
-              <h3 className="m-0 text-[24px] font-bold tracking-[-0.01em]">{title}</h3>
-              <p className="m-0 text-[15px] leading-[1.6] text-ink-muted">{body}</p>
-            </div>
-          ))}
+      <section className="mk-shell pt-20">
+        <div className="flex flex-wrap items-center justify-between gap-8 rounded-2xl bg-[#eeede8] p-7 sm:p-10">
+          <div>
+            <h2 className="text-[28px] font-semibold tracking-[-.025em]">
+              Your chapters stay yours.
+            </h2>
+            <p className="mt-3 max-w-lg text-[14px] leading-relaxed text-ink-muted">
+              Ownership stays with you. Only upload work you own or are
+              authorized to translate.
+            </p>
+          </div>
+          <Link
+            href="/privacy"
+            className="inline-flex min-h-11 items-center gap-3 text-[13px] font-medium"
+          >
+            Content & privacy <ArrowRight size={15} aria-hidden />
+          </Link>
         </div>
-      </MkSection>
-
-      <MkSection className="pt-20">
-        <h2 className="mk-h2 mb-8">Your chapters stay yours.</h2>
-        <div className="grid gap-px border border-line bg-line" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))' }}>
-          {OWNERSHIP.map(([title, body]) => (
-            <div key={title} className="flex flex-col gap-2.5 bg-white p-7">
-              <h3 className="m-0 text-[17px] font-bold">{title}</h3>
-              <p className="m-0 text-[14.5px] leading-[1.55] text-ink-muted">{body}</p>
-            </div>
-          ))}
-        </div>
-      </MkSection>
+      </section>
+      <FinalCta />
     </>
   );
 }

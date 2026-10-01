@@ -17,10 +17,10 @@ interface Resource {
 }
 
 const RESOURCES: Resource[] = [
-  { title: 'Getting started: translate your first chapter', type: 'Guides', level: 'Beginner', meta: '6 min read', href: '/docs' },
-  { title: 'Building a glossary that holds across chapters', type: 'Guides', level: 'Advanced', meta: '9 min read', href: '/docs' },
-  { title: 'Character profiles and voice settings', type: 'Guides', level: 'Beginner', meta: '7 min read', href: '/docs' },
-  { title: 'Reading order on vertical webtoon strips', type: 'Documentation', level: 'Advanced', meta: '5 min read', href: '/docs' },
+  { title: 'Your first chapter', type: 'Guides', level: 'Beginner', meta: '6 min read', href: '/docs' },
+  { title: 'A consistent glossary', type: 'Guides', level: 'Advanced', meta: '9 min read', href: '/docs' },
+  { title: 'Character voices', type: 'Guides', level: 'Beginner', meta: '7 min read', href: '/docs' },
+  { title: 'Webtoon reading order', type: 'Documentation', level: 'Advanced', meta: '5 min read', href: '/docs' },
   { title: 'Typesetting rules for tight bubbles', type: 'Guides', level: 'Advanced', meta: '8 min read', href: '/help' },
   { title: 'Exporting at original dimensions', type: 'Documentation', level: 'Beginner', meta: '4 min read', href: '/docs' },
   { title: 'Translation memory, explained', type: 'Documentation', level: 'Beginner', meta: '6 min read', href: '/docs' },
@@ -95,7 +95,7 @@ export function ResourcesList() {
 
       <ul
         className="m-0 grid list-none gap-x-5 gap-y-8 p-0"
-        style={{ flex: '1 1 600px', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))' }}
+        style={{ flex: '1 1 600px', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 250px), 1fr))' }}
       >
         {visible.map((r) => {
           const n = String(RESOURCES.indexOf(r) + 1).padStart(2, '0');
