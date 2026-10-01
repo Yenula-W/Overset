@@ -1,10 +1,12 @@
 import Link from 'next/link';
 import { StatusBadge, Progress } from '@/components/ui';
-import type { Chapter, Project } from '@/lib/types/domain';
+import type { ChapterStatus } from '@/lib/types/domain';
 import { LANGUAGE_LABELS } from '@/lib/types/domain';
+import type { ChapterRecord, ProjectRecord } from '@/lib/store/schema';
+import type { ChapterStats } from '@/lib/stats';
 import { formatNumber } from '@/lib/utils';
 
-const STATUS_TONE: Record<Chapter['status'], { tone: 'ok' | 'accent' | 'warn' | 'neutral' | 'danger'; label: string }> = {
+const STATUS_TONE: Record<ChapterStatus, { tone: 'ok' | 'accent' | 'warn' | 'neutral' | 'danger'; label: string }> = {
   draft: { tone: 'neutral', label: 'Draft' },
   uploading: { tone: 'accent', label: 'Uploading' },
   processing: { tone: 'accent', label: 'Processing' },
@@ -15,12 +17,24 @@ const STATUS_TONE: Record<Chapter['status'], { tone: 'ok' | 'accent' | 'warn' | 
   failed: { tone: 'danger', label: 'Failed' },
 };
 
-export function chapterStatus(status: Chapter['status']) {
+export function chapterStatus(status: ChapterStatus) {
   return STATUS_TONE[status];
 }
 
-export function ProjectCard({ project, latest }: { project: Project; latest?: Chapter }) {
-  const status = latest ? STATUS_TONE[latest.status] : undefined;
+export function ProjectCard({
+  project,
+  latest,
+  latestStats,
+  latestStatus,
+  totals,
+}: {
+  project: ProjectRecord;
+  latest?: ChapterRecord;
+  latestStats?: ChapterStats;
+  latestStatus?: ChapterStatus;
+  totals: { chapters: number; pages: number; terms: number };
+}) {
+  const status = latestStatus ? STATUS_TONE[latestStatus] : undefined;
   return (
     <Link
       href={`/projects/${project.id}`}
@@ -34,32 +48,32 @@ export function ProjectCard({ project, latest }: { project: Project; latest?: Ch
       <p className="mt-1 text-[13px] text-ink-muted">
         {LANGUAGE_LABELS[project.sourceLanguage]} → {LANGUAGE_LABELS[project.targetLanguage]}
       </p>
-      {latest && (
+      {latest && latestStats && (
         <>
           <div className="mt-4 flex items-baseline justify-between text-[12.5px]">
             <span className="text-ink-muted">{latest.name}</span>
-            <span className="tabular-nums font-medium">{latest.progress}%</span>
+            <span className="tabular-nums font-medium">{latestStats.progress}%</span>
           </div>
-          <Progress value={latest.progress} className="mt-1.5" label={`${latest.name} progress`} />
+          <Progress value={latestStats.progress} className="mt-1.5" label={`${latest.name} progress`} />
         </>
       )}
       <dl className="mt-5 flex gap-5 border-t border-line pt-4 text-[12px] text-ink-muted">
         <div>
           <dt className="sr-only">Chapters</dt>
           <dd>
-            <span className="font-medium text-ink">{project.chapterCount}</span> chapters
+            <span className="font-medium text-ink">{totals.chapters}</span> {totals.chapters === 1 ? 'chapter' : 'chapters'}
           </dd>
         </div>
         <div>
           <dt className="sr-only">Pages</dt>
           <dd>
-            <span className="font-medium text-ink">{formatNumber(project.pageCount)}</span> pages
+            <span className="font-medium text-ink">{formatNumber(totals.pages)}</span> pages
           </dd>
         </div>
         <div>
           <dt className="sr-only">Glossary terms</dt>
           <dd>
-            <span className="font-medium text-ink">{project.glossaryCount}</span> terms
+            <span className="font-medium text-ink">{totals.terms}</span> terms
           </dd>
         </div>
       </dl>

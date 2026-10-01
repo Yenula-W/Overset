@@ -1,27 +1,23 @@
-import type { Metadata } from 'next';
-import { Plus, LibraryBig } from 'lucide-react';
+'use client';
+
+import * as React from 'react';
+import { useRouter } from 'next/navigation';
+import { LibraryBig, Plus } from 'lucide-react';
 import { AppShellPage, PageHeader } from '@/components/app/page-header';
 import { ProjectCard } from '@/components/app/project-card';
-import { Button, EmptyState } from '@/components/ui';
-import { DEMO_CHAPTERS, DEMO_PROJECTS } from '@/lib/data/workspace';
-
-export const metadata: Metadata = { title: 'Projects' };
+import { ProjectFormModal } from '@/components/app/project-form';
+import { Button, EmptyState, Skeleton, useToast } from '@/components/ui';
+import { useUser } from '@/lib/store/hooks';
+import { useWorkspace } from '@/lib/store/workspace';
+import { createProject } from '@/lib/store/repo';
 
 export default function ProjectsPage() {
-  if (DEMO_PROJECTS.length === 0) {
-    return (
-      <AppShellPage>
-        <PageHeader title="Projects" />
-        <EmptyState
-          className="mt-8"
-          icon={<LibraryBig size={18} />}
-          title="No projects yet."
-          body="Create your first project to keep chapters, characters, and terminology organized."
-          action={<Button href="/translate">Create project</Button>}
-        />
-      </AppShellPage>
-    );
-  }
+  const user = useUser();
+  const router = useRouter();
+  const toast = useToast();
+  const ws = useWorkspace();
+  const [creating, setCreating] = React.useState(false);
+  const data = ws.data;
 
   return (
     <AppShellPage>
@@ -29,17 +25,55 @@ export default function ProjectsPage() {
         title="Projects"
         lede="Chapters, characters, terminology, and memory live inside a project."
         actions={
-          <Button href="/translate">
+          <Button onClick={() => setCreating(true)}>
             <Plus size={15} />
             New project
           </Button>
         }
       />
-      <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        {DEMO_PROJECTS.map((p) => (
-          <ProjectCard key={p.id} project={p} latest={DEMO_CHAPTERS.find((c) => c.projectId === p.id)} />
-        ))}
-      </div>
+
+      {!data ? (
+        <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <Skeleton className="h-52" />
+          <Skeleton className="h-52" />
+        </div>
+      ) : data.projects.length === 0 ? (
+        <EmptyState
+          className="mt-8"
+          icon={<LibraryBig size={18} />}
+          title="No projects yet."
+          body="Create your first project to keep chapters, characters, and terminology organized."
+          action={<Button onClick={() => setCreating(true)}>Create project</Button>}
+        />
+      ) : (
+        <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {data.projects.map((p) => {
+            const latest = data.chapters.find((c) => c.chapter.projectId === p.id);
+            return (
+              <ProjectCard
+                key={p.id}
+                project={p}
+                latest={latest?.chapter}
+                latestStats={latest?.stats}
+                latestStatus={latest?.status}
+                totals={data.totalsByProject.get(p.id) ?? { chapters: 0, pages: 0, terms: 0 }}
+              />
+            );
+          })}
+        </div>
+      )}
+
+      <ProjectFormModal
+        open={creating}
+        onClose={() => setCreating(false)}
+        title="New project"
+        submitLabel="Create project"
+        onSubmit={async (v) => {
+          const p = await createProject(user.id, v);
+          toast({ message: `Created ${p.name}.`, tone: 'ok' });
+          router.push(`/projects/${p.id}`);
+        }}
+      />
     </AppShellPage>
   );
 }

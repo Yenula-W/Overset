@@ -74,3 +74,30 @@ test('auto-fit shrinks to fit but never below the readable floor', () => {
   assert.equal(impossible.fits, false, 'reports overflow instead of shrinking past readable');
   assert.equal(impossible.fontSizePx, 9);
 });
+
+import { runQa } from '../src/lib/qa.ts';
+
+const region = (over) => ({
+  id: 'r', pageId: 'p', bounds: { x: 0, y: 0, width: 10, height: 10 }, type: 'dialogue', readingOrder: 1,
+  sourceLanguage: 'ko', sourceText: '', literalTranslation: '', finalTranslation: '', alternatives: [],
+  ocrConfidence: 0, translationConfidence: 0, status: 'edited', embeddedInArtwork: false, translate: true,
+  contextUsed: [], typesetting: {}, ...over,
+});
+
+test('QA flags untranslated text, drifted terminology, and voice slips — and only flags', () => {
+  const pages = [{ id: 'p', order: 1, regions: [
+    region({ id: 'a', readingOrder: 1, sourceText: '그림자 문', finalTranslation: 'The Dark Gate opened.', speakerId: 'kang' }),
+    region({ id: 'b', readingOrder: 2, sourceText: '가자', finalTranslation: '' }),
+    region({ id: 'c', readingOrder: 3, sourceText: '말도 안 돼', finalTranslation: "You can't be serious.", speakerId: 'hyun' }),
+  ] }];
+  const findings = runQa(pages, {
+    glossary: [{ original: '그림자 문', translation: 'Shadow Gate', alternatives: ['Dark Gate'], status: 'locked' }],
+    characters: [{ id: 'kang', name: 'Master Kang', formality: 'medium' }, { id: 'hyun', name: 'Hyunwoo', formality: 'high' }],
+  });
+  const cats = findings.map((f) => f.category);
+  assert.ok(cats.includes('terminology'));
+  assert.match(findings.find((f) => f.category === 'terminology').detail, /Dark Gate.*Shadow Gate/);
+  assert.ok(cats.includes('untranslated'));
+  assert.ok(cats.includes('character_voice'));
+  assert.equal(pages[0].regions[0].finalTranslation, 'The Dark Gate opened.', 'QA never rewrites');
+});
