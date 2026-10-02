@@ -102,6 +102,10 @@ export interface TranslationContext {
   sourceLanguage: LanguageCode;
   targetLanguage: LanguageCode;
   currentText: string;
+  currentRegionId?: string;
+  currentDraft?: string;
+  translatorNote?: string;
+  visualRegion?: Rect;
   regionType: RegionType;
   speaker?: {
     name: string;
@@ -114,7 +118,7 @@ export interface TranslationContext {
     relationships: Array<{ name: string; relation: string }>;
   };
   /** Bubbles immediately before this one, in reading order. */
-  surroundingDialogue: Array<{ speaker?: string; source: string; translation?: string }>;
+  surroundingDialogue: Array<{ regionId?: string; pageOrder?: number; readingOrder?: number; speaker?: string; source: string; translation?: string }>;
   chapterSummary?: string;
   sceneSummary?: string;
   glossary: Array<{ original: string; translation: string; locked: boolean; type: string }>;

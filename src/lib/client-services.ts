@@ -7,8 +7,8 @@ export async function callService<T>(path:string,body?:unknown):Promise<T>{
  if(!response.ok)throw new Error(data.error?.message??'This action could not finish. Try again.');
  return data as T;
 }
-export async function aiPage(chapterId:string,pageId:string,action:'ocr'|'translate'|'regenerate'|'proofread',regionId?:string){
- const result=await callService<{page:PageRecord;qa?:Array<{regionId:string;message:string}>;skipped?:boolean}>(`/api/chapters/${encodeURIComponent(chapterId)}/translate`,{pageId,action,regionId,...(action==='regenerate'?{requestId:crypto.randomUUID()}:{})});
+export async function aiPage(chapterId:string,pageId:string,action:'ocr'|'translate'|'regenerate'|'proofread'|'suggest',regionId?:string){
+ const result=await callService<{page:PageRecord;qa?:Array<{regionId:string;message:string}>;skipped?:boolean}>(`/api/chapters/${encodeURIComponent(chapterId)}/translate`,{pageId,action,regionId,...(['regenerate','suggest'].includes(action)?{requestId:crypto.randomUUID()}:{})});
  notify('pages');notify('usage');notify('versions');return result;
 }
 export async function billingAction(item?:string,interval:'monthly'|'yearly'='monthly'){

@@ -5,6 +5,9 @@ import { z } from 'zod';
 import { planById } from '@/lib/billing';
 import { comicProvider, aiConfigured } from '@/lib/providers/comic';
 import type { TranslationContext } from '@/lib/providers/types';
+import { buildTranslationContext, proposeRevision } from '@/lib/providers/translation-context';
+import { translationFrame } from '@/lib/providers/visual-context';
+import { readingOrder } from '@/lib/imaging/detect-core';
 import { analyzeLettering } from '@/lib/imaging/lettering-core';
 import { DEFAULT_TYPESETTING, type DialogueRegion } from '@/lib/types/domain';
 import type { ChapterRecord, ProjectRecord, PageRecord, CharacterRecord, GlossaryRecord, MemoryRecord, UserRecord } from '@/lib/store/schema';
@@ -13,7 +16,7 @@ import { adminClient, authenticated, editable, record, records } from './records
 import { ServiceError } from './http';
 import { rateLimit } from './authz';
 
-export const processSchema = z.object({pageId:z.string().min(1).max(160),action:z.enum(['ocr','translate','regenerate','proofread']),regionId:z.string().max(160).optional(),requestId:z.string().uuid().optional()});
+export const processSchema = z.object({pageId:z.string().min(1).max(160),action:z.enum(['ocr','translate','regenerate','proofread','suggest']),regionId:z.string().max(160).optional(),requestId:z.string().uuid().optional()});
 const sha = (v: string | Buffer) => createHash('sha256').update(v).digest('hex');
 export async function processPage(chapterId: string, input: z.infer<typeof processSchema>) {
   const {user,db} = await authenticated();
@@ -38,11 +41,11 @@ export async function processPage(chapterId: string, input: z.infer<typeof proce
   if (page.width !== dimensions.width || page.height !== dimensions.height) throw new ServiceError('dimensions_mismatch','The saved page dimensions do not match the original. Re-upload this page before processing.',422);
   if (page.regions.length > 150) throw new ServiceError('region_limit','This page has more than 150 regions. Split it before using AI.',422);
   const region = page.regions.find(r=>r.id === input.regionId);
-  if ((input.action==='translate'||input.action==='regenerate') && !region) throw new ServiceError('select_region','Select a text region to translate.',400);
+  if ((input.action==='translate'||input.action==='regenerate'||input.action==='suggest') && !region) throw new ServiceError('select_region','Select a text region to translate.',400);
   if (region && input.action==='translate' && (region.status==='approved'||region.status==='edited'||region.finalTranslation.trim())) return {page,skipped:true};
   if (region && !region.sourceText.trim()) throw new ServiceError('missing_source','Read or enter the original text before translating this region.',422);
-  const taskId = sha(JSON.stringify({page:page.id,action:input.action,region:input.regionId,regions:page.regions,original:sha(original),nonce:input.action==='regenerate'?input.requestId:undefined}));
-  if (input.action==='regenerate'&&!input.requestId) throw new ServiceError('invalid_request','Regeneration requires a new request ID.',400);
+  const taskId = sha(JSON.stringify({page:page.id,action:input.action,region:input.regionId,regions:page.regions,original:sha(original),nonce:['regenerate','suggest'].includes(input.action)?input.requestId:undefined}));
+  if (['regenerate','suggest'].includes(input.action)&&!input.requestId) throw new ServiceError('invalid_request','Regeneration requires a new request ID.',400);
   const token = randomUUID();
   const profile = await record<UserRecord>(db,'users',page.ownerId);
   const reserved = await admin.rpc('reserve_page',{task:taskId,workspace:page.ownerId,page:page.id,operation:input.action,fingerprint:sha(original),token,allowance:planById(profile.plan).pageAllowance});
@@ -90,37 +93,32 @@ export async function processPage(chapterId: string, input: z.infer<typeof proce
             return overlap/Math.min(r.bounds.width*r.bounds.height,bounds.width*bounds.height)>0.35;
           }))continue;
           if (existing) next=next.map(r=>r.id===existing.id?{...r,sourceText:detected.text,romanization:detected.romanization,ocrConfidence:detected.confidence,typesetting:r.typesetting.fontSource==='manual'?r.typesetting:{...r.typesetting,fontFamily,fontWeight,fontSize,fontSource:'matched'}}:r);
-          else newRegions.push({id:`rgn_${randomUUID()}`,pageId:page.id,bounds,type:detected.type,readingOrder:newRegions.length+1,sourceLanguage:chapter.sourceLanguage,sourceText:detected.text,romanization:detected.romanization,literalTranslation:'',finalTranslation:'',alternatives:[],ocrConfidence:detected.confidence,translationConfidence:0,status:'untranslated',embeddedInArtwork:detected.embeddedInArtwork,translate:detected.type!=='sfx'||chapter.preferences.translateSfx,contextUsed:[],typesetting:{...DEFAULT_TYPESETTING,fontFamily,fontWeight,fontSize,fontSource:'matched'}});
+          else newRegions.push({id:`rgn_${randomUUID()}`,pageId:page.id,bounds,type:detected.type,readingOrder:Math.max(0,...next.map(r=>r.readingOrder))+newRegions.length+1,sourceLanguage:chapter.sourceLanguage,sourceText:detected.text,romanization:detected.romanization,literalTranslation:'',finalTranslation:'',alternatives:[],ocrConfidence:detected.confidence,translationConfidence:0,status:'untranslated',embeddedInArtwork:detected.embeddedInArtwork,translate:detected.type!=='sfx'||chapter.preferences.translateSfx,contextUsed:[],typesetting:{...DEFAULT_TYPESETTING,fontFamily,fontWeight,fontSize,fontSource:'matched'}});
         }
       }
-      next=[...next,...newRegions].map((r,i)=>({...r,readingOrder:i+1}));
+      const combined=[...next,...newRegions];
+      // New OCR discoveries belong in visual reading order, not at the end.
+      // Keep a reviewed page's existing human ordering unchanged.
+      next=page.regions.some(r=>r.status==='approved'||r.status==='edited')?combined:readingOrder(combined.map(r=>({...r,...r.bounds})),chapter.sourceLanguage==='ja'?'rtl':'ltr').map(({x,y,width,height,...r},i)=>({...r,readingOrder:i+1}));
       if(next.length>150)throw new ServiceError('region_limit','More than 150 text regions were found. Split the page before processing.',422);
     } else {
       const [glossary,characters,memory,pages] = await Promise.all([
         records<GlossaryRecord>(db,'glossary',page.ownerId,'projectId',project.id),records<CharacterRecord>(db,'characters',page.ownerId,'projectId',project.id),records<MemoryRecord>(db,'memory',page.ownerId,'projectId',project.id),records<PageRecord>(db,'pages',page.ownerId,'chapterId',chapter.id),
       ]);
-      const dialogue=pages.sort((a,b)=>a.order-b.order).flatMap(p=>p.regions.slice().sort((a,b)=>a.readingOrder-b.readingOrder));
       const current=region??page.regions[0];
       if (!current) throw new ServiceError('missing_text','Read the page text first.',422);
-      const speaker=characters.find(c=>c.id===current.speakerId);
-      const prefs=chapter.preferences;
-      const context: TranslationContext={sourceLanguage:chapter.sourceLanguage,targetLanguage:chapter.targetLanguage,currentText:current.sourceText.slice(0,6000),regionType:current.type,
-        speaker:prefs.useCharacterProfiles&&speaker?{name:speaker.name,role:speaker.role,voice:speaker.voice,personality:speaker.personality,formality:speaker.formality,slang:speaker.slang,speechRules:speaker.speechRules,relationships:speaker.relationships.map(r=>({name:characters.find(c=>c.id===r.characterId)?.name??r.characterId,relation:r.relation}))}:undefined,
-        surroundingDialogue:dialogue.slice(Math.max(0,dialogue.findIndex(r=>r.id===current.id)-8),dialogue.findIndex(r=>r.id===current.id)+4).filter(r=>r.id!==current.id).map(r=>({speaker:characters.find(c=>c.id===r.speakerId)?.name,source:r.sourceText.slice(0,2000),translation:r.finalTranslation.slice(0,2000)})),
-        chapterSummary:`${project.name}: ${project.description.slice(0,3000)}. ${chapter.name}. Chapter source dialogue: ${dialogue.map(r=>r.sourceText).join('\n').slice(0,16000)}`,
-        glossary:glossary.filter(g=>g.status==='locked'||current.sourceText.includes(g.original)).slice(0,200).map(g=>({original:g.original,translation:g.translation,locked:g.status==='locked',type:g.type})),
-        memory:prefs.useTranslationMemory?memory.filter(m=>m.sourceText===current.sourceText||current.sourceText.includes(m.sourceText)||m.sourceText.includes(current.sourceText)).slice(0,12).map(m=>({source:m.sourceText,translation:m.translation,context:`${m.chapterName}: ${m.context??''}`})):[],
-        style:prefs.style,preserveHonorifics:prefs.preserveHonorifics,customRules:project.preferences.customRules,bubbleHint:{widthPx:current.bounds.width*page.width/100,heightPx:current.bounds.height*page.height/100,estimatedCharsPerLine:25}};
+      const context=buildTranslationContext({chapter,project,page,current,pages,glossary,characters,memory,improve:input.action==='suggest'});
       if (input.action==='proofread') {
-        const output=await provider.proofread(page.regions,context);
+        const output=await provider.proofread(page.regions,{...context,sceneSummary:undefined});
         qa=output.data.filter(f=>page.regions.some(r=>r.id===f.regionId));
         const measured=output as typeof output & {inputTokens:number;outputTokens:number;model:string};
         tokensIn=measured.inputTokens;tokensOut=measured.outputTokens;model=measured.model;
       } else {
-        const output=await provider.translate(context);
+        const visual=await translationFrame(original,page.width,page.height,current.bounds);
+        const output=await provider.translate({...context,visualRegion:visual.bounds},visual.image);
         const draft=output.data;
         const lockedIssues=context.glossary.filter(g=>g.locked&&current.sourceText.includes(g.original)&&!draft.recommended.toLowerCase().includes(g.translation.toLowerCase()));
-        next=next.map(r=>r.id===current.id?{...r,literalTranslation:draft.literal,finalTranslation:draft.recommended,alternatives:draft.alternatives,romanization:draft.romanization??r.romanization,translationConfidence:draft.confidence,status:'machine',ambiguityNote:[draft.ambiguityNote,draft.culturalNote,...lockedIssues.map(g=>`Check locked term: ${g.translation}`)].filter(Boolean).join(' · ')||undefined,contextUsed:[{kind:'chapter',label:chapter.name},{kind:'previous_dialogue',label:`${context.surroundingDialogue.length} surrounding bubbles`},...(context.speaker?[{kind:'character' as const,label:context.speaker.name}]:[]),{kind:'glossary',label:`${context.glossary.length} terms`},{kind:'memory',label:`${context.memory.length} approved examples`}]}:r);
+        next=input.action==='suggest'?next.map(r=>r.id===current.id?proposeRevision(r,{...draft,ambiguityNote:[draft.ambiguityNote,...lockedIssues.map(g=>`Check locked term: ${g.translation}`)].filter(Boolean).join(' · ')||undefined}):r):next.map(r=>r.id===current.id?{...r,literalTranslation:draft.literal,finalTranslation:draft.recommended,alternatives:draft.alternatives,romanization:draft.romanization??r.romanization,translationConfidence:draft.confidence,status:'machine',ambiguityNote:[draft.ambiguityNote,draft.culturalNote,...lockedIssues.map(g=>`Check locked term: ${g.translation}`)].filter(Boolean).join(' · ')||undefined,contextUsed:[{kind:'chapter',label:chapter.name},{kind:'scene',label:'Original panel artwork'},{kind:'previous_dialogue',label:`${context.surroundingDialogue.length} surrounding bubbles`},...(context.speaker?[{kind:'character' as const,label:context.speaker.name}]:[]),{kind:'glossary',label:`${context.glossary.length} terms`},{kind:'memory',label:`${context.memory.length} approved examples`}]}:r);
         tokensIn=output.inputTokens;tokensOut=output.outputTokens;model=output.model;
       }
     }
