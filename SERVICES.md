@@ -1,5 +1,7 @@
 # Service activation
 
+Production runs at `https://useoverset.com` (`www` redirects there). The domain is registered and served by Vercel, so its DNS records are managed in the Vercel dashboard. Supabase Auth's Site URL and redirect allowlist must include `https://useoverset.com/auth/callback`.
+
 Cloud accounts, private page storage, RLS, server usage and job reservations require the three Supabase variables in `.env.example`. Apply migrations 0001–0004 in order. The production project already has these migrations, its Site URL, callback allowlist and Vercel production credentials configured. Local development uses `.env.local`; previews need their own deployment configuration and exact authorized callback URL.
 
 ## AI
@@ -30,4 +32,4 @@ Test upgrades, invoices, cancellation, renewal, stale/duplicate webhook delivery
 
 With Supabase server credentials loaded, `node scripts/smoke-cloud.mjs` creates disposable confirmed accounts, verifies live RLS/private storage and deployed authenticated APIs, then removes them. It sends no email and does not test real signup confirmation. Set `OVERSET_SITE_URL` if testing another deployment.
 
-Final activation requires AI and email provider credentials, verified email sender/SMTP, Stripe account credentials, and the desired owned custom domain. Store all private credentials server-side in Vercel, never in client code or commits.
+Final activation requires AI and email provider credentials, verified email sender/SMTP and Stripe account credentials. Store all private credentials server-side in Vercel, never in client code or commits.

@@ -14,7 +14,7 @@ import {
 export const DEMO_USER: User = {
   id: 'u-1',
   name: 'Yenula',
-  email: 'yenula@overset.ai',
+  email: 'yenula@useoverset.com',
   createdAt: '2026-02-11T09:00:00Z',
   onboardingComplete: true,
   preferences: { primaryMedium: 'manhwa', role: 'individual', primarySourceLanguage: 'ko' },
@@ -115,10 +115,10 @@ export const DEMO_CHAPTERS: Chapter[] = [
 ];
 
 export const DEMO_TEAM: TeamMember[] = [
-  { id: 'u-1', name: 'Yenula', email: 'yenula@overset.ai', role: 'owner', avatarColor: '#6C63E8', lastActive: '2026-09-22T19:12:00Z', status: 'active' },
-  { id: 'u-2', name: 'Alex Rhee', email: 'alex@overset.ai', role: 'proofreader', avatarColor: '#4F8A5B', lastActive: '2026-09-22T17:40:00Z', status: 'active' },
-  { id: 'u-3', name: 'Dana Okafor', email: 'dana@overset.ai', role: 'typesetter', avatarColor: '#B4833A', lastActive: '2026-09-22T12:05:00Z', status: 'active' },
-  { id: 'u-4', name: 'Sam Ito', email: 'sam@overset.ai', role: 'translator', avatarColor: '#B4544A', lastActive: '2026-09-21T20:15:00Z', status: 'invited' },
+  { id: 'u-1', name: 'Yenula', email: 'yenula@useoverset.com', role: 'owner', avatarColor: '#6C63E8', lastActive: '2026-09-22T19:12:00Z', status: 'active' },
+  { id: 'u-2', name: 'Alex Rhee', email: 'alex@example.com', role: 'proofreader', avatarColor: '#4F8A5B', lastActive: '2026-09-22T17:40:00Z', status: 'active' },
+  { id: 'u-3', name: 'Dana Okafor', email: 'dana@example.com', role: 'typesetter', avatarColor: '#B4833A', lastActive: '2026-09-22T12:05:00Z', status: 'active' },
+  { id: 'u-4', name: 'Sam Ito', email: 'sam@example.com', role: 'translator', avatarColor: '#B4544A', lastActive: '2026-09-21T20:15:00Z', status: 'invited' },
 ];
 
 export const DEMO_MEMORY: MemoryEntry[] = [

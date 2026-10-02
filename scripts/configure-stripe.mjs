@@ -6,7 +6,7 @@ import { PLANS, CREDIT_PACKS } from '../src/lib/billing.ts';
 const key = process.env.STRIPE_SECRET_KEY;
 if (!key) throw new Error('Set STRIPE_SECRET_KEY first.');
 if (!key.startsWith('sk_test_') && !process.argv.includes('--live')) throw new Error('Use test mode first. Pass --live to configure a live account.');
-const site = process.env.OVERSET_SITE_URL || 'https://panelflow-pi.vercel.app';
+const site = process.env.OVERSET_SITE_URL || 'https://useoverset.com';
 if (new URL(site).protocol !== 'https:') throw new Error('Webhook site must use HTTPS.');
 try { await access('.env.stripe-setup'); throw new Error('Move the previous .env.stripe-setup to a safe place before running again.'); } catch (error) { if (error.code !== 'ENOENT') throw error; }
 const stripe = new Stripe(key, { maxNetworkRetries: 2 });

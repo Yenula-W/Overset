@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://overset.ai'),
+  metadataBase: new URL('https://useoverset.com'),
   icons: {
     icon: [
       { url: '/favicon.ico', sizes: '32x32 64x64' },
