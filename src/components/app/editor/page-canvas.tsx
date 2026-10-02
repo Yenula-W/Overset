@@ -187,7 +187,7 @@ export function PageCanvas({
                 onPointerDown={(e) => onPointerDown(e, { id: r.id })}
                 onDoubleClick={()=>{if(!readOnly&&view==='translated'&&onTextChange&&layout?.analysis.safeBox){beforeText.current=r.finalTranslation;setEditingId(r.id);}}}
                 onKeyDown={(e) => {
-                  if(e.key==='F2'&&!readOnly&&view==='translated'&&onTextChange&&layout?.analysis.safeBox){e.preventDefault();beforeText.current=r.finalTranslation;onSelect(r.id);setEditingId(r.id);}
+                  if(e.key==='F2'&&selected&&!readOnly&&view==='translated'&&onTextChange&&layout?.analysis.safeBox){e.preventDefault();beforeText.current=r.finalTranslation;onSelect(r.id);setEditingId(r.id);}
                   if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
                     onSelect(r.id);
@@ -228,7 +228,7 @@ export function PageCanvas({
             const finish=()=>{onTextCommit?.(r.id,beforeText.current,r.finalTranslation);setEditingId(null);};
             const fit=measureFit(r,width,height,area);
             return <div className="absolute" style={{left:`${(layout.x+area.x)/width*100}%`,top:`${(layout.y+area.y)/height*100}%`,width:`${area.width/width*100}%`,height:`${area.height/height*100}%`}} onPointerDown={e=>e.stopPropagation()}>
-              <textarea autoFocus aria-label="Edit translation on page" value={r.finalTranslation} onChange={e=>onTextChange?.(r.id,e.target.value)} onBlur={finish} onKeyDown={e=>{e.stopPropagation();if(e.key==='Escape'||((e.metaKey||e.ctrlKey)&&e.key==='Enter')){e.preventDefault();finish();}}} className="h-full w-full resize-none rounded-sm border-0 bg-transparent p-0 text-ink outline outline-2 outline-accent focus:outline-accent" style={{font:fontString(r,Math.max(12,fit.fontSizePx*(overlayRef.current?.clientWidth??width)/width)),lineHeight:r.typesetting.lineHeight,textAlign:r.typesetting.align,letterSpacing:`${r.typesetting.letterSpacing}em`,paddingTop:Math.max(0,(area.height-fit.blockHeight)/2*(overlayRef.current?.clientWidth??width)/width)}} />
+              <textarea autoFocus aria-label="Edit translation on page" value={r.finalTranslation} onChange={e=>onTextChange?.(r.id,e.target.value)} onBlur={finish} onKeyDown={e=>{e.stopPropagation();if(e.key==='Escape'||((e.metaKey||e.ctrlKey)&&e.key==='Enter')){e.preventDefault();finish();}}} className="no-scrollbar h-full w-full resize-none rounded-sm border-0 bg-transparent p-0 text-ink outline outline-2 outline-accent focus:outline-accent" style={{font:fontString(r,Math.max(12,fit.fontSizePx*(overlayRef.current?.clientWidth??width)/width)),lineHeight:r.typesetting.lineHeight,textAlign:r.typesetting.align,letterSpacing:`${r.typesetting.letterSpacing}em`,paddingTop:Math.max(0,(area.height-fit.blockHeight)/2*(overlayRef.current?.clientWidth??width)/width)}} />
             </div>;
           })()}
           {drag?.kind === 'draw' && (

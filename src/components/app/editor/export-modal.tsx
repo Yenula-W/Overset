@@ -100,8 +100,8 @@ export function ExportModal({
     >
       <div className="space-y-6">
         <ul className={cn('space-y-2 rounded-xl border px-4 py-3.5', runQa && qa.critical > 0 ? 'border-warn/30 bg-warnSoft' : 'border-line bg-okSoft')}>
-          <Line ok>{`${pages.length} / ${pages.length} pages ready at original resolution`}</Line>
-          <Line ok={translated === regions.length}>{`${translated} / ${regions.length} text regions translated`}</Line>
+          <Line ok>{`${pages.length} / ${pages.length} pages at original resolution`}</Line>
+          <Line ok={translated === regions.length}>{`${translated} / ${regions.length} text regions with translations`}</Line>
           {runQa && <Line ok={qa.critical === 0}>{`${qa.critical} critical QA ${qa.critical === 1 ? 'issue' : 'issues'}${qa.warning ? ` · ${qa.warning} warnings` : ''}`}</Line>}
         </ul>
 
