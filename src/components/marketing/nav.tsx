@@ -7,6 +7,7 @@ import { Menu, X } from "lucide-react";
 import { OversetMark } from "@/components/brand";
 import { cn } from "@/lib/utils";
 import { NAV_LINKS } from "./mk";
+import { TextRoll } from "./text-roll";
 
 function isActive(pathname: string, href: string) {
   return href === "/"
@@ -90,9 +91,9 @@ export function MarketingNav() {
                 aria-current={active ? "page" : undefined}
                 onMouseEnter={() => setHover(index)}
                 onFocus={() => setHover(index)}
-                className={cn("nav-link", active && "text-ink")}
+                className={cn("nav-link roll-host", active && "text-ink")}
               >
-                {l.label}
+                <TextRoll>{l.label}</TextRoll>
               </Link>
             );
           })}
@@ -107,9 +108,9 @@ export function MarketingNav() {
           </Link>
           <Link
             href="/signup"
-            className="rounded-full bg-ink px-5 py-2.5 text-[14px] font-medium text-white transition-colors hover:bg-accent hover:text-white"
+            className="roll-host rounded-full bg-ink px-5 py-2.5 text-[14px] font-medium text-white transition-colors hover:bg-accent hover:text-white"
           >
-            Translate free
+            <TextRoll>Translate free</TextRoll>
           </Link>
         </div>
 

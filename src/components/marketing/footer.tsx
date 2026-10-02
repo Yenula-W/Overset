@@ -28,6 +28,12 @@ export function MarketingFooter() {
         </nav>
         <div className="flex flex-col items-start gap-2 sm:items-end">
           <span className="text-[12px] text-ink-faint">© 2026 Overset</span>
+          <span className="text-[12px] text-ink-faint">
+            Some motion adapted from{" "}
+            <a href="https://skiper-ui.com" className="text-ink-faint underline-offset-2 hover:text-ink hover:underline">
+              Skiper UI
+            </a>
+          </span>
           {/* Legal pages stay reachable from every marketing page. */}
           <span className="flex gap-4 text-[12px]">
             <Link href="/privacy" className="text-ink-faint hover:text-ink">
