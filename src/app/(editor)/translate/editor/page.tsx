@@ -106,7 +106,7 @@ function Editor({ chapterId }: { chapterId: string }) {
   const [glossaryDraft, setGlossaryDraft] = React.useState<{ original: string; translation: string } | null>(null);
   const [cleanupOpen,setCleanupOpen] = React.useState(false);
   const [aiBusy, setAiBusy] = React.useState(false);
-  const [aiError, setAiError] = React.useState<{message:string;action:'ocr'|'translate'|'regenerate'|'proofread'} | null>(null);
+  const [aiError, setAiError] = React.useState<{message:string;action:'ocr'|'translate'|'regenerate'|'proofread'|'suggest'} | null>(null);
   const [aiMessage, setAiMessage] = React.useState('');
   const [redetectOpen,setRedetectOpen]=React.useState(false);
   const [regenerateOpen, setRegenerateOpen] = React.useState(false);
@@ -182,7 +182,7 @@ function Editor({ chapterId }: { chapterId: string }) {
     (id: string, next: Partial<DialogueRegion>) => {
       if (!page || !workspace.canEdit || aiBusy) return;
       if(next.finalTranslation!==undefined||next.typesetting)setView('translated');
-      updateRegions(page.id, (rs) => rs.map((r) => (r.id === id ? { ...r, ...next } : r)));
+      updateRegions(page.id, (rs) => rs.map((r) => (r.id === id ? { ...r, ...(next.sourceText!==undefined||next.finalTranslation!==undefined?{revisionSuggestion:undefined}:{}), ...next } : r)));
     },
     [page, updateRegions, workspace.canEdit, aiBusy],
   );
@@ -363,15 +363,15 @@ function Editor({ chapterId }: { chapterId: string }) {
     finally{setAiBusy(false);setAiMessage('');}
   }
 
-  async function runAi(action: 'ocr' | 'translate' | 'regenerate' | 'proofread') {
+  async function runAi(action: 'ocr' | 'translate' | 'regenerate' | 'proofread' | 'suggest') {
     if (!workspace.canEdit || !page || aiBusy) return;
     setAiBusy(true);
     setAiError(null);
     try {
       await data.flush(page.id);
-      setAiMessage(action === 'ocr' ? 'Reading source text…' : action === 'proofread' ? 'Proofreading dialogue…' : 'Translating with project context…');
+      setAiMessage(action === 'suggest' ? 'Reviewing meaning and scene context…' : action === 'ocr' ? 'Reading source text…' : action === 'proofread' ? 'Proofreading dialogue…' : 'Translating with project context…');
       const needsReading = regions.length === 0 || regions.some(r => r.translate && !r.sourceText.trim() && r.status !== 'approved' && r.status !== 'edited');
-      let result = action === 'translate' && !needsReading ? {page:{...page,regions},qa:undefined as Array<{regionId:string;message:string}>|undefined} : await aiPage(chapterId, page.id, action === 'translate' ? 'ocr' : action, action === 'regenerate' ? region?.id : undefined);
+      let result = action === 'translate' && !needsReading ? {page:{...page,regions},qa:undefined as Array<{regionId:string;message:string}>|undefined} : await aiPage(chapterId, page.id, action === 'translate' ? 'ocr' : action, action === 'regenerate' || action === 'suggest' ? region?.id : undefined);
       if (action === 'translate') {
         for (const r of result.page.regions.slice().sort((a,b)=>a.readingOrder-b.readingOrder)) {
           if (r.translate && r.sourceText.trim() && !r.finalTranslation.trim() && r.status !== 'approved' && r.status !== 'edited') {
@@ -383,7 +383,8 @@ function Editor({ chapterId }: { chapterId: string }) {
       }
       data.reload();
       if(action==='translate'||action==='regenerate'){setView('translated');setSelectedId(result.page.regions.find(r=>r.finalTranslation.trim()&&r.status!=='approved')?.id??result.page.regions[0]?.id??null);setRightTab('translation');}
-      if (result.qa?.length) {
+      if (action==='suggest') { setView('translated'); setRightTab('translation'); toast({message:'Suggestion ready. Compare it with your current line before applying.',tone:'ok'}); }
+      else if (result.qa?.length) {
         const notes = new Map(result.qa.map(f=>[f.regionId,f.message]));
         updateRegions(page.id,rs=>rs.map(r=>notes.has(r.id)?{...r,ambiguityNote:[r.ambiguityNote,notes.get(r.id)].filter(Boolean).join(' · ')}:r));
         toast({message:`${result.qa.length} proofreading findings added to region notes.`,tone:'warn'});
@@ -513,6 +514,8 @@ function Editor({ chapterId }: { chapterId: string }) {
         ) : (
           <Inspector
             busy={aiBusy || !aiReady}
+            onImprove={()=>void runAi('suggest')}
+            onCheckOriginal={()=>setView('original')}
             onCleanup={()=>setCleanupOpen(true)}
             onRegenerate={() => region.status === 'approved' || region.status === 'edited' ? setRegenerateOpen(true) : void runAi('regenerate')}
             region={region}
@@ -553,7 +556,7 @@ function Editor({ chapterId }: { chapterId: string }) {
         {!workspace.canEdit && <span className="text-[11px] text-editor-muted">View only</span>}
         {workspace.canEdit && <div className="flex items-center gap-2 text-[12px]">
 
-          <button disabled={aiBusy || !aiReady} onClick={()=>void runAi('translate')} className="rounded-md bg-accent px-2.5 py-1.5 text-white disabled:opacity-40">{regions.some(r=>r.translate&&r.finalTranslation.trim()) ? 'Translate remaining' : 'Translate page'}</button>
+          <button disabled={aiBusy || !aiReady || (regions.length>0&&regions.every(r=>!r.translate||r.finalTranslation.trim()))} onClick={()=>void runAi('translate')} className="rounded-md bg-accent px-2.5 py-1.5 text-white disabled:opacity-40">{regions.some(r=>r.translate&&r.finalTranslation.trim()) ? (regions.every(r=>!r.translate||r.finalTranslation.trim()) ? 'Translation ready' : 'Translate remaining') : 'Translate page'}</button>
           <details className="relative">
             <summary className="cursor-pointer rounded-md border border-editor-line px-2.5 py-1.5 text-editor-muted">More tools</summary>
             <div className="absolute left-0 top-full z-50 mt-1 grid min-w-44 gap-1 rounded-lg border border-editor-line bg-editor-raised p-2 shadow-xl">

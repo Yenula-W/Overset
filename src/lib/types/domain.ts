@@ -225,6 +225,8 @@ export interface DialogueRegion {
   contextUsed: ContextReference[];
   typesetting: TypesettingProperties;
   ambiguityNote?: string;
+  translatorNote?: string;
+  revisionSuggestion?: { translation: string; literal: string; confidence: number; note?: string };
   /** Human-selected clone source and strokes; never whole-panel regeneration. */
   artworkCleanup?: { offsetX: number; offsetY: number; strokes: Array<{x:number;y:number;radius:number}> };
 }

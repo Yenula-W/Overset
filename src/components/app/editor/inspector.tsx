@@ -23,10 +23,14 @@ export function Inspector({
   onDelete,
   onAddGlossary,
   onRegenerate,
+  onImprove,
+  onCheckOriginal,
   onCleanup,
   busy = false,
 }: {
   onRegenerate: () => void;
+  onImprove: () => void;
+  onCheckOriginal: () => void;
   onCleanup: () => void;
   busy?: boolean;
   region: DialogueRegion;
@@ -103,22 +107,8 @@ export function Inspector({
       </div>
 
       <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4">
-        <div className="grid grid-cols-2 gap-2">
-          <LabeledSelect
-            label="Speaker"
-            value={region.speakerId ?? ''}
-            onChange={(v) => onChange({ speakerId: v || undefined })}
-            options={[{ value: '', label: 'Unassigned' }, ...characters.map((c) => ({ value: c.id, label: c.name }))]}
-          />
-          <LabeledSelect
-            label="Type"
-            value={region.type}
-            onChange={(v) => onChange({ type: v as DialogueRegion['type'], embeddedInArtwork: v === 'sfx' ? true : region.embeddedInArtwork })}
-            options={Object.entries(REGION_TYPE_LABELS).map(([value, label]) => ({ value, label }))}
-          />
-        </div>
-
         <TextField
+          readOnly={busy}
           refEl={sourceRef}
           label="Source text"
           hint="Read source text with OCR, or edit it here."
@@ -130,6 +120,7 @@ export function Inspector({
         />
 
         <TextField
+          readOnly={busy}
           refEl={finalRef}
           label="Translation · live preview"
           value={region.finalTranslation}
@@ -139,6 +130,21 @@ export function Inspector({
           onChange={(v) => onChange({ finalTranslation: v, status: v.trim() ? 'edited' : 'untranslated' })}
           onBlur={(v) => onCommit('finalTranslation', focusValue.current, v)}
         />
+
+        <div className="flex items-center justify-between gap-2">
+          <button disabled={busy || !region.sourceText.trim()} onClick={onImprove} className="rounded-lg border border-accent/40 px-3 py-2 text-[12.5px] text-[#C3BEFF] disabled:opacity-40">{busy ? 'Working…' : 'Improve this line'}</button>
+          <button onClick={onCheckOriginal} className="rounded-lg px-2 py-2 text-[12px] text-editor-muted hover:text-editor-text">Check original</button>
+        </div>
+        {region.revisionSuggestion && <div className="rounded-xl border border-accent/40 bg-accent/10 p-3">
+          <p className="text-[11px] font-medium text-[#C3BEFF]">Suggested revision · your current line is kept</p>
+          <p className="mt-2 text-[14px] leading-relaxed">{region.revisionSuggestion.translation}</p>
+          {region.revisionSuggestion.note && <p className="mt-2 text-[12px] leading-relaxed text-warn">{region.revisionSuggestion.note}</p>}
+          <div className="mt-3 flex gap-2">
+            <button disabled={busy} onClick={()=>{const suggestion=region.revisionSuggestion!;onCommit('finalTranslation',region.finalTranslation,suggestion.translation);onChange({finalTranslation:suggestion.translation,literalTranslation:suggestion.literal,translationConfidence:suggestion.confidence,ambiguityNote:suggestion.note,status:'edited',revisionSuggestion:undefined});}} className="rounded-lg bg-accent px-3 py-2 text-[12px] text-white disabled:opacity-40">Use suggestion</button>
+            <button disabled={busy} onClick={()=>onChange({revisionSuggestion:undefined})} className="rounded-lg px-3 py-2 text-[12px] text-editor-muted">Keep current</button>
+          </div>
+        </div>}
+        {region.ambiguityNote && <p className="rounded-lg border border-warn/30 bg-warn/10 px-3 py-2 text-[12px] leading-relaxed text-warn">{region.ambiguityNote}</p>}
 
         <details className="rounded-lg border border-editor-line p-3">
           <summary className="cursor-pointer text-[12px] text-editor-muted">Alternatives &amp; story context</summary>
@@ -248,13 +254,6 @@ export function Inspector({
           </Block>
         )}
 
-        {region.ambiguityNote && (
-          <div className="rounded-lg border border-warn/35 bg-warn/10 px-3 py-2.5">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-warn">Note</p>
-            <p className="mt-1 text-[12.5px] leading-relaxed text-editor-muted">{region.ambiguityNote}</p>
-          </div>
-        )}
-
         {rules.length > 0 && (
           <Block label="Project rules">
             <ul className="space-y-0.5 text-[11.5px] leading-relaxed text-editor-muted">
@@ -267,6 +266,27 @@ export function Inspector({
 
           </div>
         </details>
+        <details className="rounded-lg border border-editor-line p-3">
+          <summary className="cursor-pointer text-[12px] text-editor-muted">Region options</summary>
+          <div className="mt-3 space-y-4">
+        <div className="grid grid-cols-2 gap-2">
+          <LabeledSelect
+            label="Speaker"
+            value={region.speakerId ?? ''}
+            onChange={(v) => onChange({ speakerId: v || undefined })}
+            options={[{ value: '', label: 'Unassigned' }, ...characters.map((c) => ({ value: c.id, label: c.name }))]}
+          />
+          <LabeledSelect
+            label="Type"
+            value={region.type}
+            onChange={(v) => onChange({ type: v as DialogueRegion['type'], embeddedInArtwork: v === 'sfx' ? true : region.embeddedInArtwork })}
+            options={Object.entries(REGION_TYPE_LABELS).map(([value, label]) => ({ value, label }))}
+          />
+        </div>
+
+            <label className="block text-[12px] text-editor-muted">Translator note
+              <textarea value={region.translatorNote??''} maxLength={2000} onChange={e=>onChange({translatorNote:e.target.value,revisionSuggestion:undefined})} placeholder="Optional: explain the scene or intended tone" rows={2} className="mt-2 w-full rounded-lg border border-editor-line bg-editor-panel px-3 py-2 text-editor-text" />
+            </label>
         <div className="space-y-2 rounded-lg bg-editor-panel px-3 py-2.5">
           <Toggle label="Translate this region" checked={region.translate} onChange={(v) => onChange({ translate: v })} />
           <Toggle
@@ -288,12 +308,15 @@ export function Inspector({
             Delete region
           </button>
         </div>
+            <button disabled={busy} onClick={onRegenerate} className="rounded-lg border border-editor-line px-3 py-2 text-[12px] text-editor-muted disabled:opacity-40">Replace with new AI draft</button>
+          </div>
+        </details>
       </div>
 
       <div className="flex gap-2 border-t border-editor-line px-4 py-3">
         <button
           onClick={onApprove}
-          disabled={!region.finalTranslation.trim()}
+          disabled={busy || !region.finalTranslation.trim()}
           title={region.finalTranslation.trim() ? 'Approve (a)' : 'Add a translation first'}
           className={cn(
             'flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-[13px] font-medium transition-colors disabled:opacity-40',
@@ -301,7 +324,7 @@ export function Inspector({
           )}
         >
           <Check size={14} />
-          {region.status === 'approved' ? 'Approved' : 'Approve'}
+          {region.status === 'approved' ? 'Approved' : index < total - 1 ? 'Approve & next' : 'Approve'}
         </button>
         <button
           onClick={onReject}
@@ -312,17 +335,9 @@ export function Inspector({
           )}
         >
           <X size={13} />
-          Reject
+          Needs work
         </button>
-        <button
-          disabled={busy}
-          onClick={onRegenerate}
-          title="Generate a fresh translation with project context"
-          className="flex items-center gap-1.5 rounded-lg border border-editor-line px-3 py-2 text-[13px] text-editor-muted disabled:opacity-50"
-        >
-          <RefreshCw size={13} />
-          <span className="sr-only">Regenerate translation</span>
-        </button>
+
       </div>
     </div>
   );
@@ -334,6 +349,7 @@ function TextField({
   value,
   rows,
   refEl,
+  readOnly,
   onChange,
   onFocus,
   onBlur,
@@ -343,6 +359,7 @@ function TextField({
   value: string;
   rows: number;
   refEl?: React.RefObject<HTMLTextAreaElement | null>;
+  readOnly?: boolean;
   onChange: (v: string) => void;
   onFocus: (v: string) => void;
   onBlur: (v: string) => void;
@@ -354,6 +371,7 @@ function TextField({
         {label}
       </label>
       <textarea
+        readOnly={readOnly}
         ref={refEl}
         id={id}
         value={value}
