@@ -284,8 +284,8 @@ export default function TranslatePage() {
             failed={failed}
             problems={problems}
             overAllowance={overAllowance}
-            canOpenEditor={Boolean(result)}
-            onRetry={result ? () => void retrySaved() : undefined}
+            canOpenEditor={Boolean(result) && stages.some(s => s.id === 'upload' && s.state === 'complete')}
+            onRetry={result && stages.some(s => s.id === 'upload' && s.state === 'complete') ? () => void retrySaved() : undefined}
             retrying={retrying}
             onOpenEditor={() => result && router.push(`/translate/editor?chapter=${result.chapterId}`)}
             onBack={() => {

@@ -53,7 +53,10 @@ export async function processChapter(input: {
   const { ownerId, chapterId, onStage, onProgress } = input;
   const chapter = await getChapter(ownerId, chapterId);
   const stages: Record<string, { state: StageState; message?: string }> = input.resume ? { ...chapter.stages } : {};
-  if (input.resume) for (const [id, stage] of Object.entries(stages)) onStage(id, stage.state, stage.message);
+  if (input.resume) for (const [id, stage] of Object.entries(stages)) {
+    if (stage.state === 'failed' || stage.state === 'running') stages[id] = { state: 'pending' };
+    onStage(id, stages[id].state, stages[id].message);
+  }
   const mark = (id: string, state: StageState, message?: string) => {
     stages[id] = { state, message };
     onStage(id, state, message);

@@ -44,7 +44,7 @@ export function ProcessingScreen({
   return (
     <div className="mx-auto max-w-xl py-6">
       <h1 className="text-[26px] font-semibold tracking-[-0.03em]">
-        {failed ? 'Your pages are saved' : done ? `${chapterName} is ready` : `Processing ${chapterName}`}
+        {failed ? (canOpenEditor ? 'Your pages are saved' : 'Upload needs attention') : done ? `${chapterName} is ready` : `Processing ${chapterName}`}
       </h1>
       <p className="mt-2 text-[14px] text-ink-muted" aria-live="polite">
         {failed ? failed : done ? 'Review and edit the translated pages before exporting.' : progress.label || 'Starting…'}

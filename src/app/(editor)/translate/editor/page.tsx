@@ -116,6 +116,7 @@ function Editor({ chapterId }: { chapterId: string }) {
 
   const pages = data.data?.pages ?? [];
   const page = pages.find((p) => p.id === pageId) ?? pages[0];
+  React.useEffect(() => setAiError(null), [page?.id, selectedId]);
   const regions = React.useMemo(() => (page ? drafts[page.id] ?? page.regions : []), [page, drafts]);
   const ordered = React.useMemo(() => [...regions].sort((a, b) => a.readingOrder - b.readingOrder), [regions]);
   React.useEffect(()=>{

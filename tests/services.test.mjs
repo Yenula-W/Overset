@@ -129,3 +129,13 @@ test('billing events with stale timestamps cannot downgrade newer entitlements',
  await assert.rejects(as(db,OWNER,`update records set store='team',data=$1 where store='projects' and id='project-1'`,[rec('team','project-1',OWNER,{email:'member@example.com',role:'translator'})]),/identity cannot be changed/);
  await db.close();
  });
+
+ test('retrying a failed OCR task does not consume another page or credit',async()=>{
+ const db=await setup();await profile(db);
+ assert.equal((await reserve(db,'retry-page','retry-task')).started,true);
+ await service(db,`update processing_tasks set state='failed' where id='retry-task'`);
+ assert.equal((await reserve(db,'retry-page','retry-task')).started,true);
+ assert.equal((await db.query(`select data->>'pagesProcessed' as count from records where store='usage'`)).rows[0].count,'1');
+ assert.equal((await db.query(`select count(*)::integer as count from page_charges`)).rows[0].count,1);
+ await db.close();
+ });
