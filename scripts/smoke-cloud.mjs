@@ -6,7 +6,7 @@ import { randomUUID } from 'node:crypto';
 import assert from 'node:assert/strict';
 const url=process.env.NEXT_PUBLIC_SUPABASE_URL,publicKey=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,secret=process.env.SUPABASE_SERVICE_ROLE_KEY;
 if(!url||!publicKey||!secret)throw new Error('Provide the three Supabase environment variables.');
-const site=process.env.OVERSET_SITE_URL||'https://panelflow-pi.vercel.app';
+const site=process.env.OVERSET_SITE_URL||'https://useoverset.com';
 const admin=createClient(url,secret,{auth:{persistSession:false,autoRefreshToken:false}}),users=[];
 async function account(){
  const password=randomUUID()+randomUUID();

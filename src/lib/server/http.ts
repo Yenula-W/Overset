@@ -9,7 +9,7 @@ export function failure(error: unknown) {
   return NextResponse.json({ error: { code: 'unavailable', message: 'The service could not finish. Your saved work is safe; try again shortly.' } }, { status: 503 });
 }
 export function siteUrl() {
-  const url = new URL(process.env.OVERSET_SITE_URL || 'https://panelflow-pi.vercel.app');
+  const url = new URL(process.env.OVERSET_SITE_URL || 'https://useoverset.com');
   if (url.protocol !== 'https:' && url.hostname !== 'localhost') throw new ServiceError('configuration', 'The website URL is not configured correctly.');
   return url.origin;
 }
