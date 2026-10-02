@@ -117,3 +117,11 @@ test('detection estimates the source lettering size from glyph rows', () => {
   assert.ok(b, 'bubble found');
   assert.ok(Math.abs(b.fontSizePx - 18 / 0.72) < 3, `estimated ${b.fontSizePx}`);
 });
+
+test('fitting never accepts a word wider than the original bubble interior',()=>{
+  const input={text:'Hello',boxWidth:49,boxHeight:80,fontSizePx:20,minFontSizePx:10,lineHeight:1.15,autoFit:false};
+  const measure=(text,size)=>text.length*size*0.5;
+  assert.equal(fitText(input,measure).fits,false);
+  const fitted=fitText({...input,autoFit:true},measure);
+  assert.ok(fitted.fits);assert.ok(measure('Hello',fitted.fontSizePx)<=49);
+});

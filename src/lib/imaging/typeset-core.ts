@@ -52,7 +52,7 @@ function fitsAt(input: FitInput, size: number, measure: Measure) {
   const lines = wrapLines(input.text, input.boxWidth, size, measure);
   const blockHeight = lines.length * size * input.lineHeight;
   const widest = Math.max(0, ...lines.map((l) => measure(l, size)));
-  return { lines, blockHeight, fits: blockHeight <= input.boxHeight && widest <= input.boxWidth * 1.02 };
+  return { lines, blockHeight, fits: blockHeight <= input.boxHeight && widest <= input.boxWidth };
 }
 
 export function fitText(input: FitInput, measure: Measure): FitResult {
