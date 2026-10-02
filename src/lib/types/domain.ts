@@ -236,6 +236,8 @@ export interface ContextReference {
 }
 
 export interface TypesettingProperties {
+  /** Explicit human font choices survive later OCR. */
+  fontSource?: 'matched' | 'manual';
   fontFamily: string;
   fontSize: number;
   fontWeight: number;

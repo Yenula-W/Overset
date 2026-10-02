@@ -1,4 +1,4 @@
-import { canvasToBlob, renderPage, type RenderMode } from './render';
+import { canCleanLocally, canvasToBlob, ensureFonts, measureFit, renderPage, sourceLayout, type RenderMode } from './render';
 import type { DialogueRegion } from '@/lib/types/domain';
 import type { ChapterRecord, PageRecord, ProjectRecord } from '@/lib/store/schema';
 import { REGION_TYPE_LABELS } from '@/lib/types/domain';
@@ -119,10 +119,20 @@ export async function exportChapter(input: {
       const page = pages[i];
       input.onProgress?.(i, pages.length, `Rendering page ${i + 1} of ${pages.length}`);
       const original = await input.loadOriginal(page);
-      if (!original) continue;
+      if (!original) throw new Error(`Page ${page.order} could not be loaded. No chapter was exported; retry after restoring the page.`);
       const bitmap = await createImageBitmap(original);
       try {
         const regions = options.includeTranslatedSfx ? page.regions : page.regions.filter((r) => r.type !== 'sfx');
+        if(options.mode==='translated'){
+          await ensureFonts(regions);
+          for(const region of regions){
+            if(!region.translate||!region.finalTranslation.trim())continue;
+            const layout=canCleanLocally(region)&&!region.artworkCleanup?.strokes.length?sourceLayout(bitmap,region):null;
+            if(canCleanLocally(region)&&!region.artworkCleanup?.strokes.length&&!layout?.analysis.safeBox)throw new Error(`Page ${page.order}, region ${region.readingOrder}: no safe bubble interior was found. Review its region or use the cleanup brush before exporting.`);
+            if(!canCleanLocally(region)&&!region.artworkCleanup?.strokes.length)throw new Error(`Page ${page.order}, region ${region.readingOrder}: clean the artwork text with the brush, or turn off translation for this region.`);
+            if(!measureFit(region,page.width,page.height,layout?.analysis.safeBox??undefined).fits)throw new Error(`Page ${page.order}, region ${region.readingOrder}: the translation does not fit. Edit the line or adjust its lettering in Style before exporting.`);
+          }
+        }
         const canvas = await renderPage(bitmap, regions, options.mode);
         const blob = await canvasToBlob(canvas, MIME[options.imageFormat], 0.95);
         files[`${slug}/pages/${pad(page.order)}.${options.imageFormat}`] = new Uint8Array(await blob.arrayBuffer());

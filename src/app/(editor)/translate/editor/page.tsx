@@ -34,7 +34,7 @@ import { cloudEnabled, newId } from '@/lib/store/db';
 import { ingestFiles } from '@/lib/imaging/ingest';
 import { detectRegions } from '@/lib/imaging/detect';
 import { readingOrder } from '@/lib/imaging/detect-core';
-import { measureFit, type RenderMode } from '@/lib/imaging/render';
+import { measureFit, sourceLayout, type RenderMode } from '@/lib/imaging/render';
 import { runQa, type QaFinding } from '@/lib/qa';
 import type { PageRecord, VersionRecord } from '@/lib/store/schema';
 import { DEFAULT_TYPESETTING, LANGUAGE_LABELS, type DialogueRegion, type GlossaryType, type Rect, type TypesettingProperties } from '@/lib/types/domain';
@@ -48,8 +48,8 @@ const CANVAS_VIEWS: Array<{ id: RenderMode | 'compare'; label: string }> = [
 ];
 const RIGHT_TABS = [
   { id: 'translation', label: 'Translation' },
-  { id: 'typeset', label: 'Typeset' },
-  { id: 'qa', label: 'QA' },
+  { id: 'typeset', label: 'Style' },
+  { id: 'qa', label: 'Review' },
   { id: 'comments', label: 'Comments' },
   { id: 'history', label: 'History' },
 ] as const;
@@ -95,7 +95,7 @@ function Editor({ chapterId }: { chapterId: string }) {
 
   const [pageId, setPageId] = React.useState<string | null>(null);
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
-  const [view, setView] = React.useState<RenderMode | 'compare'>('original');
+  const [view, setView] = React.useState<RenderMode | 'compare'>('translated');
   const [tool, setTool] = React.useState<'select' | 'draw'>('select');
   const [rightTab, setRightTab] = React.useState<RightTab>('translation');
   const [mobileTab, setMobileTab] = React.useState<MobileTab>('panel');
@@ -107,6 +107,7 @@ function Editor({ chapterId }: { chapterId: string }) {
   const [cleanupOpen,setCleanupOpen] = React.useState(false);
   const [aiBusy, setAiBusy] = React.useState(false);
   const [aiMessage, setAiMessage] = React.useState('');
+  const [redetectOpen,setRedetectOpen]=React.useState(false);
   const [regenerateOpen, setRegenerateOpen] = React.useState(false);
   const [aiReady, setAiReady] = React.useState(false);
   React.useEffect(() => { if (cloudEnabled) void callService<{ai:boolean}>('/api/services').then(v=>setAiReady(v.ai)).catch(()=>{}); }, []);
@@ -116,6 +117,10 @@ function Editor({ chapterId }: { chapterId: string }) {
   const page = pages.find((p) => p.id === pageId) ?? pages[0];
   const regions = React.useMemo(() => (page ? drafts[page.id] ?? page.regions : []), [page, drafts]);
   const ordered = React.useMemo(() => [...regions].sort((a, b) => a.readingOrder - b.readingOrder), [regions]);
+  React.useEffect(()=>{
+    if(ordered.length&&selectedId&&!ordered.some(r=>r.id===selectedId))setSelectedId((ordered.find(r=>r.status!=='approved')??ordered[0]).id);
+  },[ordered,selectedId]);
+  React.useEffect(()=>{setSelectedId((ordered.find(r=>r.status!=='approved')??ordered[0])?.id??null);},[page?.id]); // Select a starting bubble once per page, preserving deliberate deselection.
   const index = ordered.findIndex((r) => r.id === selectedId);
   const region = index >= 0 ? ordered[index] : undefined;
 
@@ -156,10 +161,10 @@ function Editor({ chapterId }: { chapterId: string }) {
         characters,
         fits: (r, pid) => {
           const pg = pages.find((p) => p.id === pid);
-          return !pg || !r.finalTranslation.trim() || measureFit(r, pg.width, pg.height).fits;
+          return !pg || !r.finalTranslation.trim() || measureFit(r, pg.width, pg.height,pg.id===page?.id&&image?sourceLayout(image,r)?.analysis.safeBox??undefined:undefined).fits;
         },
       }),
-    [pagesWithDrafts, glossary, characters, pages],
+    [pagesWithDrafts, glossary, characters, pages, page?.id, image],
   );
 
   /* ------------------------------------------------------------ actions */
@@ -173,6 +178,7 @@ function Editor({ chapterId }: { chapterId: string }) {
   const patch = React.useCallback(
     (id: string, next: Partial<DialogueRegion>) => {
       if (!page || !workspace.canEdit || aiBusy) return;
+      if(next.finalTranslation!==undefined||next.typesetting)setView('translated');
       updateRegions(page.id, (rs) => rs.map((r) => (r.id === id ? { ...r, ...next } : r)));
     },
     [page, updateRegions, workspace.canEdit, aiBusy],
@@ -271,7 +277,7 @@ function Editor({ chapterId }: { chapterId: string }) {
     if (v.regionSnapshot && v.pageId) {
       const target = pages.find(p => p.id === v.pageId);
       if (!target) return;
-      version({pageId:target.id, kind:'human_edit', summary:'Restored the page before AI processing', regionSnapshot:drafts[target.id] ?? target.regions});
+      version({pageId:target.id, kind:'human_edit', summary:'Saved the current page before restoring history', regionSnapshot:drafts[target.id] ?? target.regions});
       updateRegions(target.id, () => v.regionSnapshot!);
       setPageId(target.id);
       toast({message:'Earlier page restored.',tone:'ok'});
@@ -333,6 +339,27 @@ function Editor({ chapterId }: { chapterId: string }) {
     }
   }
 
+  async function repairRegions(){
+    if(!workspace.canEdit||!page||!data.data||aiBusy)return;
+    setAiBusy(true);setAiMessage('Finding original bubbles…');
+    try{
+      const original=await getBlob(workspace.id,page.originalBlobId);
+      if(!original)throw new Error('The original page could not be loaded.');
+      const detected=await detectRegions(original,page.id,data.data.chapter.sourceLanguage);
+      if(!detected.length)throw new Error('No reliable bubbles were found. Your existing regions were kept; use Draw to add a text region.');
+      const keep=regions.filter(r=>r.status==='approved'||r.status==='edited'||r.artworkCleanup?.strokes.length||r.typesetting.fontSource==='manual'||!r.translate);
+      const rebuilt=detected.filter(r=>!keep.some(k=>{
+        const overlap=Math.max(0,Math.min(r.bounds.x+r.bounds.width,k.bounds.x+k.bounds.width)-Math.max(r.bounds.x,k.bounds.x))*Math.max(0,Math.min(r.bounds.y+r.bounds.height,k.bounds.y+k.bounds.height)-Math.max(r.bounds.y,k.bounds.y));
+        return overlap/Math.min(r.bounds.width*r.bounds.height,k.bounds.width*k.bounds.height)>0.35;
+      }));
+      await addVersion(workspace.id,{chapterId,actor:user.name,pageId:page.id,kind:'ocr_edit',summary:'Saved the page before rebuilding bubble detection',regionSnapshot:regions});
+      updateRegions(page.id,()=>renumber([...keep,...rebuilt]));
+      setSelectedId(rebuilt[0]?.id??keep[0]?.id??null);setView('original');setRightTab('translation');
+      toast({message:'Bubble layout rebuilt. Choose Translate page to create fresh drafts.',tone:'ok'});
+    }catch(error){toast({message:error instanceof Error?error.message:'Bubble detection failed. Your page was kept.',tone:'warn'});}
+    finally{setAiBusy(false);setAiMessage('');}
+  }
+
   async function runAi(action: 'ocr' | 'translate' | 'regenerate' | 'proofread') {
     if (!workspace.canEdit || !page || aiBusy) return;
     setAiBusy(true);
@@ -350,6 +377,7 @@ function Editor({ chapterId }: { chapterId: string }) {
         await callService(`/api/chapters/${encodeURIComponent(chapterId)}/complete`,{}).catch(()=>{});
       }
       data.reload();
+      if(action==='translate'||action==='regenerate'){setView('translated');setSelectedId(result.page.regions.find(r=>r.finalTranslation.trim()&&r.status!=='approved')?.id??result.page.regions[0]?.id??null);setRightTab('translation');}
       if (result.qa?.length) {
         const notes = new Map(result.qa.map(f=>[f.regionId,f.message]));
         updateRegions(page.id,rs=>rs.map(r=>notes.has(r.id)?{...r,ambiguityNote:[r.ambiguityNote,notes.get(r.id)].filter(Boolean).join(' · ')}:r));
@@ -404,6 +432,8 @@ function Editor({ chapterId }: { chapterId: string }) {
   const allRegions = pagesWithDrafts.flatMap((p) => p.regions.filter((r) => r.translate));
   const approvedCount = allRegions.filter((r) => r.status === 'approved').length;
 
+  const selectedLayout=region&&image?sourceLayout(image,region):null;
+  const letteringWarning=region?.translate&&region.finalTranslation.trim()&&!region.artworkCleanup?.strokes.length&&image&&!selectedLayout?.analysis.safeBox?'Source text kept: adjust this region or use the cleanup brush.':region&&page&&region.finalTranslation.trim()&&!measureFit(region,page.width,page.height,selectedLayout?.analysis.safeBox??undefined).fits?'This line does not fit yet. Edit the translation or open Style.':null;
   const rightPanel = (
     <>
       <div className="flex gap-0.5 overflow-x-auto border-b border-editor-line px-3 pt-3 no-scrollbar" role="tablist">
@@ -425,6 +455,7 @@ function Editor({ chapterId }: { chapterId: string }) {
           </button>
         ))}
       </div>
+      {rightTab==='translation'&&letteringWarning&&<p role="status" className="mx-4 mt-3 rounded-md border border-warn/40 bg-warn/10 p-3 text-[12px] text-warn">{letteringWarning}</p>}
       <div className="min-h-0 flex-1 overflow-y-auto">
         {rightTab === 'qa' ? (
           <QaPanel findings={findings} onGo={goTo} />
@@ -460,10 +491,16 @@ function Editor({ chapterId }: { chapterId: string }) {
           <div className="space-y-4 p-4"><p className="text-[11px] text-editor-muted">View only · Region #{index + 1}</p><p className="text-[13px]">{region.sourceText}</p><p className="text-[14px]">{region.finalTranslation || 'Not translated yet'}</p>{region.ambiguityNote && <p className="text-[12px] text-warn">{region.ambiguityNote}</p>}</div>
         ) : rightTab === 'typeset' ? (
           <TypesetPanel
+            image={image}
+            onApplyPage={()=>{
+              updateRegions(page.id,rs=>rs.map(r=>r.translate?{...r,typesetting:{...r.typesetting,fontFamily:region.typesetting.fontFamily,fontWeight:region.typesetting.fontWeight,fontSource:'manual' as const},status:r.finalTranslation?'edited':r.status}:r));
+              version({pageId:page.id,kind:'typeset',summary:`Applied ${region.typesetting.fontFamily} lettering across page ${page.order}`,regionSnapshot:regions});
+              setView('translated');toast({message:'Page font updated. Review the lettering before export.',tone:'ok'});
+            }}
             region={region}
             pageWidth={page.width}
             pageHeight={page.height}
-            onChange={(p: Partial<TypesettingProperties>) => patch(region.id, { typesetting: { ...region.typesetting, ...p } })}
+            onChange={(p: Partial<TypesettingProperties>) => patch(region.id, { typesetting: { ...region.typesetting, ...p, ...(p.fontFamily!==undefined||p.fontWeight!==undefined?{fontSource:'manual' as const}:{}) } })}
           />
         ) : (
           <Inspector
@@ -507,9 +544,16 @@ function Editor({ chapterId }: { chapterId: string }) {
         <span className="text-[12.5px] text-editor-text">{chapter.name}</span>
         {!workspace.canEdit && <span className="text-[11px] text-editor-muted">View only</span>}
         {workspace.canEdit && <div className="flex items-center gap-2 text-[12px]">
-          <button disabled={aiBusy || !aiReady} onClick={()=>void runAi('ocr')} className="rounded-md border border-editor-line px-2.5 py-1.5 disabled:opacity-40">Read text</button>
+
           <button disabled={aiBusy || !aiReady} onClick={()=>void runAi('translate')} className="rounded-md bg-accent px-2.5 py-1.5 text-white disabled:opacity-40">Translate page</button>
-          <button disabled={aiBusy || !aiReady} onClick={()=>void runAi('proofread')} className="rounded-md border border-editor-line px-2.5 py-1.5 disabled:opacity-40">AI proofread</button>
+          <details className="relative">
+            <summary className="cursor-pointer rounded-md border border-editor-line px-2.5 py-1.5 text-editor-muted">More tools</summary>
+            <div className="absolute left-0 top-full z-50 mt-1 grid min-w-44 gap-1 rounded-lg border border-editor-line bg-editor-raised p-2 shadow-xl">
+              <button disabled={aiBusy||!aiReady} onClick={()=>void runAi('ocr')} className="rounded p-2 text-left hover:bg-editor-panel disabled:opacity-40">Read source text</button>
+              <button disabled={aiBusy||!aiReady} onClick={()=>void runAi('proofread')} className="rounded p-2 text-left hover:bg-editor-panel disabled:opacity-40">Proofread page</button>
+              <button disabled={aiBusy} onClick={()=>setRedetectOpen(true)} className="rounded p-2 text-left hover:bg-editor-panel disabled:opacity-40">Re-detect bubbles</button>
+            </div>
+          </details>
           <span role="status" className="text-editor-muted">{aiMessage || (!aiReady ? 'AI not connected' : '')}</span>
         </div>}
         <span className="hidden text-[11.5px] text-editor-muted sm:inline">
@@ -528,6 +572,7 @@ function Editor({ chapterId }: { chapterId: string }) {
         </button>
       </header>
 
+      <p className="border-b border-editor-line px-4 py-2 text-[12px] text-editor-muted">1. Translate <span aria-hidden>→</span> 2. Click a bubble to edit and review <span aria-hidden>→</span> 3. Export</p>
       <div className="flex gap-1 border-b border-editor-line px-3 py-2 lg:hidden" role="tablist">
         {MOBILE_TABS.map((t) => (
           <button
@@ -575,7 +620,7 @@ function Editor({ chapterId }: { chapterId: string }) {
           <section className={cn('min-h-0 overflow-auto border-r border-editor-line bg-editor-panel p-4', mobileTab === 'panel' ? 'block' : 'hidden lg:block')}>
             <div className="mb-3 flex flex-wrap items-center justify-center gap-1.5">
               {workspace.canEdit && <div className="inline-flex gap-0.5 rounded-md border border-editor-line p-0.5" role="group" aria-label="Tool">
-                <ToolBtn active={tool === 'select'} onClick={() => setTool('select')} label="Select and move (Esc)">
+                <ToolBtn active={tool === 'select'} onClick={() => setTool('select')} label="Select text · Shift-drag to adjust its region">
                   <MousePointer2 size={12} />
                 </ToolBtn>
                 <ToolBtn active={tool === 'draw'} onClick={() => setTool('draw')} label="Draw a region (d)">
@@ -641,11 +686,13 @@ function Editor({ chapterId }: { chapterId: string }) {
                   onCreate={createRegion}
                   onBoundsChange={(id, bounds) => patch(id, { bounds })}
                   onBoundsCommit={() => {}}
+                  onTextChange={(id,text)=>patch(id,{finalTranslation:text,status:text.trim()?'edited':'untranslated'})}
+                  onTextCommit={(id,before,after)=>{if(before!==after)version({pageId:page.id,regionId:id,kind:'human_edit',field:'finalTranslation',summary:'Edited translation on page',before,after});}}
                 />
               ))}
             {page && (
               <p className="mt-3 text-center text-[11px] text-editor-muted">
-                Page {page.order} · {page.width} × {page.height} px · {tool === 'draw' ? 'drag to draw a region' : 'j / k step · a approve · d draw · delete removes'}
+                Page {page.order} · {page.width} × {page.height} px · {tool === 'draw' ? 'drag to draw a region' : 'Double-click text to edit · changes appear here before export'}
               </p>
             )}
           </section>
@@ -654,6 +701,7 @@ function Editor({ chapterId }: { chapterId: string }) {
         </div>
       )}
 
+      <ConfirmModal open={redetectOpen} onClose={()=>setRedetectOpen(false)} title="Rebuild this page’s text regions?" body="Approved and edited translations, custom lettering, and brush cleanup are kept. Other regions get fresh bubble detection. The previous page is saved in History." confirmLabel="Rebuild regions" onConfirm={async()=>{setRedetectOpen(false);await repairRegions();}} />
       {region && <CleanupModal open={cleanupOpen} onClose={()=>setCleanupOpen(false)} image={image} region={region} onSave={cleanup=>{patch(region.id,{artworkCleanup:cleanup,status:'edited'});version({pageId:page.id,regionId:region.id,kind:'typeset',summary:'Applied masked artwork cleanup'});setView('cleaned');}} />}
       <ConfirmModal open={regenerateOpen} onClose={()=>setRegenerateOpen(false)} title="Replace this human translation?" body="A new AI draft will replace this region. The current version is kept in history." confirmLabel="Generate draft" onConfirm={async()=>{setRegenerateOpen(false);await runAi('regenerate');}} />
       <ExportModal

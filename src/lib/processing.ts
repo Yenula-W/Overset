@@ -121,7 +121,7 @@ export async function processChapter(input: {
 
     const [glossary, characters] = await Promise.all([listGlossary(ownerId, chapter.projectId), listCharacters(ownerId, chapter.projectId)]);
     mark('terminology', 'complete', `${glossary.length} glossary ${glossary.length === 1 ? 'term' : 'terms'} and ${characters.length} character ${characters.length === 1 ? 'profile' : 'profiles'} loaded`);
-    mark('clean', 'complete', 'Bubble interiors are cleaned on export; text over artwork is left untouched');
+    mark('clean', 'complete', 'Review text-only cleanup and lettering in the editor before export');
 
     const pages = await listPages(ownerId, chapterId);
     const findings = runQa(pages, { glossary, characters });

@@ -40,7 +40,7 @@ export function ProcessingScreen({
         {failed ? `${chapterName} couldn’t be processed` : done ? `${chapterName} is ready` : `Processing ${chapterName}`}
       </h1>
       <p className="mt-2 text-[14px] text-ink-muted" aria-live="polite">
-        {failed ? failed : done ? 'Nothing is final until you approve it.' : progress.label || 'Starting…'}
+        {failed ? failed : done ? 'Review and edit the translated pages before exporting.' : progress.label || 'Starting…'}
       </p>
 
       {!done && !failed && <Progress value={pct} className="mt-5" label="Processing progress" />}

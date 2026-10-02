@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { Maximize, TriangleAlert } from 'lucide-react';
 import type { DialogueRegion, TypesettingProperties } from '@/lib/types/domain';
-import { LETTERING_FONTS, measureFit, REFERENCE_WIDTH } from '@/lib/imaging/render';
+import { LETTERING_FONTS, measureFit, REFERENCE_WIDTH, sourceLayout } from '@/lib/imaging/render';
 
 /**
  * Typesetting controls. "Fit to bubble" runs the same fitting the renderer
@@ -14,19 +14,25 @@ export function TypesetPanel({
   pageWidth,
   pageHeight,
   onChange,
+  image,
+  onApplyPage,
 }: {
+  image?:ImageBitmap|null;
+  onApplyPage?:()=>void;
   region: DialogueRegion;
   pageWidth: number;
   pageHeight: number;
   onChange: (patch: Partial<TypesettingProperties>) => void;
 }) {
   const t = region.typesetting;
-  const fit = region.finalTranslation.trim() ? measureFit(region, pageWidth, pageHeight) : null;
+  const layout=image?sourceLayout(image,region):null;
+  const area=layout?.analysis.safeBox??undefined;
+  const fit = region.finalTranslation.trim() ? measureFit(region, pageWidth, pageHeight,area) : null;
   const scale = pageWidth / REFERENCE_WIDTH;
 
   function fitToBubble() {
     // Measure with auto-fit on, then store the result as a fixed size.
-    const fitted = measureFit({ ...region, typesetting: { ...t, autoFit: true } }, pageWidth, pageHeight);
+    const fitted = measureFit({ ...region, typesetting: { ...t, autoFit: true } }, pageWidth, pageHeight,area);
     onChange({ fontSize: Math.round((fitted.fontSizePx / scale) * 4) / 4, autoFit: false });
   }
 
@@ -44,7 +50,7 @@ export function TypesetPanel({
           </div>
           <p className="mt-1 text-[12px] leading-relaxed text-editor-muted">
             This translation doesn’t fit the bubble at a readable size. Try a shorter translation, tighten the line
-            spacing, or resize the region.
+            spacing, or edit the line. The bubble stays unchanged.
           </p>
         </div>
       ) : (
@@ -78,7 +84,9 @@ export function TypesetPanel({
         </select>
       </Row>
 
-      <Slider label="Size" value={t.fontSize} min={6} max={60} step={0.5} onChange={(v) => onChange({ fontSize: v, autoFit: false })} suffix=" pt" />
+      {onApplyPage&&<button onClick={onApplyPage} className="text-[12px] text-[#B9B4FF] hover:underline">Use this font and weight across this page</button>}
+      {image&&!area&&!region.artworkCleanup&&<p role="status" className="rounded-md border border-warn/40 p-3 text-[12px] text-warn">Source text kept intact: no safe bubble interior found. Adjust the text region or use the cleanup brush.</p>}
+      <Slider label="Size" value={t.fontSize} min={6} max={60} step={0.5} onChange={(v) => onChange({ fontSize: v, autoFit: false })} />
       <Slider label="Weight" value={t.fontWeight} min={300} max={900} step={100} onChange={(v) => onChange({ fontWeight: v })} />
       <Slider label="Line spacing" value={t.lineHeight} min={0.85} max={2} step={0.05} onChange={(v) => onChange({ lineHeight: v })} />
       <Slider label="Letter spacing" value={t.letterSpacing} min={-0.05} max={0.3} step={0.01} onChange={(v) => onChange({ letterSpacing: v })} suffix="em" />
