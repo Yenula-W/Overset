@@ -85,7 +85,7 @@ export async function processPage(chapterId: string, input: z.infer<typeof proce
             }
           }
           // Never duplicate protected human regions, including OCR already reviewed.
-          if(!existing&&page.regions.some(r=>{
+          if(!existing&&[...next,...newRegions].some(r=>{
             const overlap=Math.max(0,Math.min(r.bounds.x+r.bounds.width,bounds.x+bounds.width)-Math.max(r.bounds.x,bounds.x))*Math.max(0,Math.min(r.bounds.y+r.bounds.height,bounds.y+bounds.height)-Math.max(r.bounds.y,bounds.y));
             return overlap/Math.min(r.bounds.width*r.bounds.height,bounds.width*bounds.height)>0.35;
           }))continue;
