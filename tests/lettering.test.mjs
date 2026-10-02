@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {runQa} from '../src/lib/qa.ts';
 import {analyzeLettering,removeLettering,letteringColumns} from '../src/lib/imaging/lettering-core.ts';
 function fixture(gray=255){
  const w=160,h=180,data=new Uint8ClampedArray(w*h*4);
@@ -24,3 +25,5 @@ test('separate vertical dialogue blocks can be split without changing bubble con
 test('invalid image dimensions are rejected',()=>assert.throws(()=>analyzeLettering(new Uint8Array(3),2,2),/dimensions/));
 test('colored faces are not accepted as light speech bubbles',()=>{const {w,h,data}=fixture();for(let i=0;i<data.length;i+=4)if(data[i]>185)data.set([245,197,166,255],i);const a=analyzeLettering(data,w,h);assert.equal(a.safeBox,null);assert.equal(a.glyphCount,0);assert.deepEqual(removeLettering(data.slice(),w,h,a),data);});
 test('cleanup interpolates a gray gradient while retaining every unmasked pixel',()=>{const {w,h,data,glyphs}=fixture(215);const expected=data.slice();for(let y=0;y<h;y++)for(let x=0;x<w;x++){const i=y*w+x,k=i*4;const gray=Math.round(200+x/160*40);if(data[k]===215)for(let c=0;c<3;c++)data[k+c]=expected[k+c]=gray;else if(glyphs.includes(i))for(let c=0;c<3;c++)expected[k+c]=gray;}const a=analyzeLettering(data,w,h),out=removeLettering(data.slice(),w,h,a);for(const i of glyphs)assert.ok(Math.abs(out[i*4]-expected[i*4])<=3);for(let i=0;i<w*h;i++)if(!a.mask[i])assert.deepEqual(out.slice(i*4,i*4+4),data.slice(i*4,i*4+4));});
+
+test('unsafe cleanup is a critical review finding even for an approved translation',()=>{const r={id:'r1',readingOrder:1,type:'dialogue',sourceText:'source',finalTranslation:'approved line',status:'approved',translate:true,alternatives:[],ocrConfidence:99,translationConfidence:99,contextUsed:[],typesetting:{}};const findings=runQa([{id:'p1',order:1,regions:[r]}],{glossary:[],characters:[],canRender:()=>false});assert.ok(findings.some(f=>f.regionId==='r1'&&f.severity==='critical'&&f.title==='Bubble needs review'));assert.equal(r.finalTranslation,'approved line');});

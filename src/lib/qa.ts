@@ -27,6 +27,7 @@ export interface QaContext {
   glossary: Pick<GlossaryEntry, 'original' | 'translation' | 'alternatives' | 'status'>[];
   characters: Pick<Character, 'id' | 'name' | 'formality'>[];
   /** Returns false when the translation can't fit its region at a readable size. */
+  canRender?: (region: DialogueRegion, pageId: string) => boolean;
   fits?: (region: DialogueRegion, pageId: string) => boolean;
 }
 
@@ -61,6 +62,9 @@ export function runQa(pages: QaPage[], ctx: QaContext): QaFinding[] {
       if (!r.finalTranslation.trim()) {
         push({ ...base, category: 'untranslated', severity: 'critical', title: 'Untranslated', detail: `${label} has no translation yet.` });
         return;
+      }
+      if(ctx.canRender&&!ctx.canRender(r,page.id)){
+        push({...base,category:'needs_inpainting',severity:'critical',title:'Bubble needs review',detail:`${label} has no safe bubble interior. Its original text is preserved. Adjust the text region or use the cleanup brush before exporting.`});
       }
       if ((r.type === 'dialogue' || r.type === 'thought') && !r.speakerId) {
         push({ ...base, category: 'missing_speaker', severity: 'info', title: 'Speaker not set', detail: `${label} has no speaker, so character voice can’t be checked.` });

@@ -34,7 +34,7 @@ import { cloudEnabled, newId } from '@/lib/store/db';
 import { ingestFiles } from '@/lib/imaging/ingest';
 import { detectRegions } from '@/lib/imaging/detect';
 import { readingOrder } from '@/lib/imaging/detect-core';
-import { measureFit, sourceLayout, type RenderMode } from '@/lib/imaging/render';
+import { canCleanLocally, measureFit, sourceLayout, type RenderMode } from '@/lib/imaging/render';
 import { runQa, type QaFinding } from '@/lib/qa';
 import type { PageRecord, VersionRecord } from '@/lib/store/schema';
 import { DEFAULT_TYPESETTING, LANGUAGE_LABELS, type DialogueRegion, type GlossaryType, type Rect, type TypesettingProperties } from '@/lib/types/domain';
@@ -159,6 +159,7 @@ function Editor({ chapterId }: { chapterId: string }) {
       runQa(pagesWithDrafts, {
         glossary,
         characters,
+        canRender: (r,pid)=>!image||pid!==page?.id||!canCleanLocally(r)||Boolean(r.artworkCleanup?.strokes.length)||Boolean(sourceLayout(image,r)?.analysis.safeBox),
         fits: (r, pid) => {
           const pg = pages.find((p) => p.id === pid);
           return !pg || !r.finalTranslation.trim() || measureFit(r, pg.width, pg.height,pg.id===page?.id&&image?sourceLayout(image,r)?.analysis.safeBox??undefined:undefined).fits;
