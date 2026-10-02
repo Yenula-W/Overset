@@ -138,13 +138,13 @@ export function Inspector({
         {region.revisionSuggestion && <div className="rounded-xl border border-accent/40 bg-accent/10 p-3">
           <p className="text-[11px] font-medium text-[#C3BEFF]">Suggested revision · your current line is kept</p>
           <p className="mt-2 text-[14px] leading-relaxed">{region.revisionSuggestion.translation}</p>
-          {region.revisionSuggestion.note && <p className="mt-2 text-[12px] leading-relaxed text-warn">{region.revisionSuggestion.note}</p>}
+          {region.revisionSuggestion.note && <details className="mt-2 text-[12px] text-warn"><summary className="cursor-pointer">Why this suggestion?</summary><p className="mt-2 leading-relaxed">{region.revisionSuggestion.note}</p></details>}
           <div className="mt-3 flex gap-2">
             <button disabled={busy} onClick={()=>{const suggestion=region.revisionSuggestion!;onCommit('finalTranslation',region.finalTranslation,suggestion.translation);onChange({finalTranslation:suggestion.translation,literalTranslation:suggestion.literal,translationConfidence:suggestion.confidence,ambiguityNote:suggestion.note,status:'edited',revisionSuggestion:undefined});}} className="rounded-lg bg-accent px-3 py-2 text-[12px] text-white disabled:opacity-40">Use suggestion</button>
             <button disabled={busy} onClick={()=>onChange({revisionSuggestion:undefined})} className="rounded-lg px-3 py-2 text-[12px] text-editor-muted">Keep current</button>
           </div>
         </div>}
-        {region.ambiguityNote && <p className="rounded-lg border border-warn/30 bg-warn/10 px-3 py-2 text-[12px] leading-relaxed text-warn">{region.ambiguityNote}</p>}
+        {region.ambiguityNote && <details className="rounded-lg border border-warn/30 bg-warn/10 px-3 py-2 text-[12px] text-warn"><summary className="cursor-pointer">Translation note</summary><p className="mt-2 leading-relaxed">{region.ambiguityNote}</p></details>}
 
         <details className="rounded-lg border border-editor-line p-3">
           <summary className="cursor-pointer text-[12px] text-editor-muted">Alternatives &amp; story context</summary>
