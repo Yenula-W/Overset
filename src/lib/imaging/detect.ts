@@ -1,3 +1,4 @@
+import { analyzeLettering, letteringColumns } from './lettering-core';
 import { detectBubbles, readingOrder, rgbaToLuma } from './detect-core';
 import { DEFAULT_TYPESETTING, type DialogueRegion, type LanguageCode } from '@/lib/types/domain';
 import { newId } from '@/lib/store/db';
@@ -26,10 +27,25 @@ export async function detectRegions(
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
     if (!ctx) throw new Error('This browser could not create a canvas.');
     ctx.drawImage(bitmap, 0, 0, w, h);
-    const lum = rgbaToLuma(ctx.getImageData(0, 0, w, h).data, w * h);
-    const bubbles = readingOrder(detectBubbles(lum, w, h), sourceLanguage === 'ja' ? 'rtl' : 'ltr');
+    const pixels=ctx.getImageData(0,0,w,h).data;
+    const lum = rgbaToLuma(pixels, w * h);
+    const bubbles = readingOrder(detectBubbles(lum, w, h, {lightThreshold:195}), sourceLanguage === 'ja' ? 'rtl' : 'ltr');
 
-    return bubbles.map((b, i) => ({
+    const measured=bubbles.flatMap(b=>{
+      const analysis=analyzeLettering(ctx.getImageData(b.x,b.y,b.width,b.height).data,b.width,b.height);
+      const text=analysis.textBox;
+      if(!text||!analysis.safeBox||analysis.glyphHeight<3||analysis.glyphCount<3||analysis.glyphCount<text.width*text.height/analysis.glyphHeight**2*0.3)return [];
+      const columns=sourceLanguage==='ja'?letteringColumns(analysis,b.width,b.height):[];
+      if(columns.length<=1)return [{b,analysis}];
+      return columns.map((group,i)=>{
+        const left=i?Math.floor((columns[i-1].right+group.left)/2):0;
+        const right=i<columns.length-1?Math.floor((group.right+columns[i+1].left)/2):b.width;
+        const split={...b,x:b.x+left,width:right-left};
+        return {b:split,analysis:analyzeLettering(ctx.getImageData(split.x,split.y,split.width,split.height).data,split.width,split.height)};
+      }).filter(({analysis})=>analysis.glyphCount>=3&&analysis.safeBox);
+    });
+    const sorted=readingOrder(measured.map(m=>({...m.b,measurement:m.analysis})),sourceLanguage==='ja'?'rtl':'ltr');
+    return sorted.map((b, i) => ({
       id: newId('rgn'),
       pageId,
       bounds: {
@@ -55,7 +71,9 @@ export async function detectRegions(
       // (expressed in 840px reference units); auto-fit shrinks it if needed.
       typesetting: {
         ...DEFAULT_TYPESETTING,
-        fontSize: Math.round(Math.max(10, Math.min(48, (b.fontSizePx * 840) / w)) * 2) / 2,
+        fontFamily: sourceLanguage === 'ja' ? 'Noto Serif' : 'Archivo',
+        fontWeight: 400,
+        fontSize: Math.round(Math.max(11, Math.min(32, ((b.measurement.glyphHeight / 0.72) * 840) / w)) * 2) / 2,
         align: b.shape === 'box' ? 'left' : 'center',
       },
       ambiguityNote: b.score < 0.5 ? 'Detected with low certainty — check this is really a text region.' : undefined,

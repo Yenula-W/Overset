@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { planById } from '@/lib/billing';
 import { comicProvider, aiConfigured } from '@/lib/providers/comic';
 import type { TranslationContext } from '@/lib/providers/types';
+import { analyzeLettering } from '@/lib/imaging/lettering-core';
 import { DEFAULT_TYPESETTING, type DialogueRegion } from '@/lib/types/domain';
 import type { ChapterRecord, ProjectRecord, PageRecord, CharacterRecord, GlossaryRecord, MemoryRecord, UserRecord } from '@/lib/store/schema';
 import { PAGES_BUCKET } from '@/lib/supabase/config';
@@ -62,19 +63,38 @@ export async function processPage(chapterId: string, input: z.infer<typeof proce
         const height = Math.min(tileHeight,page.height-y);
         const selected = page.regions.filter(r=>{const center=(r.bounds.y+r.bounds.height/2)*page.height/100;return center>=y&&center<y+height;});
         const pending = selected.filter(r=>!r.sourceText.trim()&&r.status!=='approved'&&r.status!=='edited');
-        if (page.regions.length && !pending.length) continue;
+
         const png = await sharp(original,{limitInputPixels:100_000_000}).extract({left:0,top:y,width:page.width,height}).resize({width:1600,height:2400,fit:'inside',withoutEnlargement:true}).png().toBuffer();
         const boxes = pending.map(r=>({id:r.id,bounds:{...r.bounds,y:Math.max(0,(r.bounds.y*page.height/100-y)/height*100),height:Math.min(100-Math.max(0,(r.bounds.y*page.height/100-y)/height*100),r.bounds.height*page.height/height)}}));
         const output = await provider.readPage(png,boxes,chapter.sourceLanguage);
         tokensIn+=output.inputTokens; tokensOut+=output.outputTokens; model=output.model;
         for (const detected of output.data.regions) {
           const existing = pending.find(r=>r.id===detected.id);
-          if (page.regions.length && !existing) continue;
-          if (existing) next=next.map(r=>r.id===existing.id?{...r,sourceText:detected.text,romanization:detected.romanization,ocrConfidence:detected.confidence}:r);
-          else newRegions.push({id:`rgn_${randomUUID()}`,pageId:page.id,bounds:{...detected.bounds,y:(y+detected.bounds.y*height/100)/page.height*100,height:detected.bounds.height*height/page.height},type:detected.type,readingOrder:newRegions.length+1,sourceLanguage:chapter.sourceLanguage,sourceText:detected.text,romanization:detected.romanization,literalTranslation:'',finalTranslation:'',alternatives:[],ocrConfidence:detected.confidence,translationConfidence:0,status:'untranslated',embeddedInArtwork:detected.embeddedInArtwork,translate:detected.type!=='sfx'||chapter.preferences.translateSfx,contextUsed:[],typesetting:{...DEFAULT_TYPESETTING}});
+          const category=detected.fontCategory;
+          const fontFamily=category==='serif'?'Noto Serif':category==='handwritten'?'Comic Neue':category==='display'?'Bangers':category==='sans'?'Archivo':chapter.sourceLanguage==='ja'?'Noto Serif':'Archivo';
+          const fontWeight=detected.fontWeight==='bold'?700:400;
+          const bounds={...detected.bounds,y:(y+detected.bounds.y*height/100)/page.height*100,height:detected.bounds.height*height/page.height};
+          let fontSize=DEFAULT_TYPESETTING.fontSize;
+          if(!detected.embeddedInArtwork){
+            const left=Math.max(0,Math.floor(bounds.x*page.width/100)),top=Math.max(0,Math.floor(bounds.y*page.height/100));
+            const width=Math.min(page.width-left,Math.ceil(bounds.width*page.width/100)),heightPx=Math.min(page.height-top,Math.ceil(bounds.height*page.height/100));
+            if(width>0&&heightPx>0&&width*heightPx<=4_000_000){
+              const pixels=await sharp(original,{limitInputPixels:100_000_000}).extract({left,top,width,height:heightPx}).toColourspace('srgb').ensureAlpha().raw().toBuffer();
+              const measured=analyzeLettering(pixels,width,heightPx);
+              if(measured.glyphHeight)fontSize=Math.round(Math.max(11,Math.min(40,measured.glyphHeight/0.72*840/page.width))*2)/2;
+            }
+          }
+          // Never duplicate protected human regions, including OCR already reviewed.
+          if(!existing&&page.regions.some(r=>{
+            const overlap=Math.max(0,Math.min(r.bounds.x+r.bounds.width,bounds.x+bounds.width)-Math.max(r.bounds.x,bounds.x))*Math.max(0,Math.min(r.bounds.y+r.bounds.height,bounds.y+bounds.height)-Math.max(r.bounds.y,bounds.y));
+            return overlap/Math.min(r.bounds.width*r.bounds.height,bounds.width*bounds.height)>0.35;
+          }))continue;
+          if (existing) next=next.map(r=>r.id===existing.id?{...r,sourceText:detected.text,romanization:detected.romanization,ocrConfidence:detected.confidence,typesetting:r.typesetting.fontSource==='manual'?r.typesetting:{...r.typesetting,fontFamily,fontWeight,fontSize,fontSource:'matched'}}:r);
+          else newRegions.push({id:`rgn_${randomUUID()}`,pageId:page.id,bounds,type:detected.type,readingOrder:newRegions.length+1,sourceLanguage:chapter.sourceLanguage,sourceText:detected.text,romanization:detected.romanization,literalTranslation:'',finalTranslation:'',alternatives:[],ocrConfidence:detected.confidence,translationConfidence:0,status:'untranslated',embeddedInArtwork:detected.embeddedInArtwork,translate:detected.type!=='sfx'||chapter.preferences.translateSfx,contextUsed:[],typesetting:{...DEFAULT_TYPESETTING,fontFamily,fontWeight,fontSize,fontSource:'matched'}});
         }
       }
-      if (!page.regions.length) next=newRegions;
+      next=[...next,...newRegions].map((r,i)=>({...r,readingOrder:i+1}));
+      if(next.length>150)throw new ServiceError('region_limit','More than 150 text regions were found. Split the page before processing.',422);
     } else {
       const [glossary,characters,memory,pages] = await Promise.all([
         records<GlossaryRecord>(db,'glossary',page.ownerId,'projectId',project.id),records<CharacterRecord>(db,'characters',page.ownerId,'projectId',project.id),records<MemoryRecord>(db,'memory',page.ownerId,'projectId',project.id),records<PageRecord>(db,'pages',page.ownerId,'chapterId',chapter.id),

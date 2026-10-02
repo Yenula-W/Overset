@@ -77,6 +77,7 @@ export function ProjectCard({
           </dd>
         </div>
       </dl>
+      <span className="mt-4 text-[12.5px] font-medium text-accent">Open project →</span>
     </Link>
   );
 }

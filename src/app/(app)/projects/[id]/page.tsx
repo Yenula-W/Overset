@@ -144,7 +144,8 @@ export default function ProjectPage() {
                           {stats.pageCount} {stats.pageCount === 1 ? 'page' : 'pages'} · {formatNumber(stats.approved)} / {formatNumber(stats.regionCount)} regions approved
                         </p>
                       </Link>
-                      <div className="w-28">
+                      <Button href={`/translate/editor?chapter=${c.id}`} variant="secondary" size="sm">Review pages →</Button>
+                      <div className="hidden w-20 xl:block">
                         <Progress value={stats.progress} label={`${c.name} progress`} />
                       </div>
                       <StatusBadge tone={tone.tone} label={tone.label} />
@@ -170,14 +171,16 @@ export default function ProjectPage() {
             )}
           </Card>
 
-          <ProjectPreferences
+          <details className="rounded-xl border border-line bg-white p-4">
+            <summary className="cursor-pointer text-[14px] font-medium">Translation preferences</summary>
+            <div className="mt-4"><ProjectPreferences
             readOnly={!workspace.canEdit}
             preferences={project.preferences}
             onSave={async (preferences) => {
               await updateProject(workspace.id, project.id, { preferences });
               toast({ message: 'Preferences saved. New chapters will use them.', tone: 'ok' });
             }}
-          />
+          /></div></details>
         </div>
 
         <div className="space-y-6">

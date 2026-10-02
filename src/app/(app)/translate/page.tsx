@@ -7,11 +7,10 @@ import { AppShellPage, PageHeader } from '@/components/app/page-header';
 import { UploadZone, type UploadItem } from '@/components/app/upload-zone';
 import { ProcessingScreen } from '@/components/app/processing';
 import { Button, Card, CardBody, Checkbox, Field, Input, Select } from '@/components/ui';
-import { planById } from '@/lib/billing';
 import { processChapter, STAGES, type StageView } from '@/lib/processing';
 import type { IngestProblem } from '@/lib/imaging/ingest';
 import { useLiveQuery, useUser, useActiveWorkspace } from '@/lib/store/hooks';
-import { createChapter, createProject, getUsage, listChapters, listProjects } from '@/lib/store/repo';
+import { createChapter, createProject, listChapters, listProjects } from '@/lib/store/repo';
 import {
   DEFAULT_TRANSLATION_PREFERENCES,
   LANGUAGE_LABELS,
@@ -19,7 +18,7 @@ import {
   type TranslationPreferences,
   type TranslationStyle,
 } from '@/lib/types/domain';
-import { cn, formatNumber } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 
 const STEPS = ['Upload', 'Settings', 'Process', 'Review'];
 const NEW_PROJECT = '__new__';
@@ -119,14 +118,8 @@ export default function TranslatePage() {
       }
       setResult({ chapterId: chapter.id, projectId: project.id });
       setStep(3);
+      router.push(`/translate/editor?chapter=${chapter.id}`);
 
-      const plan = planById(workspace.plan);
-      const usage = await getUsage(workspace.id);
-      if (usage.pagesProcessed > plan.pageAllowance) {
-        setOverAllowance(
-          `You’ve processed ${formatNumber(usage.pagesProcessed)} pages this month, over the ${plan.name} plan’s ${formatNumber(plan.pageAllowance)}. Billing isn’t connected yet, so nothing was blocked.`,
-        );
-      }
     } catch (err) {
       setFailed(err instanceof Error ? err.message : 'Processing stopped unexpectedly.');
     }

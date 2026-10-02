@@ -118,6 +118,31 @@ export function Inspector({
           />
         </div>
 
+        <TextField
+          refEl={sourceRef}
+          label="Source text"
+          hint="Read source text with OCR, or edit it here."
+          value={region.sourceText}
+          rows={2}
+          onFocus={(v) => (focusValue.current = v)}
+          onChange={(v) => onChange({ sourceText: v })}
+          onBlur={(v) => onCommit('sourceText', focusValue.current, v)}
+        />
+
+        <TextField
+          refEl={finalRef}
+          label="Translation · live preview"
+          value={region.finalTranslation}
+          rows={3}
+          onFocus={(v) => (focusValue.current = v)}
+          // Any edit needs a fresh approval — including edits to an approved line.
+          onChange={(v) => onChange({ finalTranslation: v, status: v.trim() ? 'edited' : 'untranslated' })}
+          onBlur={(v) => onCommit('finalTranslation', focusValue.current, v)}
+        />
+
+        <details className="rounded-lg border border-editor-line p-3">
+          <summary className="cursor-pointer text-[12px] text-editor-muted">Alternatives &amp; story context</summary>
+          <div className="mt-3 space-y-4">
         {speaker && (
           <div className="rounded-lg bg-editor-panel px-3 py-2.5">
             <div className="flex items-start gap-2">
@@ -139,17 +164,6 @@ export function Inspector({
           </div>
         )}
 
-        <TextField
-          refEl={sourceRef}
-          label="Source text"
-          hint="Read source text with OCR, or edit it here."
-          value={region.sourceText}
-          rows={2}
-          onFocus={(v) => (focusValue.current = v)}
-          onChange={(v) => onChange({ sourceText: v })}
-          onBlur={(v) => onCommit('sourceText', focusValue.current, v)}
-        />
-
         {region.romanization && (
           <Block label="Romanization">
             <p className="text-[12px] italic leading-relaxed text-editor-muted">{region.romanization}</p>
@@ -160,17 +174,6 @@ export function Inspector({
             <p className="text-[13px] leading-relaxed text-editor-muted">{region.literalTranslation}</p>
           </Block>
         )}
-
-        <TextField
-          refEl={finalRef}
-          label="Final translation"
-          value={region.finalTranslation}
-          rows={3}
-          onFocus={(v) => (focusValue.current = v)}
-          // Any edit needs a fresh approval — including edits to an approved line.
-          onChange={(v) => onChange({ finalTranslation: v, status: v.trim() ? 'edited' : 'untranslated' })}
-          onBlur={(v) => onCommit('finalTranslation', focusValue.current, v)}
-        />
 
         {terms.length > 0 && (
           <Block label="Glossary in this line">
@@ -262,6 +265,8 @@ export function Inspector({
           </Block>
         )}
 
+          </div>
+        </details>
         <div className="space-y-2 rounded-lg bg-editor-panel px-3 py-2.5">
           <Toggle label="Translate this region" checked={region.translate} onChange={(v) => onChange({ translate: v })} />
           <Toggle

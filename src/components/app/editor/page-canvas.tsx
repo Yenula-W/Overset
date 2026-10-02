@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { measureFit, renderPage, type RenderMode } from '@/lib/imaging/render';
+import { fontString, measureFit, renderPage, sourceLayout, type RenderMode } from '@/lib/imaging/render';
 import { REGION_TYPE_LABELS, type DialogueRegion, type Rect } from '@/lib/types/domain';
 import { cn } from '@/lib/utils';
 
@@ -39,8 +39,12 @@ export function PageCanvas({
   onBoundsChange,
   onBoundsCommit,
   readOnly = false,
+  onTextChange,
+  onTextCommit,
 }: {
   readOnly?: boolean;
+  onTextChange?: (id:string,text:string)=>void;
+  onTextCommit?: (id:string,before:string,after:string)=>void;
   image: ImageBitmap | null;
   width: number;
   height: number;
@@ -57,6 +61,9 @@ export function PageCanvas({
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
   const overlayRef = React.useRef<HTMLDivElement>(null);
   const [drag, setDrag] = React.useState<Drag | null>(null);
+  const [editingId,setEditingId]=React.useState<string|null>(null);
+  const beforeText=React.useRef('');
+  const [renderError,setRenderError]=React.useState('');
   const [rendering, setRendering] = React.useState(false);
 
   // Re-render the page whenever its content or the view changes.
@@ -64,12 +71,15 @@ export function PageCanvas({
     if (!image || !canvasRef.current) return;
     let cancelled = false;
     const t = setTimeout(async () => {
-      setRendering(true);
+      setRendering(true);setRenderError('');
       try {
         const canvas = canvasRef.current;
         if (!canvas || cancelled) return;
-        await renderPage(image, regions, view, canvas);
-      } finally {
+        const rendered=await renderPage(image,regions,view,undefined,editingId??undefined);
+        if(cancelled)return;
+        canvas.width=rendered.width;canvas.height=rendered.height;
+        canvas.getContext('2d')?.drawImage(rendered,0,0);
+      } catch(error){if(!cancelled)setRenderError(error instanceof Error?error.message:'Preview could not be rendered. Reopen this page.');} finally {
         if (!cancelled) setRendering(false);
       }
     }, view === 'original' ? 0 : 120);
@@ -77,7 +87,9 @@ export function PageCanvas({
       cancelled = true;
       clearTimeout(t);
     };
-  }, [image, regions, view]);
+  }, [image, regions, view, editingId]);
+
+  React.useEffect(()=>{setEditingId(null);},[image,view,selectedId]);
 
   function toPercent(e: React.PointerEvent) {
     const rect = overlayRef.current!.getBoundingClientRect();
@@ -89,18 +101,19 @@ export function PageCanvas({
 
   function onPointerDown(e: React.PointerEvent, target?: { id: string; resize?: boolean }) {
     if (e.button !== 0) return;
-    if (readOnly) { onSelect(target?.id ?? null); return; }
+    if (readOnly) { if(target)e.stopPropagation();onSelect(target?.id ?? null); return; }
     const p = toPercent(e);
-    overlayRef.current?.setPointerCapture(e.pointerId);
     if (target) {
       e.stopPropagation();
       const region = regions.find((r) => r.id === target.id);
       if (!region) return;
       onSelect(region.id);
+      if(!target.resize&&!e.shiftKey)return;
+      overlayRef.current?.setPointerCapture(e.pointerId);
       setDrag({ kind: target.resize ? 'resize' : 'move', id: region.id, startX: p.x, startY: p.y, origin: region.bounds });
       return;
     }
-    if (tool === 'draw') setDrag({ kind: 'draw', startX: p.x, startY: p.y, x: p.x, y: p.y });
+    if (tool === 'draw') {overlayRef.current?.setPointerCapture(e.pointerId);setDrag({ kind: 'draw', startX: p.x, startY: p.y, x: p.x, y: p.y });}
     else onSelect(null);
   }
 
@@ -150,7 +163,7 @@ export function PageCanvas({
         style={{ aspectRatio: `${width} / ${height}` }}
       >
         {!image && <div className="absolute inset-0 skeleton" aria-hidden />}
-        <canvas ref={canvasRef} className="absolute inset-0 h-full w-full" aria-label={`Page, ${view} view`} role="img" />
+        <canvas ref={canvasRef} className={cn("absolute inset-0 h-full w-full",!image&&"opacity-0")} aria-label={`Page, ${view} view`} role="img" />
         <div
           ref={overlayRef}
           className={cn('absolute inset-0 touch-none select-none', tool === 'draw' ? 'cursor-crosshair' : 'cursor-default')}
@@ -162,7 +175,8 @@ export function PageCanvas({
           {ordered.map((r, i) => {
             const selected = r.id === selectedId;
             const color = selected ? '#6C63E8' : TYPE_COLOR[r.type] ?? '#6C63E8';
-            const overflow = view === 'translated' && r.finalTranslation.trim() && !measureFit(r, width, height).fits;
+            const layout=image?sourceLayout(image,r):null;
+            const overflow = view === 'translated' && r.finalTranslation.trim() && !measureFit(r, width, height,layout?.analysis.safeBox??undefined).fits;
             return (
               <div
                 key={r.id}
@@ -171,13 +185,14 @@ export function PageCanvas({
                 aria-label={`${REGION_TYPE_LABELS[r.type]} region ${i + 1}${r.finalTranslation ? '' : ', untranslated'}`}
                 aria-pressed={selected}
                 onPointerDown={(e) => onPointerDown(e, { id: r.id })}
+                onDoubleClick={()=>{if(!readOnly&&view==='translated'&&onTextChange&&layout?.analysis.safeBox){beforeText.current=r.finalTranslation;setEditingId(r.id);}}}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
                     onSelect(r.id);
                   }
                 }}
-                className={cn('absolute rounded-[3px] transition-opacity', tool === 'draw' ? 'pointer-events-none' : 'cursor-move')}
+                className={cn('absolute rounded-[3px] transition-opacity', tool === 'draw' ? 'pointer-events-none' : 'cursor-pointer')}
                 style={{
                   left: `${r.bounds.x}%`,
                   top: `${r.bounds.y}%`,
@@ -194,7 +209,7 @@ export function PageCanvas({
                 >
                   {String(i + 1).padStart(2, '0')}
                   {r.status === 'approved' ? ' ✓' : ''}
-                  {overflow ? ' ⚠' : ''}
+                  {overflow || (r.finalTranslation&&!r.artworkCleanup&&!layout?.analysis.safeBox) ? ' ⚠' : ''}
                 </span>
                 {selected && tool === 'select' && (
                   <span
@@ -206,6 +221,15 @@ export function PageCanvas({
               </div>
             );
           })}
+          {editingId && (()=>{
+            const r=regions.find(r=>r.id===editingId),layout=r&&image?sourceLayout(image,r):null,area=layout?.analysis.safeBox;
+            if(!r||!layout||!area)return null;
+            const finish=()=>{onTextCommit?.(r.id,beforeText.current,r.finalTranslation);setEditingId(null);};
+            const fit=measureFit(r,width,height,area);
+            return <div className="absolute" style={{left:`${(layout.x+area.x)/width*100}%`,top:`${(layout.y+area.y)/height*100}%`,width:`${area.width/width*100}%`,height:`${area.height/height*100}%`}} onPointerDown={e=>e.stopPropagation()}>
+              <textarea autoFocus aria-label="Edit translation on page" value={r.finalTranslation} onChange={e=>onTextChange?.(r.id,e.target.value)} onBlur={finish} onKeyDown={e=>{e.stopPropagation();if(e.key==='Escape'||((e.metaKey||e.ctrlKey)&&e.key==='Enter')){e.preventDefault();finish();}}} className="h-full w-full resize-none rounded-sm border-2 border-accent bg-white/90 p-1 text-ink shadow-lg focus:outline-none" style={{font:fontString(r,Math.max(12,fit.fontSizePx*(overlayRef.current?.clientWidth??width)/width)),lineHeight:r.typesetting.lineHeight,textAlign:r.typesetting.align}} />
+            </div>;
+          })()}
           {drag?.kind === 'draw' && (
             <div
               className="pointer-events-none absolute border-2 border-dashed border-accent bg-accent/10"
@@ -218,6 +242,7 @@ export function PageCanvas({
             />
           )}
         </div>
+        {renderError&&<p role="alert" className="absolute inset-x-2 top-2 rounded bg-dangerSoft p-3 text-[12px] text-danger">{renderError}</p>}
         {rendering && view !== 'original' && (
           <span className="pointer-events-none absolute right-2 top-2 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white">Rendering…</span>
         )}
