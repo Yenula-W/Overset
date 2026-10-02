@@ -5,6 +5,7 @@ import { Check, Minus, X } from 'lucide-react';
 import { Button, Progress } from '@/components/ui';
 import type { StageView } from '@/lib/processing';
 import type { IngestProblem } from '@/lib/imaging/ingest';
+import { processingSummary } from '@/lib/processing-view';
 import { cn } from '@/lib/utils';
 
 /**
@@ -20,6 +21,9 @@ export function ProcessingScreen({
   problems,
   overAllowance,
   onOpenEditor,
+  canOpenEditor,
+  onRetry,
+  retrying,
   onBack,
 }: {
   chapterName: string;
@@ -30,6 +34,9 @@ export function ProcessingScreen({
   problems: IngestProblem[];
   overAllowance: string | null;
   onOpenEditor: () => void;
+  canOpenEditor: boolean;
+  onRetry?: () => void;
+  retrying: boolean;
   onBack: () => void;
 }) {
   const pct = progress.total ? (progress.done / progress.total) * 100 : 0;
@@ -37,7 +44,7 @@ export function ProcessingScreen({
   return (
     <div className="mx-auto max-w-xl py-6">
       <h1 className="text-[26px] font-semibold tracking-[-0.03em]">
-        {failed ? `${chapterName} couldn’t be processed` : done ? `${chapterName} is ready` : `Processing ${chapterName}`}
+        {failed ? (canOpenEditor ? 'Your pages are saved' : 'Upload needs attention') : done ? `${chapterName} is ready` : `Processing ${chapterName}`}
       </h1>
       <p className="mt-2 text-[14px] text-ink-muted" aria-live="polite">
         {failed ? failed : done ? 'Review and edit the translated pages before exporting.' : progress.label || 'Starting…'}
@@ -46,7 +53,7 @@ export function ProcessingScreen({
       {!done && !failed && <Progress value={pct} className="mt-5" label="Processing progress" />}
 
       <ul className="mt-8 space-y-3" aria-live="polite">
-        {stages.map((s) => (
+        {processingSummary(stages).map((s) => (
           <li key={s.id} className="flex items-start gap-3 text-[14px]">
             <span
               aria-hidden
@@ -73,6 +80,13 @@ export function ProcessingScreen({
         ))}
       </ul>
 
+      <details className="mt-5 text-[12.5px] text-ink-muted">
+        <summary className="cursor-pointer">Processing details</summary>
+        <ul className="mt-3 space-y-2">
+          {stages.filter(s => s.state !== 'pending').map(s => <li key={s.id}><span className="font-medium">{s.label}</span> · {s.state}{s.state !== 'failed' && s.message ? ` — ${s.message}` : ''}</li>)}
+        </ul>
+      </details>
+
       {problems.length > 0 && (
         <div className="mt-7 rounded-xl border border-warn/30 bg-warnSoft px-4 py-3.5">
           <p className="text-[13px] font-medium">
@@ -92,14 +106,13 @@ export function ProcessingScreen({
 
       {(done || failed) && (
         <div className="mt-8 flex flex-wrap gap-2">
-          {done && (
+          {canOpenEditor && (
             <Button size="lg" onClick={onOpenEditor}>
-              Open in editor
+              Review pages
             </Button>
           )}
-          <Button size="lg" variant="secondary" onClick={onBack}>
-            {failed ? 'Try again' : 'Back to project'}
-          </Button>
+          {failed && onRetry && <Button size="lg" variant="secondary" onClick={onRetry} loading={retrying}>Retry saved pages</Button>}
+          <Button size="lg" variant="ghost" onClick={onBack}>Back</Button>
         </div>
       )}
     </div>

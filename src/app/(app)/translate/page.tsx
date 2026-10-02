@@ -58,6 +58,8 @@ export default function TranslatePage() {
   const [failed, setFailed] = React.useState<string | null>(null);
   const [problems, setProblems] = React.useState<IngestProblem[]>([]);
   const [overAllowance, setOverAllowance] = React.useState<string | null>(null);
+  const starting = React.useRef(false);
+  const [retrying, setRetrying] = React.useState(false);
   const [processingName, setProcessingName] = React.useState('your chapter');
 
   // Pick a project: ?project= wins, then the most recent one, else "new".
@@ -79,11 +81,14 @@ export default function TranslatePage() {
   }, [projectId, projects.data]);
 
   async function start() {
+    if (starting.current) return;
     setFormError(null);
     if (projectId === NEW_PROJECT && !newProjectName.trim()) {
       setFormError('Name the new project.');
       return;
     }
+    starting.current = true;
+    setResult(null);
     setStep(2);
     setStages(STAGES.map((s) => ({ ...s, state: 'pending' })));
     setFailed(null);
@@ -102,6 +107,7 @@ export default function TranslatePage() {
         preferences: chapterPrefs,
       });
       setProcessingName(chapter.name);
+      setResult({ chapterId: chapter.id, projectId: project.id });
       const res = await processChapter({
         ownerId: workspace.id,
         chapterId: chapter.id,
@@ -122,7 +128,20 @@ export default function TranslatePage() {
 
     } catch (err) {
       setFailed(err instanceof Error ? err.message : 'Processing stopped unexpectedly.');
-    }
+    } finally { starting.current = false; }
+  }
+
+  async function retrySaved() {
+    if (!result || starting.current) return;
+    starting.current = true; setRetrying(true); setFailed(null);
+    try {
+      await processChapter({ ownerId: workspace.id, chapterId: result.chapterId, files: [], resume: true, sourceLanguage: source, detect,
+        onStage: (id, state, message) => setStages(prev => prev.map(s => s.id === id ? { ...s, state, message } : s)),
+        onProgress: (done, total, label) => setProgress({ done, total, label }),
+      });
+      setStep(3); router.push(`/translate/editor?chapter=${result.chapterId}`);
+    } catch (error) { setFailed(error instanceof Error ? error.message : 'Your saved pages could not finish. Open the editor or retry.'); }
+    finally { starting.current = false; setRetrying(false); }
   }
 
   const processing = step >= 2;
@@ -223,8 +242,8 @@ export default function TranslatePage() {
                   </div>
                 </div>
 
-                <div className="border-t border-line pt-5">
-                  <p className="text-[13px] font-medium">Advanced</p>
+                <details className="border-t border-line pt-5">
+                  <summary className="cursor-pointer text-[13px] font-medium">Translation options</summary>
                   <div className="mt-3 grid gap-2.5 sm:grid-cols-2">
                     <Checkbox
                       label="Detect speech bubbles on this device"
@@ -241,11 +260,7 @@ export default function TranslatePage() {
                       />
                     ))}
                   </div>
-                  <p className="mt-4 text-[12.5px] leading-relaxed text-ink-faint">
-                    Automatic OCR and AI translation need an AI provider, which isn’t connected yet. Everything else —
-                    detection, cleaning, typesetting, QA, and export — runs here.
-                  </p>
-                </div>
+                </details>
               </CardBody>
             </Card>
             <div className="mt-5 flex justify-between">
@@ -253,7 +268,7 @@ export default function TranslatePage() {
                 Back
               </Button>
               <Button size="lg" onClick={() => void start()} disabled={!projects.data}>
-                Process chapter
+                Translate & preview
                 <ArrowRight size={16} />
               </Button>
             </div>
@@ -269,11 +284,14 @@ export default function TranslatePage() {
             failed={failed}
             problems={problems}
             overAllowance={overAllowance}
+            canOpenEditor={Boolean(result) && stages.some(s => s.id === 'upload' && s.state === 'complete')}
+            onRetry={result && stages.some(s => s.id === 'upload' && s.state === 'complete') ? () => void retrySaved() : undefined}
+            retrying={retrying}
             onOpenEditor={() => result && router.push(`/translate/editor?chapter=${result.chapterId}`)}
             onBack={() => {
               if (failed) {
-                setStep(1);
-                setFailed(null);
+                if (result) router.push(`/projects/${result.projectId}`);
+                else { setStep(1); setFailed(null); }
               } else if (result) router.push(`/projects/${result.projectId}`);
             }}
           />

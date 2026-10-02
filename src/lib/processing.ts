@@ -44,6 +44,7 @@ export async function processChapter(input: {
   ownerId: string;
   chapterId: string;
   files: File[];
+  resume?: boolean;
   sourceLanguage: LanguageCode;
   detect: boolean;
   onStage: (id: string, state: StageState, message?: string) => void;
@@ -51,7 +52,11 @@ export async function processChapter(input: {
 }): Promise<ProcessResult> {
   const { ownerId, chapterId, onStage, onProgress } = input;
   const chapter = await getChapter(ownerId, chapterId);
-  const stages: Record<string, { state: StageState; message?: string }> = {};
+  const stages: Record<string, { state: StageState; message?: string }> = input.resume ? { ...chapter.stages } : {};
+  if (input.resume) for (const [id, stage] of Object.entries(stages)) {
+    if (stage.state === 'failed' || stage.state === 'running') stages[id] = { state: 'pending' };
+    onStage(id, stages[id].state, stages[id].message);
+  }
   const mark = (id: string, state: StageState, message?: string) => {
     stages[id] = { state, message };
     onStage(id, state, message);
@@ -60,24 +65,35 @@ export async function processChapter(input: {
   try {
     await updateChapter(ownerId, chapterId, { status: 'processing' });
 
-    // Upload: decode every file into pages and store originals untouched.
-    mark('upload', 'running');
-    const { pages: ingested, problems } = await ingestFiles(input.files, (d, t, label) => onProgress(d, Math.max(t, 1), label));
-    if (ingested.length === 0) {
-      mark('upload', 'failed', problems[0]?.reason ?? 'No pages could be read from these files.');
-      await updateChapter(ownerId, chapterId, { status: 'failed', stages });
-      return { pageCount: 0, regionCount: 0, problems, findings: [] };
+    // Resuming uses the saved originals and never uploads or bills them twice.
+    let saved = input.resume ? await listPages(ownerId, chapterId) : [];
+    let ingested: Awaited<ReturnType<typeof ingestFiles>>['pages'] = [];
+    let problems: IngestProblem[] = [];
+    if (input.resume && !saved.length) throw new Error('No saved pages are available. Start a new upload.');
+    if (!input.resume) {
+      mark('upload', 'running');
+      const imported = await ingestFiles(input.files, (d, t, label) => onProgress(d, Math.max(t, 1), label));
+      ingested = imported.pages; problems = imported.problems;
+      if (!ingested.length) {
+        mark('upload', 'failed', problems[0]?.reason ?? 'No pages could be read from these files.');
+        await updateChapter(ownerId, chapterId, { status: 'failed', stages });
+        return { pageCount: 0, regionCount: 0, problems, findings: [] };
+      }
+      saved = await addPages(ownerId, chapterId, ingested);
+      await recordUsage(ownerId, { pagesProcessed: saved.length });
     }
-    const saved = await addPages(ownerId, chapterId, ingested);
-    await recordUsage(ownerId, { pagesProcessed: saved.length });
-    mark('upload', 'complete', `Saved ${saved.length} ${saved.length === 1 ? 'page' : 'pages'}${problems.length ? ` · ${problems.length} skipped` : ''}`);
+    mark('upload', 'complete', `${saved.length} ${saved.length === 1 ? 'page' : 'pages'} saved`);
 
     const sizes = new Set(saved.map((p) => `${p.width} × ${p.height}`));
     mark('dimensions', 'complete', sizes.size === 1 ? `${[...sizes][0]} px, kept on export` : `${sizes.size} page sizes recorded, each kept on export`);
 
     // Detection runs on-device; translators review and adjust every region.
-    let regionCount = 0;
-    if (input.detect) {
+    let regionCount = saved.reduce((sum, p) => sum + p.regions.length, 0);
+    if (input.resume) {
+      // Retain existing regions and all human edits. OCR can find missed regions.
+      mark('detect', 'complete', `${regionCount} saved text regions`);
+      mark('order', 'complete', 'Saved reading order kept');
+    } else if (input.detect) {
       mark('detect', 'running');
       for (let i = 0; i < saved.length; i++) {
         onProgress(i, saved.length, `Detecting bubbles — page ${i + 1} of ${saved.length}`);
@@ -102,12 +118,16 @@ export async function processChapter(input: {
     const services = cloudEnabled ? await callService<{ai:boolean}>('/api/services').catch(() => ({ai:false})) : {ai:false};
     if (services.ai) {
       mark('ocr', 'running');
-      for (const p of saved) { onProgress(p.order, saved.length, `Reading page ${p.order}`); await aiPage(chapterId, p.id, 'ocr'); }
+      for (const p of saved) {
+        if (input.resume && p.regions.length && p.regions.every(r => !r.translate || r.sourceText.trim() || r.status === 'approved' || r.status === 'edited')) continue;
+        onProgress(p.order - 1, saved.length, `Reading page ${p.order} of ${saved.length}`);
+        await aiPage(chapterId, p.id, 'ocr');
+      }
       mark('ocr', 'complete', 'Source text read — review uncertain lines');
       mark('translate', 'running');
       const readPages = await listPages(ownerId, chapterId);
       for (const p of readPages) for (const r of p.regions) {
-        if (r.translate && r.sourceText.trim() && !r.finalTranslation.trim()) {
+        if (r.translate && r.sourceText.trim() && !r.finalTranslation.trim() && r.status !== 'approved' && r.status !== 'edited') {
           onProgress(p.order, saved.length, `Translating page ${p.order}, region ${r.readingOrder}`);
           await aiPage(chapterId, p.id, 'translate', r.id);
         }

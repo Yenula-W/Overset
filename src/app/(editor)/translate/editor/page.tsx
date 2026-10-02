@@ -106,6 +106,7 @@ function Editor({ chapterId }: { chapterId: string }) {
   const [glossaryDraft, setGlossaryDraft] = React.useState<{ original: string; translation: string } | null>(null);
   const [cleanupOpen,setCleanupOpen] = React.useState(false);
   const [aiBusy, setAiBusy] = React.useState(false);
+  const [aiError, setAiError] = React.useState<{message:string;action:'ocr'|'translate'|'regenerate'|'proofread'} | null>(null);
   const [aiMessage, setAiMessage] = React.useState('');
   const [redetectOpen,setRedetectOpen]=React.useState(false);
   const [regenerateOpen, setRegenerateOpen] = React.useState(false);
@@ -115,6 +116,7 @@ function Editor({ chapterId }: { chapterId: string }) {
 
   const pages = data.data?.pages ?? [];
   const page = pages.find((p) => p.id === pageId) ?? pages[0];
+  React.useEffect(() => setAiError(null), [page?.id, selectedId]);
   const regions = React.useMemo(() => (page ? drafts[page.id] ?? page.regions : []), [page, drafts]);
   const ordered = React.useMemo(() => [...regions].sort((a, b) => a.readingOrder - b.readingOrder), [regions]);
   React.useEffect(()=>{
@@ -364,10 +366,12 @@ function Editor({ chapterId }: { chapterId: string }) {
   async function runAi(action: 'ocr' | 'translate' | 'regenerate' | 'proofread') {
     if (!workspace.canEdit || !page || aiBusy) return;
     setAiBusy(true);
+    setAiError(null);
     try {
       await data.flush(page.id);
       setAiMessage(action === 'ocr' ? 'Reading source text…' : action === 'proofread' ? 'Proofreading dialogue…' : 'Translating with project context…');
-      let result = await aiPage(chapterId, page.id, action === 'translate' ? 'ocr' : action, action === 'regenerate' ? region?.id : undefined);
+      const needsReading = regions.length === 0 || regions.some(r => r.translate && !r.sourceText.trim() && r.status !== 'approved' && r.status !== 'edited');
+      let result = action === 'translate' && !needsReading ? {page:{...page,regions},qa:undefined as Array<{regionId:string;message:string}>|undefined} : await aiPage(chapterId, page.id, action === 'translate' ? 'ocr' : action, action === 'regenerate' ? region?.id : undefined);
       if (action === 'translate') {
         for (const r of result.page.regions.slice().sort((a,b)=>a.readingOrder-b.readingOrder)) {
           if (r.translate && r.sourceText.trim() && !r.finalTranslation.trim() && r.status !== 'approved' && r.status !== 'edited') {
@@ -384,7 +388,10 @@ function Editor({ chapterId }: { chapterId: string }) {
         updateRegions(page.id,rs=>rs.map(r=>notes.has(r.id)?{...r,ambiguityNote:[r.ambiguityNote,notes.get(r.id)].filter(Boolean).join(' · ')}:r));
         toast({message:`${result.qa.length} proofreading findings added to region notes.`,tone:'warn'});
       } else toast({message: action==='proofread'?'No proofreading findings.': 'AI results saved. Review each draft before export.',tone:'ok'});
-    } catch(error) { toast({message:error instanceof Error?error.message:'Processing failed. Retry this page.',tone:'warn'}); }
+    } catch(error) {
+      data.reload(); setView('translated');
+      setAiError({message:error instanceof Error?error.message:'Processing stopped. Your saved work is safe.',action});
+    }
     finally { setAiBusy(false);setAiMessage(''); }
   }
 
@@ -546,7 +553,7 @@ function Editor({ chapterId }: { chapterId: string }) {
         {!workspace.canEdit && <span className="text-[11px] text-editor-muted">View only</span>}
         {workspace.canEdit && <div className="flex items-center gap-2 text-[12px]">
 
-          <button disabled={aiBusy || !aiReady} onClick={()=>void runAi('translate')} className="rounded-md bg-accent px-2.5 py-1.5 text-white disabled:opacity-40">Translate page</button>
+          <button disabled={aiBusy || !aiReady} onClick={()=>void runAi('translate')} className="rounded-md bg-accent px-2.5 py-1.5 text-white disabled:opacity-40">{regions.some(r=>r.translate&&r.finalTranslation.trim()) ? 'Translate remaining' : 'Translate page'}</button>
           <details className="relative">
             <summary className="cursor-pointer rounded-md border border-editor-line px-2.5 py-1.5 text-editor-muted">More tools</summary>
             <div className="absolute left-0 top-full z-50 mt-1 grid min-w-44 gap-1 rounded-lg border border-editor-line bg-editor-raised p-2 shadow-xl">
@@ -573,6 +580,11 @@ function Editor({ chapterId }: { chapterId: string }) {
         </button>
       </header>
 
+      {aiError && <div role="alert" className="flex flex-wrap items-center gap-3 border-b border-warn/30 bg-warn/10 px-4 py-3 text-[12.5px]">
+        <p className="min-w-0 flex-1">{aiError.message}</p>
+        <button disabled={aiBusy} onClick={()=>void runAi(aiError.action)} className="rounded-lg border border-editor-line px-3 py-2 disabled:opacity-40">Retry this page</button>
+        <button onClick={()=>setAiError(null)} className="rounded-lg px-3 py-2 text-editor-muted">Keep editing</button>
+      </div>}
       <p className="border-b border-editor-line px-4 py-2 text-[12px] text-editor-muted">1. Translate <span aria-hidden>→</span> 2. Click a bubble to edit and review <span aria-hidden>→</span> 3. Export</p>
       <div className="flex gap-1 border-b border-editor-line px-3 py-2 lg:hidden" role="tablist">
         {MOBILE_TABS.map((t) => (

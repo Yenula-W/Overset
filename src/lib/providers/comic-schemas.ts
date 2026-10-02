@@ -1,0 +1,6 @@
+import { z } from 'zod';
+
+export const rectSchema = z.object({ x: z.number().min(0).max(100), y: z.number().min(0).max(100), width: z.number().positive().max(100), height: z.number().positive().max(100) }).refine(b => b.x + b.width <= 100.01 && b.y + b.height <= 100.01, 'Region falls outside the page');
+const confidence = z.number().min(0).max(100);
+export const ocrSchema = z.object({ regions: z.array(z.object({ id: z.string().max(160).optional(), bounds: rectSchema, type: z.enum(['dialogue','thought','narration','sfx','sign','label','title','background']), text: z.string().max(6000), romanization: z.string().max(6000).optional(), confidence, embeddedInArtwork: z.boolean(), fontCategory:z.enum(['serif','sans','handwritten','display']).optional(),fontWeight:z.enum(['regular','bold']).optional() })).max(150) });
+export const translationSchema = z.object({ literal: z.string().max(12000), recommended: z.string().min(1).max(12000), alternatives: z.array(z.string().max(12000)).max(4), confidence, ambiguityNote: z.string().max(2000).optional(), terminologyUsed: z.array(z.object({ original: z.string().max(1000), translation: z.string().max(1000) })).max(100), culturalNote: z.string().max(2000).optional(), romanization: z.string().max(6000).optional() });
