@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { CheckCircle2, TriangleAlert } from 'lucide-react';
-import { pixelsChangedOutsideRegions, renderPage } from '@/lib/imaging/render';
+import { pixelsChangedOutsideRegions, renderPage, sourceLayout } from '@/lib/imaging/render';
 import type { DialogueRegion } from '@/lib/types/domain';
 import { cn } from '@/lib/utils';
 
@@ -29,7 +29,8 @@ export function CompareView({ image, regions }: { image: ImageBitmap | null; reg
       if (cancelled) return;
       const ctxA = a.getContext('2d', { willReadFrequently: true })!;
       const ctxB = b.getContext('2d', { willReadFrequently: true })!;
-      setChanged(pixelsChangedOutsideRegions(ctxA.getImageData(0, 0, a.width, a.height), ctxB.getImageData(0, 0, b.width, b.height), regions));
+      const bubbles = regions.flatMap((r) => { const l = sourceLayout(image, r), b = l?.analysis.bubbleBox; return l && b ? [{ ...b, x: l.x + b.x, y: l.y + b.y }] : []; });
+      setChanged(pixelsChangedOutsideRegions(ctxA.getImageData(0, 0, a.width, a.height), ctxB.getImageData(0, 0, b.width, b.height), regions, bubbles));
       const toUrl = (c: HTMLCanvasElement) => new Promise<string>((res) => c.toBlob((blob) => res(blob ? URL.createObjectURL(blob) : ''), 'image/png'));
       const [o, t] = await Promise.all([toUrl(a), toUrl(b)]);
       made = [o, t];

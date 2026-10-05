@@ -1,4 +1,5 @@
-import { analyzeLettering, removeLettering, type LetteringAnalysis, type PixelBox } from './lettering-core';
+import type { PixelBox } from './lettering-core';
+import { analyzeBubble, bubbleMargin, fillBubbleText, type BubbleAnalysis } from './bubble-core';
 import { cloneMaskedPixels } from './clone-core';
 import { fitText, usableBox, type FitResult } from './typeset-core';
 import type { DialogueRegion, RegionType } from '@/lib/types/domain';
@@ -7,9 +8,10 @@ import type { DialogueRegion, RegionType } from '@/lib/types/domain';
  * Page renderer shared by the editor preview and export, so what the
  * translator sees is exactly what gets exported.
  *
- * Every paint is clipped to its region's bounds. Pixels outside a text region
- * are never touched, which is the product's central promise, enforced here
- * rather than hoped for.
+ * Text removal repaints only the lettering inside an enclosed speech bubble.
+ * Bubble outlines, their shape and every pixel outside the bubble are never
+ * touched, which is the product's central promise, enforced here rather than
+ * hoped for. A region without a recognisable bubble keeps its source text.
  */
 
 export type RenderMode = 'original' | 'cleaned' | 'translated';
@@ -72,23 +74,29 @@ export function measureFit(region: DialogueRegion, pageW: number, pageH: number,
   );
 }
 
-export interface SourceLayout { x:number; y:number; w:number; h:number; pixels:ImageData; cleaned?:ImageData; analysis:LetteringAnalysis }
+export interface SourceLayout { x:number; y:number; w:number; h:number; pixels:ImageData; cleaned?:ImageData; analysis:BubbleAnalysis }
 const layouts = new WeakMap<object, Map<string,SourceLayout>>();
+/**
+ * The region's bubble, analysed on a crop that extends past the region so the
+ * outline is visible. Coordinates in the result are relative to the crop.
+ */
 export function sourceLayout(image: ImageBitmap | HTMLImageElement, region:DialogueRegion):SourceLayout|null {
   const w='naturalWidth' in image?image.naturalWidth:image.width;
   const h='naturalHeight' in image?image.naturalHeight:image.height;
   const px=regionPx(region,w,h);
-  const x=Math.max(0,Math.floor(px.x)),y=Math.max(0,Math.floor(px.y));
-  const rw=Math.max(0,Math.min(w-x,Math.ceil(px.x+px.w)-x)),rh=Math.max(0,Math.min(h-y,Math.ceil(px.y+px.h)-y));
-  if(!rw||!rh||rw*rh>4_000_000)return null;
+  const margin=bubbleMargin(px.w,px.h);
+  const x=Math.max(0,Math.floor(px.x-margin)),y=Math.max(0,Math.floor(px.y-margin));
+  const rw=Math.max(0,Math.min(w,Math.ceil(px.x+px.w+margin))-x),rh=Math.max(0,Math.min(h,Math.ceil(px.y+px.h+margin))-y);
+  if(!rw||!rh||rw*rh>8_000_000)return null;
   let cache=layouts.get(image);if(!cache){cache=new Map();layouts.set(image,cache);}
-  const key=`${x}:${y}:${rw}:${rh}`;
+  const key=`${px.x.toFixed(1)}:${px.y.toFixed(1)}:${px.w.toFixed(1)}:${px.h.toFixed(1)}`;
   if(cache.has(key))return cache.get(key)!;
   const canvas=document.createElement('canvas');canvas.width=rw;canvas.height=rh;
   const ctx=canvas.getContext('2d',{willReadFrequently:true});if(!ctx)return null;
   ctx.drawImage(image,-x,-y);
   const pixels=ctx.getImageData(0,0,rw,rh);
-  const layout={x,y,w:rw,h:rh,pixels,analysis:analyzeLettering(pixels.data,rw,rh)};
+  const analysis=analyzeBubble(pixels.data,rw,rh,{x:px.x-x,y:px.y-y,width:px.w,height:px.h});
+  const layout={x,y,w:rw,h:rh,pixels,analysis};
   // Bound cached working areas during repeated manual resizing.
   if(cache.size>=160)cache.clear();cache.set(key,layout);
   return layout;
@@ -98,7 +106,7 @@ function clipTo(ctx:CanvasRenderingContext2D,px:{x:number;y:number;w:number;h:nu
 }
 function cleanRegion(ctx:CanvasRenderingContext2D,layout:SourceLayout){
  const pixels=layout.cleaned??new ImageData(layout.pixels.data.slice(),layout.w,layout.h);
- if(!layout.cleaned){removeLettering(pixels.data,layout.w,layout.h,layout.analysis);layout.cleaned=pixels;}
+ if(!layout.cleaned){fillBubbleText(pixels.data,layout.w,layout.h,layout.analysis);layout.cleaned=pixels;}
  const current=ctx.getImageData(layout.x,layout.y,layout.w,layout.h);
  for(let i=0;i<layout.analysis.mask.length;i++)if(layout.analysis.mask[i])for(let c=0;c<4;c++)current.data[i*4+c]=pixels.data[i*4+c];
  ctx.putImageData(current,layout.x,layout.y);
@@ -207,14 +215,14 @@ export async function renderPage(
 }
 
 /**
- * Counts pixels that differ between two renders outside every region. This is
- * the compare tool's artwork-preservation check.
+ * Counts pixels that differ between two renders outside every region and the
+ * bubble interiors cleaned for them. This is the compare tool's
+ * artwork-preservation check.
  */
-export function pixelsChangedOutsideRegions(a: ImageData, b: ImageData, regions: DialogueRegion[]) {
+export function pixelsChangedOutsideRegions(a: ImageData, b: ImageData, regions: DialogueRegion[], bubbles: PixelBox[] = []) {
   const { width: w, height: h } = a;
   const mask = new Uint8Array(w * h);
-  for (const r of regions) {
-    const px = regionPx(r, w, h);
+  for (const px of [...regions.map((r) => regionPx(r, w, h)), ...bubbles.map((b) => ({ x: b.x, y: b.y, w: b.width, h: b.height }))]) {
     const x0 = Math.max(0, Math.floor(px.x) - 1), y0 = Math.max(0, Math.floor(px.y) - 1);
     const x1 = Math.min(w, Math.ceil(px.x + px.w) + 1), y1 = Math.min(h, Math.ceil(px.y + px.h) + 1);
     for (let y = y0; y < y1; y++) mask.fill(1, y * w + x0, y * w + x1);
