@@ -10,6 +10,9 @@ import { translationFrame } from '@/lib/providers/visual-context';
 import { readingOrder } from '@/lib/imaging/detect-core';
 import { analyzeLettering } from '@/lib/imaging/lettering-core';
 import { assessPageQuality } from '@/lib/imaging/quality-core';
+import { analyzeBubble, bubbleMargin } from '@/lib/imaging/bubble-core';
+import { matchCandidate, overlapRatio } from '@/lib/imaging/ocr-match';
+import type { Rect } from '@/lib/types/domain';
 import { DEFAULT_TYPESETTING, type DialogueRegion } from '@/lib/types/domain';
 import type { ChapterRecord, ProjectRecord, PageRecord, CharacterRecord, GlossaryRecord, MemoryRecord, UserRecord } from '@/lib/store/schema';
 import { PAGES_BUCKET } from '@/lib/supabase/config';
@@ -76,17 +79,28 @@ export async function processPage(chapterId: string, input: z.infer<typeof proce
         const pending = selected.filter(r=>!r.sourceText.trim()&&r.status!=='approved'&&r.status!=='edited');
 
         const png = await sharp(original,{limitInputPixels:100_000_000}).extract({left:0,top:y,width:page.width,height}).resize({width:1600,height:2400,fit:'inside',withoutEnlargement:true}).png().toBuffer();
-        const boxes = pending.map(r=>({id:r.id,bounds:{...r.bounds,y:Math.max(0,(r.bounds.y*page.height/100-y)/height*100),height:Math.min(100-Math.max(0,(r.bounds.y*page.height/100-y)/height*100),r.bounds.height*page.height/height)}}));
-        const output = await provider.readPage(png,boxes,chapter.sourceLanguage);
+        const boxes = pending.map((r,i)=>({id:r.id,label:i+1,bounds:{...r.bounds,y:Math.max(0,(r.bounds.y*page.height/100-y)/height*100),height:Math.min(100-Math.max(0,(r.bounds.y*page.height/100-y)/height*100),r.bounds.height*page.height/height)}}));
+        const output = await provider.readPage(png,boxes,chapter.sourceLanguage,boxes.length?await annotate(png,boxes):undefined);
         tokensIn+=output.inputTokens; tokensOut+=output.outputTokens; model=output.model;
+        const filled=new Set<string>();
         for (const detected of output.data.regions) {
-          const existing = pending.find(r=>r.id===detected.id);
           const category=detected.fontCategory;
           const fontFamily=category==='serif'?'Noto Serif':category==='handwritten'?'Comic Neue':category==='display'?'Bangers':category==='sans'?'Archivo':chapter.sourceLanguage==='ja'?'Noto Serif':'Archivo';
           const fontWeight=detected.fontWeight==='bold'?700:400;
-          const bounds={...detected.bounds,y:(y+detected.bounds.y*height/100)/page.height*100,height:detected.bounds.height*height/page.height};
+          let bounds={...detected.bounds,y:(y+detected.bounds.y*height/100)/page.height*100,height:detected.bounds.height*height/page.height};
+          // The AI reads well but places boxes loosely: confirm a new box
+          // against the page by finding the enclosed bubble around it.
+          let existing = pending.find(r=>r.id===detected.id&&!filled.has(r.id));
+          let bubble = existing||detected.embeddedInArtwork||detected.type==='sfx'||detected.type==='background' ? null : await bubbleAt(original,page,bounds);
+          if (bubble) bounds = bubble.bounds;
+          if (!existing) {
+            const id = matchCandidate({bounds,type:detected.type,snapped:Boolean(bubble)},pending.filter(r=>!filled.has(r.id)),page);
+            existing = pending.find(r=>r.id===id);
+          }
+          if (existing) { filled.add(existing.id); bubble = await bubbleAt(original,page,existing.bounds); }
           let fontSize=DEFAULT_TYPESETTING.fontSize;
-          if(!detected.embeddedInArtwork){
+          if (bubble?.glyphHeight) fontSize=Math.round(Math.max(11,Math.min(40,bubble.glyphHeight/0.72*840/page.width))*2)/2;
+          else if(!detected.embeddedInArtwork){
             const left=Math.max(0,Math.floor(bounds.x*page.width/100)),top=Math.max(0,Math.floor(bounds.y*page.height/100));
             const width=Math.min(page.width-left,Math.ceil(bounds.width*page.width/100)),heightPx=Math.min(page.height-top,Math.ceil(bounds.height*page.height/100));
             if(width>0&&heightPx>0&&width*heightPx<=4_000_000){
@@ -96,12 +110,9 @@ export async function processPage(chapterId: string, input: z.infer<typeof proce
             }
           }
           // Never duplicate protected human regions, including OCR already reviewed.
-          if(!existing&&[...next,...newRegions].some(r=>{
-            const overlap=Math.max(0,Math.min(r.bounds.x+r.bounds.width,bounds.x+bounds.width)-Math.max(r.bounds.x,bounds.x))*Math.max(0,Math.min(r.bounds.y+r.bounds.height,bounds.y+bounds.height)-Math.max(r.bounds.y,bounds.y));
-            return overlap/Math.min(r.bounds.width*r.bounds.height,bounds.width*bounds.height)>0.35;
-          }))continue;
-          if (existing) next=next.map(r=>r.id===existing.id?{...r,sourceText:detected.text,romanization:detected.romanization,ocrConfidence:detected.confidence,typesetting:r.typesetting.fontSource==='manual'?r.typesetting:{...r.typesetting,fontFamily,fontWeight,fontSize,fontSource:'matched'}}:r);
-          else newRegions.push({id:`rgn_${randomUUID()}`,pageId:page.id,bounds,type:detected.type,readingOrder:Math.max(0,...next.map(r=>r.readingOrder))+newRegions.length+1,sourceLanguage:chapter.sourceLanguage,sourceText:detected.text,romanization:detected.romanization,literalTranslation:'',finalTranslation:'',alternatives:[],ocrConfidence:detected.confidence,translationConfidence:0,status:'untranslated',embeddedInArtwork:detected.embeddedInArtwork,translate:detected.type!=='sfx'||chapter.preferences.translateSfx,contextUsed:[],typesetting:{...DEFAULT_TYPESETTING,fontFamily,fontWeight,fontSize,fontSource:'matched'}});
+          if(!existing&&[...next,...newRegions].some(r=>overlapRatio(r.bounds,bounds)>0.35))continue;
+          if (existing) next=next.map(r=>r.id===existing.id?{...r,sourceText:detected.text,romanization:detected.romanization,ocrConfidence:detected.confidence,type:detected.type,embeddedInArtwork:detected.embeddedInArtwork&&!bubble,translate:detected.type!=='sfx'||chapter.preferences.translateSfx,typesetting:r.typesetting.fontSource==='manual'?r.typesetting:{...r.typesetting,fontFamily,fontWeight,fontSize,fontSource:'matched'}}:r);
+          else newRegions.push({id:`rgn_${randomUUID()}`,pageId:page.id,bounds,type:detected.type,readingOrder:Math.max(0,...next.map(r=>r.readingOrder))+newRegions.length+1,sourceLanguage:chapter.sourceLanguage,sourceText:detected.text,romanization:detected.romanization,literalTranslation:'',finalTranslation:'',alternatives:[],ocrConfidence:detected.confidence,translationConfidence:0,status:'untranslated',embeddedInArtwork:detected.embeddedInArtwork,translate:detected.type!=='sfx'||chapter.preferences.translateSfx,contextUsed:[],typesetting:{...DEFAULT_TYPESETTING,fontFamily,fontWeight,fontSize,fontSource:'matched'},ambiguityNote:bubble||detected.embeddedInArtwork||detected.type==='sfx'?undefined:'Overset couldn’t find a speech bubble outline here, so the original text is kept. Move this box onto the bubble.'});
         }
       }
       const combined=[...next,...newRegions];
@@ -139,4 +150,32 @@ export async function processPage(chapterId: string, input: z.infer<typeof proce
     await admin.from('processing_tasks').update({state:'failed',updated_at:new Date().toISOString(),input_tokens:tokensIn,output_tokens:tokensOut,model}).eq('id',taskId).eq('lease',token);
     throw error;
   }
+}
+
+/** The enclosed bubble around a box, as page-percentage bounds, or null when there isn't one. */
+async function bubbleAt(original: Buffer, page: { width: number; height: number }, bounds: Rect) {
+  const px = { x: bounds.x / 100 * page.width, y: bounds.y / 100 * page.height, w: bounds.width / 100 * page.width, h: bounds.height / 100 * page.height };
+  const margin = bubbleMargin(px.w, px.h);
+  const left = Math.max(0, Math.floor(px.x - margin)), top = Math.max(0, Math.floor(px.y - margin));
+  const width = Math.min(page.width, Math.ceil(px.x + px.w + margin)) - left, height = Math.min(page.height, Math.ceil(px.y + px.h + margin)) - top;
+  if (width < 8 || height < 8 || width * height > 16_000_000) return null;
+  const pixels = await sharp(original, { limitInputPixels: 100_000_000 }).extract({ left, top, width, height }).toColourspace('srgb').ensureAlpha().raw().toBuffer();
+  const found = analyzeBubble(pixels, width, height, { x: px.x - left, y: px.y - top, width: px.w, height: px.h });
+  if (!found.bubbleBox || !found.safeBox || !found.glyphCount) return null;
+  const b = found.bubbleBox;
+  return { bounds: { x: (left + b.x) / page.width * 100, y: (top + b.y) / page.height * 100, width: b.width / page.width * 100, height: b.height / page.height * 100 }, glyphHeight: found.glyphHeight };
+}
+
+/** The page with each candidate outlined and numbered, so the AI can say which text is in which bubble. */
+async function annotate(png: Buffer, boxes: Array<{ label: number; bounds: Rect }>) {
+  const { width = 0, height = 0 } = await sharp(png).metadata();
+  const size = Math.max(14, Math.round(width * 0.02));
+  const marks = boxes.map(({ label, bounds }) => {
+    const x = bounds.x / 100 * width - 3, y = bounds.y / 100 * height - 3, w = bounds.width / 100 * width + 6, h = bounds.height / 100 * height + 6;
+    const tagY = y - size - 2 >= 0 ? y - size - 2 : y + h + 2;
+    return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" fill="none" stroke="#ff00ff" stroke-width="2"/>`
+      + `<rect x="${x.toFixed(1)}" y="${tagY.toFixed(1)}" width="${size * (String(label).length * 0.62 + 0.6)}" height="${size + 2}" fill="#ff00ff"/>`
+      + `<text x="${(x + size * 0.3).toFixed(1)}" y="${(tagY + size * 0.9).toFixed(1)}" font-size="${size}" font-family="Arial, sans-serif" font-weight="700" fill="#ffffff">${label}</text>`;
+  }).join('');
+  return sharp(png).composite([{ input: Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">${marks}</svg>`) }]).png().toBuffer();
 }

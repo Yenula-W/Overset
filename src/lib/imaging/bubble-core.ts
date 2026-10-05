@@ -5,8 +5,8 @@ import type { LetteringAnalysis, PixelBox } from './lettering-core';
  * and on the server.
  *
  * A speech bubble is a light, enclosed shape. Its lettering forms dark
- * "holes" inside that shape. Only those holes, plus the faint antialiased
- * fringe around them, are ever repainted. The bubble outline belongs to the
+ * "holes" inside that shape. Only those holes, with the antialiased ring
+ * around each letter, are ever repainted. The bubble outline belongs to the
  * shape's boundary, not to a hole, so it is never touched, and neither is
  * anything outside the bubble. A bubble that isn't enclosed inside the
  * searched area (open, merged into the gutter, or a box that misses it) is
@@ -54,37 +54,48 @@ export function analyzeBubble(rgba: Uint8ClampedArray | Uint8Array, width: numbe
   if (bgLum < 150) return EMPTY(total);
   const bright = centre.filter((i) => lum[i] >= bgLum - 10);
   const background = [0, 1, 2].map((c) => percentile(bright.map((i) => rgba[i * 4 + c]), 0.5)) as [number, number, number];
-  const tolerance = Math.max(35, Math.min(110, (bgLum - inkLum) * 0.45));
+  // Strict, so a faint or antialiased outline still separates the bubble
+  // from the page around it. Lettering edges simply join the holes.
+  const tolerance = Math.max(25, Math.min(60, (bgLum - inkLum) * 0.25));
   const distance = (i: number) => Math.max(Math.abs(rgba[i * 4] - background[0]), Math.abs(rgba[i * 4 + 1] - background[1]), Math.abs(rgba[i * 4 + 2] - background[2]));
   const light = new Uint8Array(total);
   for (let i = 0; i < total; i++) light[i] = distance(i) <= tolerance ? 1 : 0;
-
-  // Light components (4-connected); the bubble is the one filling most of the region's middle.
+  // The bubble is the light shape filling most of the region's middle. Small
+  // gaps in its outline (where it meets a panel edge or its tail) are sealed
+  // by ignoring light pixels within `seal` of ink, using the smallest seal
+  // that encloses the bubble so lettering near the outline is still found.
+  const maxSeal = Math.max(2, Math.round(Math.min(rx1 - rx0, ry1 - ry0) * 0.02));
   const label = new Int32Array(total);
   const stack = new Int32Array(total);
-  const touches: boolean[] = [false];
-  const inCentre = new Map<number, number>();
-  let next = 0;
-  for (let start = 0; start < total; start++) {
-    if (!light[start] || label[start]) continue;
-    next++;
-    let sp = 0, edge = false;
-    stack[sp++] = start; label[start] = next;
-    while (sp) {
-      const i = stack[--sp], x = i % width, y = (i - x) / width;
-      if (x === 0 || y === 0 || x === width - 1 || y === height - 1) edge = true;
-      if (x > 0 && light[i - 1] && !label[i - 1]) { label[i - 1] = next; stack[sp++] = i - 1; }
-      if (x < width - 1 && light[i + 1] && !label[i + 1]) { label[i + 1] = next; stack[sp++] = i + 1; }
-      if (y > 0 && light[i - width] && !label[i - width]) { label[i - width] = next; stack[sp++] = i - width; }
-      if (y < height - 1 && light[i + width] && !label[i + width]) { label[i + width] = next; stack[sp++] = i + width; }
+  let bubble = 0, core = light;
+  for (let seal = 0; seal <= maxSeal && !bubble; seal++) {
+    core = seal ? erodeLight(light, width, height, seal) : light;
+    label.fill(0);
+    const touches: boolean[] = [false];
+    let next = 0;
+    for (let start = 0; start < total; start++) {
+      if (!core[start] || label[start]) continue;
+      next++;
+      let sp = 0, edge = false;
+      stack[sp++] = start; label[start] = next;
+      while (sp) {
+        const i = stack[--sp], x = i % width, y = (i - x) / width;
+        if (x === 0 || y === 0 || x === width - 1 || y === height - 1) edge = true;
+        if (x > 0 && core[i - 1] && !label[i - 1]) { label[i - 1] = next; stack[sp++] = i - 1; }
+        if (x < width - 1 && core[i + 1] && !label[i + 1]) { label[i + 1] = next; stack[sp++] = i + 1; }
+        if (y > 0 && core[i - width] && !label[i - width]) { label[i - width] = next; stack[sp++] = i - width; }
+        if (y < height - 1 && core[i + width] && !label[i + width]) { label[i + width] = next; stack[sp++] = i + width; }
+      }
+      touches[next] = edge;
     }
-    touches[next] = edge;
+    const inCentre = new Map<number, number>();
+    for (const i of centre) if (label[i]) inCentre.set(label[i], (inCentre.get(label[i]) ?? 0) + 1);
+    let candidate = 0, best = 0;
+    for (const [id, count] of inCentre) if (count > best) { best = count; candidate = id; }
+    // Mostly-ink middles aren't a bubble; an edge-touching shape isn't enclosed.
+    if (candidate && best >= centre.length * 0.3 && !touches[candidate]) bubble = candidate;
   }
-  for (const i of centre) if (label[i]) inCentre.set(label[i], (inCentre.get(label[i]) ?? 0) + 1);
-  let bubble = 0, best = 0;
-  for (const [id, count] of inCentre) if (count > best) { best = count; bubble = id; }
-  // Mostly-ink middles aren't a bubble; an edge-touching shape isn't enclosed.
-  if (!bubble || best < centre.length * 0.3 || touches[bubble]) return EMPTY(total);
+  if (!bubble) return EMPTY(total);
 
   // Everything not reachable from the crop border without crossing the bubble
   // is inside it: the bubble plus its lettering.
@@ -109,10 +120,9 @@ export function analyzeBubble(rgba: Uint8ClampedArray | Uint8Array, width: numbe
   }
   const bubbleBox = { x: fx0, y: fy0, width: fx1 - fx0 + 1, height: fy1 - fy0 + 1 };
 
-  // Holes = lettering. A hole that is a large share of the bubble is a
-  // drawing, not text, and is kept.
+  // Holes = lettering.
   const hole = new Int32Array(total);
-  const glyphs: Array<{ pixels: number[]; box: PixelBox }> = [];
+  const glyphs: Array<{ pixels: number[]; ink: number; box: PixelBox }> = [];
   let holes = 0;
   for (let start = 0; start < total; start++) {
     if (!filled[start] || label[start] === bubble || hole[start]) continue;
@@ -131,22 +141,31 @@ export function analyzeBubble(rgba: Uint8ClampedArray | Uint8Array, width: numbe
         if (filled[j] && label[j] !== bubble && !hole[j]) { hole[j] = holes; stack[sp++] = j; }
       }
     }
-    if (pixels.length > filledArea * 0.25) continue;
-    glyphs.push({ pixels, box: { x: x0, y: y0, width: x1 - x0 + 1, height: y1 - y0 + 1 } });
+    // The ink itself, without the light ring the seal adds around it.
+    let ix0 = width, iy0 = height, ix1 = -1, iy1 = -1, inkCount = 0;
+    for (const i of pixels) if (!light[i]) {
+      inkCount++;
+      const x = i % width, y = (i - x) / width;
+      if (x < ix0) ix0 = x; if (x > ix1) ix1 = x; if (y < iy0) iy0 = y; if (y > iy1) iy1 = y;
+    }
+    // A hole carrying a large share of the bubble's area in ink is a drawing.
+    if (!inkCount || inkCount > filledArea * 0.3) continue;
+    glyphs.push({ pixels, ink: inkCount, box: { x: ix0, y: iy0, width: ix1 - ix0 + 1, height: iy1 - iy0 + 1 } });
   }
-  const ink = glyphs.reduce((sum, g) => sum + g.pixels.length, 0);
+  const ink = glyphs.reduce((sum, g) => sum + g.ink, 0);
   // Mostly dark "bubbles" are artwork (a toned panel, a busy drawing).
   if (ink > filledArea * 0.45) return EMPTY(total);
   // Lettering is made of thin strokes. Solid blobs (eyes, pupils, shading)
   // mean this light shape is a face or object, not a bubble.
-  const marks = glyphs.filter((g) => g.pixels.length >= 6);
-  const solidity = percentile(marks.map((g) => g.pixels.length / (g.box.width * g.box.height)), 0.5);
-  if (marks.length && solidity > 0.62) return EMPTY(total);
+  const marks = glyphs.filter((g) => g.ink >= 6);
+  const solidity = percentile(marks.map((g) => g.ink / (g.box.width * g.box.height)), 0.5);
+  if (marks.length && solidity > 0.7) return EMPTY(total);
 
   const mask = new Uint8Array(total);
   for (const g of glyphs) for (const i of g.pixels) mask[i] = 1;
-  // The antialiased fringe: bubble pixels next to lettering that are visibly
-  // off the bubble colour. Never next to the outside, so outlines stay intact.
+  // The faint antialiased edge of each letter: bubble pixels beside it that
+  // are visibly off the bubble colour. Never beside the outside, so the
+  // outline stays intact.
   const fringe: number[] = [];
   for (const g of glyphs) for (const i of g.pixels) {
     const x = i % width, y = (i - x) / width;
@@ -154,19 +173,36 @@ export function analyzeBubble(rgba: Uint8ClampedArray | Uint8Array, width: numbe
       const nx = x + dx, ny = y + dy;
       if (nx < 1 || ny < 1 || nx >= width - 1 || ny >= height - 1) continue;
       const j = ny * width + nx;
-      if (mask[j] || label[j] !== bubble || distance(j) <= 12) continue;
+      if (mask[j] || !filled[j] || distance(j) <= 12) continue;
       if (outside[j - 1] || outside[j + 1] || outside[j - width] || outside[j + width]) continue;
       fringe.push(j);
     }
   }
   for (const j of fringe) mask[j] = 1;
-
   const textBox = glyphs.length ? {
     x: Math.min(...glyphs.map((g) => g.box.x)), y: Math.min(...glyphs.map((g) => g.box.y)),
     width: Math.max(...glyphs.map((g) => g.box.x + g.box.width)) - Math.min(...glyphs.map((g) => g.box.x)),
     height: Math.max(...glyphs.map((g) => g.box.y + g.box.height)) - Math.min(...glyphs.map((g) => g.box.y)),
   } : null;
-  const glyphHeight = percentile(glyphs.filter((g) => g.pixels.length >= 4).map((g) => g.box.height), 0.8);
+  const glyphHeight = percentile(glyphs.filter((g) => g.ink >= 4).map((g) => g.box.height), 0.8);
+  // Scan noise and stray specks around the lettering, still well inside the
+  // bubble, so the repainted area is as clean as the rest of the bubble.
+  if (textBox) {
+    const pad = Math.max(3, Math.round(glyphHeight * 0.5));
+    for (let y = Math.max(1, textBox.y - pad); y < Math.min(height - 1, textBox.y + textBox.height + pad); y++) {
+      for (let x = Math.max(1, textBox.x - pad); x < Math.min(width - 1, textBox.x + textBox.width + pad); x++) {
+        const j = y * width + x;
+        if (mask[j] || !filled[j] || distance(j) <= 5) continue;
+        let clear = true;
+        for (let dy = -3; dy <= 3 && clear; dy++) for (let dx = -3; dx <= 3; dx++) {
+          const k = (y + dy) * width + x + dx;
+          if (k < 0 || k >= total || outside[k]) { clear = false; break; }
+        }
+        if (clear) mask[j] = 1;
+      }
+    }
+  }
+
 
   // Largest rectangle inside the bubble around its middle: where the
   // translation is lettered, so it never crosses the outline.
@@ -218,4 +254,29 @@ export function fillBubbleText(rgba: Uint8ClampedArray, width: number, height: n
 /** How far past a region's box to look for its bubble outline. */
 export function bubbleMargin(width: number, height: number) {
   return Math.max(8, Math.round(Math.max(width, height) * 0.2));
+}
+
+/** Light pixels with no ink within `radius` (Chebyshev distance). */
+function erodeLight(light: Uint8Array, width: number, height: number, radius: number) {
+  const rowNear = new Uint8Array(light.length), core = new Uint8Array(light.length);
+  for (let y = 0; y < height; y++) {
+    const row = y * width;
+    let dark = 0;
+    for (let x = 0; x < Math.min(width, radius); x++) dark += light[row + x] ? 0 : 1;
+    for (let x = 0; x < width; x++) {
+      if (x + radius < width) dark += light[row + x + radius] ? 0 : 1;
+      if (x - radius - 1 >= 0) dark -= light[row + x - radius - 1] ? 0 : 1;
+      rowNear[row + x] = dark > 0 ? 1 : 0;
+    }
+  }
+  for (let x = 0; x < width; x++) {
+    let dark = 0;
+    for (let y = 0; y < Math.min(height, radius); y++) dark += rowNear[y * width + x];
+    for (let y = 0; y < height; y++) {
+      if (y + radius < height) dark += rowNear[(y + radius) * width + x];
+      if (y - radius - 1 >= 0) dark -= rowNear[(y - radius - 1) * width + x];
+      core[y * width + x] = light[y * width + x] && !dark ? 1 : 0;
+    }
+  }
+  return core;
 }
