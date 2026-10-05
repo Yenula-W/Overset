@@ -139,6 +139,6 @@ export interface UsageRecord {
   additionalCredits?: number;
   creditsUsed?: number;
   remaining?: number;
-  resetsAt?: string;
+  resetsAt?: string | null;
   hasSubscription?: boolean;
 }

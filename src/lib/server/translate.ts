@@ -15,6 +15,7 @@ import { PAGES_BUCKET } from '@/lib/supabase/config';
 import { adminClient, authenticated, editable, record, records } from './records';
 import { ServiceError } from './http';
 import { rateLimit } from './authz';
+import { trialIdentity } from './trial';
 
 export const processSchema = z.object({pageId:z.string().min(1).max(160),action:z.enum(['ocr','translate','regenerate','proofread','suggest']),regionId:z.string().max(160).optional(),requestId:z.string().uuid().optional()});
 const sha = (v: string | Buffer) => createHash('sha256').update(v).digest('hex');
@@ -48,8 +49,10 @@ export async function processPage(chapterId: string, input: z.infer<typeof proce
   if (['regenerate','suggest'].includes(input.action)&&!input.requestId) throw new ServiceError('invalid_request','Regeneration requires a new request ID.',400);
   const token = randomUUID();
   const profile = await record<UserRecord>(db,'users',page.ownerId);
-  const reserved = await admin.rpc('reserve_page',{task:taskId,workspace:page.ownerId,page:page.id,operation:input.action,fingerprint:sha(original),token,allowance:planById(profile.plan).pageAllowance});
+  const identity = profile.plan === 'free' ? await trialIdentity() : { device_key: null, network_key: null };
+  const reserved = await admin.rpc('reserve_page',{task:taskId,workspace:page.ownerId,page:page.id,operation:input.action,fingerprint:sha(original),token,allowance:planById(profile.plan).pageAllowance,...identity});
   if (reserved.error) throw new ServiceError('processing_storage','Processing could not start. Check that the service database migration is installed.');
+  if (reserved.data?.trial_error) throw new ServiceError('trial_unavailable', reserved.data.trial_error === 'device' ? 'This browser has already activated a free trial for another account. Sign in to that account, or use a paid plan or page credits.' : reserved.data.trial_error === 'email' ? 'Verify your email before starting your free trial.' : reserved.data.trial_error === 'network' ? 'Too many free trials were activated from this network today. Try again tomorrow or use a paid plan or page credits.' : 'Trial verification is unavailable. Refresh and try again.', 403);
   if (reserved.data?.limit) throw new ServiceError('page_limit','Your workspace has used its page allowance. Upgrade or add page credits to continue.',402);
   if (reserved.data?.busy) throw new ServiceError('processing_busy','This page is already being processed. Wait a moment and refresh.',409);
   if (reserved.data?.cached) return reserved.data.result;

@@ -33,3 +33,19 @@ Test upgrades, invoices, cancellation, renewal, stale/duplicate webhook delivery
 With Supabase server credentials loaded, `node scripts/smoke-cloud.mjs` creates disposable confirmed accounts, verifies live RLS/private storage and deployed authenticated APIs, then removes them. It sends no email and does not test real signup confirmation. Set `OVERSET_SITE_URL` if testing another deployment.
 
 Final activation requires AI and email provider credentials, verified email sender/SMTP and Stripe account credentials. Store all private credentials server-side in Vercel, never in client code or commits.
+
+### Free trial enforcement
+
+Free includes 10 pages total, not a monthly reset. Apply the `free_trial_controls`
+migration before deploying the accompanying app code. Existing free page charges
+are counted against that lifetime allowance. Server reservations serialize both
+workspace usage and browser/network claims, and retries of an already charged
+page do not consume another trial page.
+
+A server-signed HTTP-only cookie permits one trial account per browser identity.
+Network activation is limited to three browser claims per 24 hours (IPv6 /64
+addresses share a bucket). This is abuse resistance, not hardware identification:
+clearing cookies, using another browser or changing networks can evade it.
+Paid subscriptions and purchased page credits remain usable on shared devices.
+Confirmed email is required for trial activation. Trial claims survive account
+deletion; only keyed hashes are stored, never raw IP addresses or fingerprints.
