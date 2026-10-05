@@ -33,7 +33,7 @@ const VIEWER = '44444444-4444-4444-4444-444444444444';
 async function setup() {
   const db = new PGlite();
   await db.exec(SUPABASE_STUB);
-  for (const file of ['0001_overset.sql', '0002_private_helpers.sql', '0003_services.sql', '0004_record_identity.sql', '20261005155255_free_trial_controls.sql']) {
+  for (const file of ['0001_overset.sql', '0002_private_helpers.sql', '0003_services.sql', '0004_record_identity.sql', '20261005155255_free_trial_controls.sql', '20261005162646_cross_browser_trial_limit.sql']) {
     await db.exec(readFileSync(new URL(`../supabase/migrations/${file}`, import.meta.url), 'utf8'));
   }
   await db.exec(`
@@ -163,24 +163,40 @@ test('same browser cannot claim a second trial even after original account delet
  const db=await setup();await profile(db,'free');
  assert.equal((await trialReserve(db,OWNER,'first')).started,true);
  await service(db,`insert into records(store,id,owner_id,data) values('users',$1::text,$1::uuid,$2)`,[MEMBER,JSON.stringify({id:MEMBER,plan:'free'})]);
- assert.equal((await trialReserve(db,MEMBER,'second')).trial_error,'device');
+ assert.equal((await trialReserve(db,MEMBER,'second',device(1),device(101))).trial_error,'device');
  await service(db,`delete from auth.users where id=$1::uuid`,[OWNER]);
- assert.equal((await trialReserve(db,MEMBER,'second')).trial_error,'device');
+ assert.equal((await trialReserve(db,MEMBER,'second',device(1),device(101))).trial_error,'device');
  // Paying customers and credits are not blocked by shared computers.
  await service(db,`insert into workspace_billing(owner_id,credits) values($1::uuid,2)`,[MEMBER]);
  assert.equal((await trialReserve(db,MEMBER,'paid-credit')).started,true);
  assert.equal((await db.query('select credits from workspace_billing where owner_id=$1::uuid',[MEMBER])).rows[0].credits,1);
  await db.close();
 });
-test('new browser identities cannot bypass the network trial activation limit',async()=>{
+test('another browser and email cannot claim a trial on the same network, even years later',async()=>{
  const db=await setup();await profile(db,'free');
- for(const [i,owner] of [OWNER,MEMBER,STRANGER,VIEWER].entries()){
-  if(i) await service(db,`insert into records(store,id,owner_id,data) values('users',$1::text,$1::uuid,$2)`,[owner,JSON.stringify({id:owner,plan:'free'})]);
-  const result=await trialReserve(db,owner,`network-${i}`,device(i+1));
-  assert.equal(i<3?result.started:result.trial_error,i<3?true:'network');
- }
- await service(db,`update free_trial_devices set claimed_at=now()-interval '25 hours'`);
- assert.equal((await trialReserve(db,VIEWER,'network-3',device(4))).started,true);
+ assert.equal((await trialReserve(db,OWNER,'chrome-page')).started,true);
+ await service(db,`insert into records(store,id,owner_id,data) values('users',$1::text,$1::uuid,$2)`,[MEMBER,JSON.stringify({id:MEMBER,plan:'free'})]);
+ assert.equal((await trialReserve(db,MEMBER,'firefox-page',device(2))).trial_error,'network');
+ await service(db,`update free_trial_networks set claimed_at=now()-interval '10 years'`);
+ assert.equal((await trialReserve(db,MEMBER,'cleared-cookies',device(3))).trial_error,'network');
+ // The first account can continue on another browser without getting extra pages.
+ assert.equal((await trialReserve(db,OWNER,'same-owner-firefox',device(4))).started,true);
+ assert.equal((await db.query('select pages_used from free_trial_accounts where owner_id=$1',[OWNER])).rows[0].pages_used,2);
+ await service(db,`delete from auth.users where id=$1::uuid`,[OWNER]);
+ assert.equal((await trialReserve(db,MEMBER,'after-account-deletion',device(5))).trial_error,'network');
+ await assert.rejects(as(db,MEMBER,`delete from free_trial_networks`),/permission/);
+ // Purchasing credits bypasses trial eligibility, without granting another free trial.
+ await service(db,`insert into workspace_billing(owner_id,credits) values($1::uuid,1)`,[MEMBER]);
+ assert.equal((await trialReserve(db,MEMBER,'credit-page',device(5))).started,true);
+ assert.equal((await db.query('select pages_used from free_trial_accounts where owner_id=$1',[MEMBER])).rows[0].pages_used,0);
+ await service(db,`update records set data=jsonb_set(data,'{plan}','"pro"') where store='users' and id=$1`,[MEMBER]);
+ assert.equal((await trialReserve(db,MEMBER,'paid-plan-page',device(5))).started,true);
+ await db.close();
+});
+test('missing network identity fails closed without consuming pages',async()=>{
+ const db=await setup();await profile(db,'free');
+ assert.equal((await trialReserve(db,OWNER,'no-network',device(1),null)).trial_error,'identity');
+ assert.equal((await db.query('select count(*)::integer as n from page_charges')).rows[0].n,0);
  await db.close();
 });
 test('unverified email and missing browser identity cannot activate a trial',async()=>{
