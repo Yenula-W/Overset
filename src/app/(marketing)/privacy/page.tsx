@@ -44,6 +44,12 @@ export default function PrivacyPage() {
             and exports can be deleted from your account, and deletion removes the underlying files.
           </p>
           <p>
+            <strong className="font-medium text-ink">Free-trial abuse prevention.</strong> We use a signed,
+            HTTP-only browser cookie and keyed hashes of network addresses to limit repeat trials. We don’t
+            collect hardware identifiers or fingerprint your device. Trial eligibility records remain after
+            account deletion to prevent repeat claims; network hashes older than 30 days are cleared during new trial activations.
+          </p>
+          <p>
             <strong className="font-medium text-ink">We don’t claim certifications we don’t have.</strong> Overset
             applies standard practices — encrypted transport, access control on every project, server-side handling of
             all AI provider keys. This page will say more only when there is more that is true.

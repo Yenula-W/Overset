@@ -10,3 +10,5 @@ next-env.d.ts
 .next-check
 
 .env.stripe-setup
+
+supabase/.temp/

@@ -10,7 +10,7 @@ export function FinalCta() {
           Translate free <ArrowRight size={16} aria-hidden />
         </MkButton>
         <span className="text-[12px] text-ink-muted">
-          30 pages free · No card required
+          10 pages free · No card required
         </span>
       </div>
     </section>
