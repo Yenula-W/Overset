@@ -46,8 +46,9 @@ export default function PrivacyPage() {
           <p>
             <strong className="font-medium text-ink">Free-trial abuse prevention.</strong> We use a signed,
             HTTP-only browser cookie and keyed hashes of network addresses to limit repeat trials. We don’t
-            collect hardware identifiers or fingerprint your device. Trial eligibility records remain after
-            account deletion to prevent repeat claims; network hashes older than 30 days are cleared during new trial activations.
+            collect hardware identifiers or fingerprint your device. Trial eligibility records, including keyed network hashes, remain after
+            account deletion to prevent repeat claims. One free-trial account is allowed per public connection,
+            so people on shared Wi-Fi may share this limit. Paid access is unaffected.
           </p>
           <p>
             <strong className="font-medium text-ink">We don’t claim certifications we don’t have.</strong> Overset

@@ -43,9 +43,13 @@ workspace usage and browser/network claims, and retries of an already charged
 page do not consume another trial page.
 
 A server-signed HTTP-only cookie permits one trial account per browser identity.
-Network activation is limited to three browser claims per 24 hours (IPv6 /64
-addresses share a bucket). This is abuse resistance, not hardware identification:
-clearing cookies, using another browser or changing networks can evade it.
+The `cross_browser_trial_limit` migration binds each public network to one free-trial
+account permanently (IPv6 /64 addresses share a bucket). Different browsers and
+cleared cookies cannot claim another trial on that connection. Shared households,
+schools, and offices share this limit; paid access remains available. This is abuse resistance, not hardware identification:
+changing both browser identity and network can evade it. Dynamic IP addresses
+can also be reassigned to unrelated people, so a network claim is not proof of
+identity.
 Paid subscriptions and purchased page credits remain usable on shared devices.
 Confirmed email is required for trial activation. Trial claims survive account
 deletion; only keyed hashes are stored, never raw IP addresses or fingerprints.

@@ -21,6 +21,6 @@ export async function trialIdentity() {
   const requestHeaders = await headers();
   // Trust only Vercel's overwritten header, never arbitrary forwarded headers locally.
   const ip = process.env.VERCEL === '1' ? requestHeaders.get('x-vercel-forwarded-for')?.split(',')[0].trim() : undefined;
-  if (process.env.VERCEL === '1' && (!ip || !isIP(ip))) throw new ServiceError('trial_unavailable', 'Your network could not be verified. Please try again shortly.');
-  return { device_key: digest('device', id), network_key: ip && isIP(ip) ? digest('network', trialNetwork(ip)) : null };
+  if (process.env.NODE_ENV === 'production' && (!ip || !isIP(ip))) throw new ServiceError('trial_unavailable', 'Your network could not be verified. Please try again shortly.');
+  return { device_key: digest('device', id), network_key: digest('network', ip && isIP(ip) ? trialNetwork(ip) : 'local-development') };
 }
