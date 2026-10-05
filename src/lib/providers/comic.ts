@@ -19,7 +19,7 @@ export class ClaudeComicProvider implements TranslationProvider, ComicOcrProvide
     const key = process.env.ANTHROPIC_API_KEY || process.env.OVERSET_TRANSLATION_API_KEY;
     if (!key) throw new ServiceError('ai_not_configured', 'AI processing is not connected yet. Your chapter is saved and can be edited manually.');
     try {
-      return { ...await structuredRequest({ key, model: process.env.OVERSET_AI_MODEL || 'claude-sonnet-4-6', system: INSTRUCTIONS, content, schema, output }), providerId: this.id };
+      return { ...await structuredRequest({ key, model: process.env.OVERSET_AI_MODEL || 'claude-sonnet-5-5', system: INSTRUCTIONS, content, schema, output }), providerId: this.id };
     } catch (error) {
       if (error instanceof AiResponseError) throw new ServiceError(error.code, error.message, error.status);
       throw error;

@@ -8,15 +8,16 @@ const region = { bounds:{x:75,y:5,width:20,height:15},type:'dialogue',text:'ì•ˆë
 const complete = {stop_reason:'tool_use',content:[{type:'tool_use',name:'save_result',input:{regions:[region]}}],usage:{input_tokens:20,output_tokens:10}};
 function run(responses) {
  const requests=[];
- const promise=structuredRequest({key:'test-only',model:'claude-sonnet-4-6',system:'test',content:[{type:'text',text:'read page'}],output:OCR_OUTPUT,schema:ocrSchema,
+ const promise=structuredRequest({key:'test-only',model:'claude-sonnet-5-5',system:'test',content:[{type:'text',text:'read page'}],output:OCR_OUTPUT,schema:ocrSchema,
   fetcher:async(_url,options)=>{requests.push(JSON.parse(options.body));assert.ok(responses.length,'retry must be bounded');return new Response(JSON.stringify(responses.shift()),{status:200});}});
  return {requests,promise};
 }
-test('OCR uses a forced strict schema and preserves source text and bubble bounds',async()=>{
+test('OCR asks for a strict schema tool call and preserves source text and bubble bounds',async()=>{
  const {requests,promise}=run([complete]);const result=await promise;
  assert.deepEqual(result.data.regions[0],region);
  assert.equal(requests[0].tools[0].strict,true);
- assert.equal(requests[0].tool_choice.name,'save_result');
+ assert.equal(requests[0].tool_choice.type,'auto');
+ assert.ok(requests[0].system.includes('save_result'));
  assert.equal(requests.length,1);
 });
 test('an incomplete OCR region retries automatically before returning a complete result',async()=>{

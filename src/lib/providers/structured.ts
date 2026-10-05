@@ -39,9 +39,13 @@ export async function structuredRequest<T>(options: {
       response = await (options.fetcher ?? fetch)('https://api.anthropic.com/v1/messages', {
         method: 'POST', headers: { 'x-api-key': options.key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
         signal: AbortSignal.timeout(90_000),
-        body: JSON.stringify({ model: options.model, max_tokens: attempt ? 16384 : 8192, system: options.system,
+        body: JSON.stringify({ model: options.model, max_tokens: attempt ? 16384 : 8192, system: `${options.system}\n\nAlways reply by calling the save_result tool exactly once.`,
           tools: [{ name: 'save_result', description: 'Return the complete comic localization result. This tool only formats the response; it does not execute a save.', strict: true, input_schema: options.output }],
-          tool_choice: { type: 'tool', name: 'save_result', disable_parallel_tool_use: true },
+          // Current models reject a forced tool choice, so the system prompt asks for save_result
+          // and the retry below catches a reply without it. Low effort keeps thinking (billed as
+          // output) small; reading and translating a page doesn't need long reasoning.
+          tool_choice: { type: 'auto', disable_parallel_tool_use: true },
+          output_config: { effort: 'low' },
           messages: [{ role: 'user', content: [...options.content, ...(attempt ? [{ type: 'text', text: 'The previous response was incomplete or failed validation. Return a complete save_result tool call. Use percentage coordinates (0–100), valid region types and confidence from 0 to 100. Omit optional fields when unavailable. Never invent unreadable text.' }] : [])] },
           ],
         }),

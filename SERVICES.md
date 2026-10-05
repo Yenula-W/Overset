@@ -6,7 +6,7 @@ Cloud accounts, private page storage, RLS, server usage and job reservations req
 
 ## AI
 
-Set `ANTHROPIC_API_KEY`. Default model: `claude-sonnet-4-6`; `OVERSET_AI_MODEL` can override it. OCR, contextual translation, literal text, alternatives, romanization and separate proofreading use a server-only provider adapter. Processing validates original images from private storage and reserves verified pages transactionally. Human edits are compared before AI saves; approval/edit snapshots can be restored in History. A failed page can retry from the editor. Long pages are tiled for OCR. Large chapters may require multiple page requests; this is not a detached worker queue.
+Set `ANTHROPIC_API_KEY`. Default model: `claude-sonnet-5-5`; `OVERSET_AI_MODEL` can override it. OCR, contextual translation, literal text, alternatives, romanization and separate proofreading use a server-only provider adapter. Processing validates original images from private storage and reserves verified pages transactionally. Human edits are compared before AI saves; approval/edit snapshots can be restored in History. A failed page can retry from the editor. Long pages are tiled for OCR. Large chapters may require multiple page requests; this is not a detached worker queue.
 
 Existing detected regions with filled source text are preserved; OCR fills empty regions or detects regions when none exist. Inspect detection and reading order before approval. AI requires quality evaluation on authorized chapters and a cost benchmark before launch. Token/model records are measured; monetary cost placeholders in `billing.ts` are estimates, not margins.
 
