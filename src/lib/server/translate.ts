@@ -9,6 +9,7 @@ import { buildTranslationContext, proposeRevision } from '@/lib/providers/transl
 import { translationFrame } from '@/lib/providers/visual-context';
 import { readingOrder } from '@/lib/imaging/detect-core';
 import { analyzeLettering } from '@/lib/imaging/lettering-core';
+import { assessPageQuality } from '@/lib/imaging/quality-core';
 import { DEFAULT_TYPESETTING, type DialogueRegion } from '@/lib/types/domain';
 import type { ChapterRecord, ProjectRecord, PageRecord, CharacterRecord, GlossaryRecord, MemoryRecord, UserRecord } from '@/lib/store/schema';
 import { PAGES_BUCKET } from '@/lib/supabase/config';
@@ -40,6 +41,13 @@ export async function processPage(chapterId: string, input: z.infer<typeof proce
   if (!['png','jpeg','webp'].includes(dimensions.format??'') || !dimensions.width || !dimensions.height || (dimensions.pages??1)>1) throw new ServiceError('invalid_image','AI processing accepts single PNG, JPG or WEBP pages.',422);
   if (page.width !== dimensions.width || page.height !== dimensions.height) throw new ServiceError('dimensions_mismatch','The saved page dimensions do not match the original. Re-upload this page before processing.',422);
   if (page.regions.length > 150) throw new ServiceError('region_limit','This page has more than 150 regions. Split it before using AI.',422);
+  if (input.action==='ocr') {
+    // Refuse tiny or blurred pages before any AI cost: their lettering can't be removed cleanly.
+    const band=Math.min(dimensions.height,3000),top=Math.floor((dimensions.height-band)/2);
+    const lum=await sharp(original,{limitInputPixels:100_000_000}).extract({left:0,top,width:dimensions.width,height:band}).flatten({background:"#ffffff"}).greyscale().raw().toBuffer();
+    const quality=assessPageQuality(new Uint8Array(lum.buffer,lum.byteOffset,lum.length),dimensions.width,band);
+    if(!quality.ok)throw new ServiceError('page_quality',(quality.reason??'This page is too low quality to process.').replace(`${dimensions.width}×${band}`,`${dimensions.width}×${dimensions.height}`),422);
+  }
   const region = page.regions.find(r=>r.id === input.regionId);
   if ((input.action==='translate'||input.action==='regenerate'||input.action==='suggest') && !region) throw new ServiceError('select_region','Select a text region to translate.',400);
   if (region && input.action==='translate' && (region.status==='approved'||region.status==='edited'||region.finalTranslation.trim())) return {page,skipped:true};
