@@ -1,4 +1,4 @@
-import { effectiveTypesetting, letteringCoverage, letteringText } from './typography-core';
+import { effectiveTypesetting, letteringCoverage, letteringText, letteringPlacement } from './typography-core';
 import type { PixelBox } from './lettering-core';
 import { analyzeBubble, bubbleMargin, fillBubbleText, type BubbleAnalysis } from './bubble-core';
 import { cloneMaskedPixels } from './clone-core';
@@ -47,7 +47,7 @@ export function fontString(region: DialogueRegion, sizePx: number) {
   // Comic Neue ships 400 and 700 only; snap so the browser doesn't fake a weight.
   const weight = t.fontFamily === 'Comic Neue' ? (t.fontWeight >= 550 ? 700 : 400) : t.fontWeight;
   const fallback = t.fontFamily === 'Noto Serif' ? 'serif' : '"Comic Neue", sans-serif';
-  return `${weight} ${sizePx}px "${t.fontFamily}", ${fallback}`;
+  return `${t.fontStyle === 'italic' ? 'italic ' : ''}${weight} ${sizePx}px "${t.fontFamily}", ${fallback}`;
 }
 
 const measureCanvas = typeof document !== 'undefined' ? document.createElement('canvas').getContext('2d') : null;
@@ -57,7 +57,7 @@ export function measureFit(region: DialogueRegion, pageW: number, pageH: number,
   const box = area ? {width:area.width,height:area.height} : usableBox(px.w,px.h,regionShape(region.type));
   const scale = pageW / REFERENCE_WIDTH;
   const t = effectiveTypesetting(region);
-  const content = letteringText(region.finalTranslation);
+  const content = letteringText(region.finalTranslation, t.textCase);
   return fitText(
     {
       text: content.text,
@@ -72,7 +72,9 @@ export function measureFit(region: DialogueRegion, pageW: number, pageH: number,
     (text, size, start = 0) => {
       if (!measureCanvas) return text.length * size * 0.5;
       if ('letterSpacing' in measureCanvas) (measureCanvas as CanvasRenderingContext2D & { letterSpacing: string }).letterSpacing = `${t.letterSpacing * size}px`;
-      return letteringRuns(measureCanvas, region, text, size, start, content).reduce((sum, run) => sum + run.width, 0);
+      const runs = letteringRuns(measureCanvas, region, text, size, start, content);
+      const ink = lineInk(runs);
+      return Math.max(runs.reduce((sum, run) => sum + run.width, 0), ink.right - ink.left);
     },
   );
 }
@@ -90,8 +92,20 @@ function letteringRuns(ctx: CanvasRenderingContext2D, region: DialogueRegion, li
     const font = fontString(bold ? { ...region, typesetting: { ...t, fontSource: 'manual', fontWeight: Math.max(700, t.fontWeight) } } : region, size);
     const text = line.slice(from, positions[i+1]);
     ctx.font = font;
-    return { text, font, width: ctx.measureText(text).width };
+    const metrics = ctx.measureText(text);
+    return { text, font, width: metrics.width,
+      left: -(metrics.actualBoundingBoxLeft ?? 0), right: metrics.actualBoundingBoxRight ?? metrics.width,
+      ascent: metrics.actualBoundingBoxAscent ?? size*.8, descent: metrics.actualBoundingBoxDescent ?? size*.2 };
   });
+}
+
+function lineInk(runs: ReturnType<typeof letteringRuns>) {
+  let cursor = 0, left = Infinity, right = -Infinity, ascent = 0, descent = 0;
+  for (const run of runs) {
+    left = Math.min(left,cursor+run.left); right = Math.max(right,cursor+run.right);
+    ascent = Math.max(ascent,run.ascent); descent = Math.max(descent,run.descent); cursor += run.width;
+  }
+  return {left: Number.isFinite(left) ? left : 0,right: Number.isFinite(right) ? right : 0,ascent,descent};
 }
 
 export interface SourceLayout { x:number; y:number; w:number; h:number; pixels:ImageData; cleaned?:ImageData; analysis:BubbleAnalysis }
@@ -157,20 +171,18 @@ function typesetRegion(ctx: CanvasRenderingContext2D, region: DialogueRegion, pa
   if (t.rotation) ctx.rotate((t.rotation * Math.PI) / 180);
   ctx.font = fontString(region, size);
   if ('letterSpacing' in ctx) (ctx as CanvasRenderingContext2D & { letterSpacing: string }).letterSpacing = `${t.letterSpacing * size}px`;
-  ctx.textBaseline = 'middle';
-  ctx.textAlign = t.align;
-  const x = t.align === 'left' ? -box.width / 2 : t.align === 'right' ? box.width / 2 : 0;
-  const top = -((fit.lines.length - 1) * lineH) / 2;
-  const content = letteringText(region.finalTranslation);
+  ctx.textBaseline = 'alphabetic';
+  ctx.textAlign = 'left';
+  const content = letteringText(region.finalTranslation, t.textCase);
   let cursor = 0;
-  fit.lines.forEach((line, i) => {
-    const y = top + i * lineH;
+  const lineRuns = fit.lines.map(line => {
     const start = content.text.indexOf(line, cursor);
     cursor = Math.max(cursor, start + line.length);
-    const runs = letteringRuns(ctx, region, line, size, start, content);
-    const width = runs.reduce((sum,r) => sum + r.width, 0);
-    let left = t.align === 'left' ? x : t.align === 'right' ? x - width : x - width / 2;
-    ctx.textAlign = 'left';
+    return letteringRuns(ctx, region, line, size, start, content);
+  });
+  const positions = letteringPlacement(lineRuns.map(lineInk),lineH,box.width,t.align);
+  lineRuns.forEach((runs,i) => {
+    const {y} = positions[i]; let left = positions[i].x;
     for (const run of runs) {
       ctx.font = run.font;
       if (t.outline) {

@@ -1,10 +1,10 @@
 'use client';
 
 import * as React from 'react';
-import { effectiveTypesetting } from '@/lib/imaging/typography-core';
+import { comicLetteringStyle, effectiveTypesetting } from '@/lib/imaging/typography-core';
 import { Maximize, TriangleAlert } from 'lucide-react';
 import { REGION_TYPE_LABELS, type DialogueRegion, type TypesettingProperties } from '@/lib/types/domain';
-import { LETTERING_FONTS, measureFit, REFERENCE_WIDTH, sourceLayout } from '@/lib/imaging/render';
+import { ensureFonts, LETTERING_FONTS, measureFit, REFERENCE_WIDTH, sourceLayout } from '@/lib/imaging/render';
 
 /**
  * Typesetting controls. "Fit to bubble" runs the same fitting the renderer
@@ -26,9 +26,16 @@ export function TypesetPanel({
   onChange: (patch: Partial<TypesettingProperties>) => void;
 }) {
   const t = effectiveTypesetting(region);
+  const [fontsReady, setFontsReady] = React.useState(false);
+  React.useEffect(() => {
+    let active = true;
+    setFontsReady(false);
+    void ensureFonts([region]).then(() => { if (active) setFontsReady(true); });
+    return () => { active = false; };
+  }, [t.fontFamily, t.fontStyle, t.fontWeight]);
   const layout=image?sourceLayout(image,region):null;
   const area=layout?.analysis.safeBox??undefined;
-  const fit = region.finalTranslation.trim() ? measureFit(region, pageWidth, pageHeight,area) : null;
+  const fit = fontsReady && region.finalTranslation.trim() ? measureFit(region, pageWidth, pageHeight,area) : null;
   const scale = pageWidth / REFERENCE_WIDTH;
 
   function fitToBubble() {
@@ -71,7 +78,10 @@ export function TypesetPanel({
         Fit to bubble
       </button>
 
-      <button onClick={() => onChange({ ...effectiveTypesetting({ ...region, typesetting: { ...region.typesetting, fontSource: 'matched', autoFit: true, fontSize: region.typesetting.sourceFont?.size ?? 28 } }), fontSource: 'matched' })} className="ml-3 text-[12px] text-[#B9B4FF] hover:underline">Match original</button>
+      <div role="group" aria-label="Lettering style" className="grid grid-cols-2 gap-2">
+        <button onClick={() => onChange({ ...effectiveTypesetting({ ...region, typesetting: { ...region.typesetting, fontSource: 'matched', autoFit: true, fontStyle: 'normal', textCase: 'original', fontSize: region.typesetting.sourceFont?.size ?? 28 } }), fontSource: 'matched' })} className="min-h-11 rounded-md border border-editor-line text-[12px] text-editor-text hover:border-accent">Source style</button>
+        <button onClick={() => onChange(comicLetteringStyle(t))} className="min-h-11 rounded-md border border-editor-line text-[12px] text-editor-text hover:border-accent">Comic style</button>
+      </div>
 
       <Row label="Fill the bubble">
         <div role="group" aria-label="Text coverage" className="flex gap-1">
@@ -82,6 +92,12 @@ export function TypesetPanel({
               {coverage}
             </button>
           ))}
+        </div>
+      </Row>
+
+      <Row label="Alignment">
+        <div role="group" aria-label="Text alignment" className="flex gap-1">
+          {(['left', 'center', 'right'] as const).map(a => <button key={a} onClick={() => onChange({align:a})} aria-pressed={t.align === a} className={`min-h-11 flex-1 rounded-md border px-2 text-[12px] capitalize ${t.align === a ? 'border-accent bg-accent/15 text-editor-text' : 'border-editor-line text-editor-muted'}`}>{a}</button>)}
         </div>
       </Row>
 
@@ -109,21 +125,8 @@ export function TypesetPanel({
           <Slider label="Line spacing" value={t.lineHeight} min={0.85} max={2} step={0.05} onChange={(v) => onChange({ lineHeight: v })} />
           <Slider label="Letter spacing" value={t.letterSpacing} min={-0.05} max={0.3} step={0.01} onChange={(v) => onChange({ letterSpacing: v })} suffix="em" />
           <Slider label="Rotation" value={t.rotation} min={-45} max={45} onChange={(v) => onChange({ rotation: v })} suffix="°" />
-
-          <Row label="Alignment">
-            <div className="flex gap-1">
-              {(['left', 'center', 'right'] as const).map((a) => (
-                <button
-                  key={a}
-                  onClick={() => onChange({ align: a })}
-                  aria-pressed={t.align === a}
-                  className={`flex-1 rounded-md border px-2 py-1 text-[11.5px] capitalize ${t.align === a ? 'border-accent bg-accent/15 text-editor-text' : 'border-editor-line text-editor-muted'}`}
-                >
-                  {a}
-                </button>
-              ))}
-            </div>
-          </Row>
+          <label className="flex min-h-11 items-center justify-between text-[12px] text-editor-muted">Italic<input type="checkbox" checked={t.fontStyle === 'italic'} onChange={e=>onChange({fontStyle:e.target.checked?'italic':'normal'})} className="accent-accent" /></label>
+          <label className="flex min-h-11 items-center justify-between text-[12px] text-editor-muted">Uppercase<input type="checkbox" checked={t.textCase === 'uppercase'} onChange={e=>onChange({textCase:e.target.checked?'uppercase':'original'})} className="accent-accent" /></label>
 
           <div className="flex items-center justify-between rounded-lg bg-editor-panel px-3 py-2">
             <label htmlFor="outline" className="text-[12px] text-editor-muted">

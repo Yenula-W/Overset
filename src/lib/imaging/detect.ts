@@ -83,7 +83,7 @@ export async function detectRegions(
         fontFamily: sourceLanguage === 'ja' ? 'Noto Serif' : 'Archivo',
         fontWeight: 400,
         fontSize: Math.round(Math.max(11, Math.min(32, ((b.measurement.glyphHeight / 0.72) * 840) / w)) * 2) / 2,
-        align: b.shape === 'box' ? 'left' : 'center',
+        align: 'center',
       },
       ambiguityNote: b.score < 0.5 ? 'Detected with low certainty — check this is really a text region.' : undefined,
     }));
