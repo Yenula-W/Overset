@@ -1,3 +1,4 @@
+import { effectiveTypesetting, letteringText } from './typography-core';
 import type { PixelBox } from './lettering-core';
 import { analyzeBubble, bubbleMargin, fillBubbleText, type BubbleAnalysis } from './bubble-core';
 import { cloneMaskedPixels } from './clone-core';
@@ -42,10 +43,11 @@ export function canCleanLocally(region: DialogueRegion) {
 }
 
 export function fontString(region: DialogueRegion, sizePx: number) {
-  const t = region.typesetting;
+  const t = effectiveTypesetting(region);
   // Comic Neue ships 400 and 700 only; snap so the browser doesn't fake a weight.
   const weight = t.fontFamily === 'Comic Neue' ? (t.fontWeight >= 550 ? 700 : 400) : t.fontWeight;
-  return `${weight} ${sizePx}px "${t.fontFamily}", "Comic Neue", sans-serif`;
+  const fallback = t.fontFamily === 'Noto Serif' ? 'serif' : '"Comic Neue", sans-serif';
+  return `${weight} ${sizePx}px "${t.fontFamily}", ${fallback}`;
 }
 
 const measureCanvas = typeof document !== 'undefined' ? document.createElement('canvas').getContext('2d') : null;
@@ -54,10 +56,11 @@ export function measureFit(region: DialogueRegion, pageW: number, pageH: number,
   const px = regionPx(region, pageW, pageH);
   const box = area ? {width:area.width,height:area.height} : usableBox(px.w,px.h,regionShape(region.type));
   const scale = pageW / REFERENCE_WIDTH;
-  const t = region.typesetting;
+  const t = effectiveTypesetting(region);
+  const content = letteringText(region.finalTranslation);
   return fitText(
     {
-      text: region.finalTranslation,
+      text: content.text,
       boxWidth: box.width,
       boxHeight: box.height,
       fontSizePx: t.fontSize * scale, // auto-fit only ever shrinks from the chosen size
@@ -67,7 +70,9 @@ export function measureFit(region: DialogueRegion, pageW: number, pageH: number,
     },
     (text, size) => {
       if (!measureCanvas) return text.length * size * 0.5;
-      measureCanvas.font = fontString(region, size);
+      // Reserve bold widths when the line contains emphasis so it cannot overflow.
+      const emphatic = content.emphasis.length > 0;
+      measureCanvas.font = fontString(emphatic ? { ...region, typesetting: { ...t, fontSource: 'manual', fontWeight: Math.max(700, t.fontWeight) } } : region, size);
       if ('letterSpacing' in measureCanvas) (measureCanvas as CanvasRenderingContext2D & { letterSpacing: string }).letterSpacing = `${t.letterSpacing * size}px`;
       return measureCanvas.measureText(text).width;
     },
@@ -116,7 +121,7 @@ function typesetRegion(ctx: CanvasRenderingContext2D, region: DialogueRegion, pa
   if (!region.finalTranslation.trim()) return;
   const raw = regionPx(region,pageW,pageH);
   const px = area ? {x:area.x,y:area.y,w:area.width,h:area.height} : raw;
-  const t = region.typesetting;
+  const t = effectiveTypesetting(region);
   const fit = measureFit(region, pageW, pageH, area);
   const size = fit.fontSizePx;
   const lineH = size * t.lineHeight;
@@ -134,16 +139,35 @@ function typesetRegion(ctx: CanvasRenderingContext2D, region: DialogueRegion, pa
   ctx.textAlign = t.align;
   const x = t.align === 'left' ? -box.width / 2 : t.align === 'right' ? box.width / 2 : 0;
   const top = -((fit.lines.length - 1) * lineH) / 2;
+  const content = letteringText(region.finalTranslation);
+  let cursor = 0;
   fit.lines.forEach((line, i) => {
     const y = top + i * lineH;
-    if (t.outline) {
-      ctx.lineJoin = 'round';
-      ctx.lineWidth = Math.max(2, size * 0.2);
-      ctx.strokeStyle = '#ffffff';
-      ctx.strokeText(line, x, y);
+    const start = content.text.indexOf(line, cursor);
+    cursor = Math.max(cursor, start + line.length);
+    const spans = content.emphasis.filter(e => e.end > start && e.start < start + line.length);
+    const cuts = new Set([0, line.length]);
+    for (const span of spans) { cuts.add(Math.max(0, span.start - start)); cuts.add(Math.min(line.length, span.end - start)); }
+    const positions = [...cuts].sort((a,b) => a-b);
+    const runs = positions.slice(0,-1).map((from,i) => {
+      const bold = spans.some(e => from + start >= e.start && from + start < e.end);
+      const font = fontString(bold ? { ...region, typesetting: { ...t, fontSource: 'manual', fontWeight: Math.max(700, t.fontWeight) } } : region, size);
+      const text = line.slice(from, positions[i+1]);
+      ctx.font = font;
+      return { text, font, width: ctx.measureText(text).width };
+    });
+    const width = runs.reduce((sum,r) => sum + r.width, 0);
+    let left = t.align === 'left' ? x : t.align === 'right' ? x - width : x - width / 2;
+    ctx.textAlign = 'left';
+    for (const run of runs) {
+      ctx.font = run.font;
+      if (t.outline) {
+        ctx.lineJoin = 'round'; ctx.lineWidth = Math.max(2, size * 0.2);
+        ctx.strokeStyle = '#ffffff'; ctx.strokeText(run.text, left, y);
+      }
+      ctx.fillStyle = '#141418'; ctx.fillText(run.text, left, y);
+      left += run.width;
     }
-    ctx.fillStyle = '#141418';
-    ctx.fillText(line, x, y);
   });
   ctx.restore();
 }
@@ -151,7 +175,7 @@ function typesetRegion(ctx: CanvasRenderingContext2D, region: DialogueRegion, pa
 /** Waits for every lettering font the regions use, so canvas text never falls back. */
 export async function ensureFonts(regions: DialogueRegion[]) {
   if (typeof document === 'undefined' || !document.fonts) return;
-  const wanted = new Set(regions.map((r) => fontString(r, 24)));
+  const wanted = new Set(regions.flatMap(r => [fontString(r,24), ...(letteringText(r.finalTranslation).emphasis.length ? [fontString({ ...r, typesetting: { ...effectiveTypesetting(r), fontSource: 'manual', fontWeight: 700 } },24)] : [])]));
   await Promise.all([...wanted].map((f) => document.fonts.load(f).catch(() => [])));
 }
 

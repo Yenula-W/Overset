@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { effectiveTypesetting } from '@/lib/imaging/typography-core';
 import Link from 'next/link';
 import { ArrowDownNarrowWide, ArrowLeft, ArrowUpNarrowWide, Download, Maximize2, Minus, MousePointer2, Plus, SquareDashed } from 'lucide-react';
 import { PageCanvas } from '@/components/app/editor/page-canvas';
@@ -502,14 +503,14 @@ function Editor({ chapterId }: { chapterId: string }) {
           <TypesetPanel
             image={image}
             onApplyPage={()=>{
-              updateRegions(page.id,rs=>rs.map(r=>r.translate?{...r,typesetting:{...r.typesetting,fontFamily:region.typesetting.fontFamily,fontWeight:region.typesetting.fontWeight,fontSource:'manual' as const},status:r.finalTranslation?'edited':r.status}:r));
-              version({pageId:page.id,kind:'typeset',summary:`Applied ${region.typesetting.fontFamily} lettering across page ${page.order}`,regionSnapshot:regions});
+              updateRegions(page.id,rs=>rs.map(r=>r.translate?{...r,typesetting:{...effectiveTypesetting(r),fontFamily:effectiveTypesetting(region).fontFamily,fontWeight:effectiveTypesetting(region).fontWeight,fontSource:'manual' as const},status:r.finalTranslation?'edited':r.status}:r));
+              version({pageId:page.id,kind:'typeset',summary:`Applied ${effectiveTypesetting(region).fontFamily} lettering across page ${page.order}`,regionSnapshot:regions});
               setView('translated');toast({message:'Page font updated. Review the lettering before export.',tone:'ok'});
             }}
             region={region}
             pageWidth={page.width}
             pageHeight={page.height}
-            onChange={(p: Partial<TypesettingProperties>) => patch(region.id, { typesetting: { ...region.typesetting, ...p, ...(p.fontFamily!==undefined||p.fontWeight!==undefined?{fontSource:'manual' as const}:{}) } })}
+            onChange={(p: Partial<TypesettingProperties>) => patch(region.id, { typesetting: { ...effectiveTypesetting(region), fontSource: 'manual', ...p } })}
           />
         ) : (
           <Inspector
