@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import sharp from 'sharp';
-import { analyzeBubble, fillBubbleText, bubbleMargin } from '../src/lib/imaging/bubble-core.ts';
+import { analyzeBubble, fillBubbleText, bubbleMargin, connectedCaptionBoxes } from '../src/lib/imaging/bubble-core.ts';
 import { assessPageQuality, measureSharpness } from '../src/lib/imaging/quality-core.ts';
 
 const W = 900, H = 1200;
@@ -33,6 +33,49 @@ function crop(img, box) {
   return { data: out, width: w, height: h, region: { x: box.x - x, y: box.y - y, width: box.width, height: box.height } };
 }
 const lumAt = (d, i) => (d[i * 4] * 299 + d[i * 4 + 1] * 587 + d[i * 4 + 2] * 114) / 1000;
+
+test('connected staggered captions retain independent lettering and cleanup masks', async () => {
+  const width = 400, height = 600;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="600">
+    <rect width="400" height="600" fill="#285478"/>
+    <path d="M180 30 H350 V350 H190 V550 H50 V260 H180 Z" fill="white" stroke="black" stroke-width="3"/>
+    <text x="215" y="100" font-size="24">Hunters</text><text x="215" y="145" font-size="24">fight</text>
+    <text x="215" y="190" font-size="24">monsters.</text>
+    <text x="75" y="390" font-size="24">Their</text><text x="75" y="435" font-size="24">profession.</text>
+  </svg>`;
+  const data = new Uint8ClampedArray(await sharp(Buffer.from(svg)).ensureAlpha().raw().toBuffer());
+  const merged = analyzeBubble(data, width, height, {x:50,y:30,width:300,height:520});
+  assert.equal(merged.captionBoxes.length, 2);
+  assert.equal(merged.safeBox, null, 'a compound region must not erase both captions while lettering only one');
+  const analyses = merged.captionBoxes.map(box => analyzeBubble(data, width, height, box));
+  for (const a of analyses) {
+    assert.ok(a.safeBox && a.glyphCount >= 5);
+    const cleaned = fillBubbleText(data.slice(), width, height, a);
+    let changed = 0;
+    for (let i=0;i<width*height;i++) {
+      if ([0,1,2,3].some(c => cleaned[i*4+c] !== data[i*4+c])) {
+        changed++;
+        assert.ok(a.mask[i] && a.filled[i], 'cleanup stays in this caption');
+      }
+    }
+    assert.ok(changed > 100);
+  }
+  for (let i=0;i<width*height;i++) assert.ok(!(analyses[0].mask[i] && analyses[1].mask[i]), 'caption cleanup masks are disjoint');
+  const [a,b] = analyses.map(a=>a.safeBox);
+  const overlap = Math.max(0,Math.min(a.x+a.width,b.x+b.width)-Math.max(a.x,b.x))*Math.max(0,Math.min(a.y+a.height,b.y+b.height)-Math.max(a.y,b.y));
+  assert.equal(overlap, 0, 'translated lettering areas cannot overlap');
+});
+
+test('ordinary rectangular and oval bubbles are not split into captions', () => {
+  const width=240,height=360;
+  for (const oval of [false,true]) {
+    const filled=new Uint8Array(width*height);
+    for(let y=20;y<340;y++) for(let x=20;x<220;x++) {
+      if(!oval || ((x-120)/100)**2+((y-180)/160)**2<=1) filled[y*width+x]=1;
+    }
+    assert.deepEqual(connectedCaptionBoxes(filled,width,height),[]);
+  }
+});
 
 test('only the lettering inside the bubble changes; outline and artwork are untouched', async () => {
   const img = await page();

@@ -104,19 +104,26 @@ export function sourceLayout(image: ImageBitmap | HTMLImageElement, region:Dialo
   const w='naturalWidth' in image?image.naturalWidth:image.width;
   const h='naturalHeight' in image?image.naturalHeight:image.height;
   const px=regionPx(region,w,h);
-  const margin=bubbleMargin(px.w,px.h);
-  const x=Math.max(0,Math.floor(px.x-margin)),y=Math.max(0,Math.floor(px.y-margin));
-  const rw=Math.max(0,Math.min(w,Math.ceil(px.x+px.w+margin))-x),rh=Math.max(0,Math.min(h,Math.ceil(px.y+px.h+margin))-y);
-  if(!rw||!rh||rw*rh>8_000_000)return null;
   let cache=layouts.get(image);if(!cache){cache=new Map();layouts.set(image,cache);}
   const key=`${px.x.toFixed(1)}:${px.y.toFixed(1)}:${px.w.toFixed(1)}:${px.h.toFixed(1)}`;
   if(cache.has(key))return cache.get(key)!;
-  const canvas=document.createElement('canvas');canvas.width=rw;canvas.height=rh;
-  const ctx=canvas.getContext('2d',{willReadFrequently:true});if(!ctx)return null;
-  ctx.drawImage(image,-x,-y);
-  const pixels=ctx.getImageData(0,0,rw,rh);
-  const analysis=analyzeBubble(pixels.data,rw,rh,{x:px.x-x,y:px.y-y,width:px.w,height:px.h});
-  const layout={x,y,w:rw,h:rh,pixels,analysis};
+  let layout: SourceLayout | null = null;
+  // A caption may share its white interior with a staggered neighbour. Extend
+  // the search only when the normal crop cannot enclose that whole shape.
+  for(const factor of [1,2.5,5]) {
+    const margin=bubbleMargin(px.w,px.h)*factor;
+    const x=Math.max(0,Math.floor(px.x-margin)),y=Math.max(0,Math.floor(px.y-margin));
+    const rw=Math.max(0,Math.min(w,Math.ceil(px.x+px.w+margin))-x),rh=Math.max(0,Math.min(h,Math.ceil(px.y+px.h+margin))-y);
+    if(!rw||!rh||rw*rh>8_000_000)break;
+    const canvas=document.createElement('canvas');canvas.width=rw;canvas.height=rh;
+    const ctx=canvas.getContext('2d',{willReadFrequently:true});if(!ctx)return null;
+    ctx.drawImage(image,-x,-y);
+    const pixels=ctx.getImageData(0,0,rw,rh);
+    const analysis=analyzeBubble(pixels.data,rw,rh,{x:px.x-x,y:px.y-y,width:px.w,height:px.h});
+    layout={x,y,w:rw,h:rh,pixels,analysis};
+    if(analysis.filled)break;
+  }
+  if(!layout)return null;
   // Bound cached working areas during repeated manual resizing.
   if(cache.size>=160)cache.clear();cache.set(key,layout);
   return layout;

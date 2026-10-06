@@ -14,6 +14,8 @@ import type { LetteringAnalysis, PixelBox } from './lettering-core';
  */
 
 export interface BubbleAnalysis extends LetteringAnalysis {
+  /** Separate rectangular lobes in a connected caption silhouette. */
+  captionBoxes?: PixelBox[];
   /** The bubble interior including its lettering, in crop pixels. */
   filled: Uint8Array | null;
   /** Bubble interior bounding box in crop pixels. */
@@ -118,7 +120,26 @@ export function analyzeBubble(rgba: Uint8ClampedArray | Uint8Array, width: numbe
     const x = i % width, y = (i - x) / width;
     if (x < fx0) fx0 = x; if (x > fx1) fx1 = x; if (y < fy0) fy0 = y; if (y > fy1) fy1 = y;
   }
-  const bubbleBox = { x: fx0, y: fy0, width: fx1 - fx0 + 1, height: fy1 - fy0 + 1 };
+  let bubbleBox = { x: fx0, y: fy0, width: fx1 - fx0 + 1, height: fy1 - fy0 + 1 };
+  const captionBoxes = connectedCaptionBoxes(filled, width, height);
+  let compound = false;
+  if (captionBoxes.length > 1) {
+    const scored = captionBoxes.map((box,index) => {
+      const overlap = Math.max(0,Math.min(box.x+box.width,rx1)-Math.max(box.x,rx0)) * Math.max(0,Math.min(box.y+box.height,ry1)-Math.max(box.y,ry0));
+      return {index,score:overlap/Math.min(box.width*box.height,(rx1-rx0)*(ry1-ry0))};
+    }).sort((a,b)=>b.score-a.score);
+    compound = scored[1].score >= scored[0].score*.65;
+    if (!compound) {
+      const selected = scored[0].index;
+      bubbleBox = captionBoxes[selected]; filledArea = 0;
+      for(let i=0;i<total;i++) {
+        const x=i%width,y=Math.floor(i/width);
+        if(filled[i] && captionOwner(captionBoxes,x,y)!==selected) filled[i]=0;
+        outside[i]=filled[i]?0:1;
+        if(filled[i]) filledArea++;
+      }
+    }
+  }
 
   // Holes = lettering.
   const hole = new Int32Array(total);
@@ -223,11 +244,11 @@ export function analyzeBubble(rgba: Uint8ClampedArray | Uint8Array, width: numbe
     }
   }
   let safeBox: PixelBox | null = null;
-  if (rect) {
+  if (rect && !compound) {
     const padX = Math.max(2, Math.round(rect.width * 0.06)), padY = Math.max(2, Math.round(rect.height * 0.06));
     if (rect.width - padX * 2 > 10 && rect.height - padY * 2 > 8) safeBox = { x: rect.x + padX, y: rect.y + padY, width: rect.width - padX * 2, height: rect.height - padY * 2 };
   }
-  return { mask, textBox, safeBox, glyphHeight, glyphCount: glyphs.length, filled, bubbleBox, background };
+  return { mask, textBox, safeBox, glyphHeight, glyphCount: glyphs.length, filled, bubbleBox, background, captionBoxes };
 }
 
 /**
@@ -279,4 +300,63 @@ function erodeLight(light: Uint8Array, width: number, height: number, radius: nu
     }
   }
   return core;
+}
+
+
+/** Recognize two staggered rectangular captions from their enclosed silhouette.
+ * Long, stable edge runs distinguish boxes from an oval or a balloon tail. */
+export function connectedCaptionBoxes(filled: Uint8Array, width: number, height: number): PixelBox[] {
+  if (filled.length !== width * height) return [];
+  function scan(transpose: boolean): PixelBox[] {
+    const rows = transpose ? width : height, cols = transpose ? height : width;
+    const spans: { left: number; right: number }[] = [];
+    let first = rows, last = -1;
+    for (let y = 0; y < rows; y++) {
+      let left = cols, right = -1;
+      for (let x = 0; x < cols; x++) if (filled[transpose ? x * width + y : y * width + x]) { left = Math.min(left,x); right = x; }
+      spans.push({left,right});
+      if (right >= left) { first = Math.min(first,y); last = y; }
+    }
+    if (last < first) return [];
+    const length = last - first + 1;
+    const bands: {start:number;end:number;left:number;right:number}[] = [];
+    for (let start = first; start <= last;) {
+      let end = start + 1, left = spans[start].left, right = spans[start].right;
+      while (end <= last && Math.abs(spans[end].left - spans[start].left) <= 2 && Math.abs(spans[end].right - spans[start].right) <= 2) {
+        left = Math.max(left,spans[end].left); right = Math.min(right,spans[end].right); end++;
+      }
+      if (end-start >= Math.max(8,length*.12) && right-left >= 12) bands.push({start,end,left,right});
+      start = end;
+    }
+    if (bands.length < 2) return [];
+    const a = bands[0], b = bands[bands.length-1];
+    if (a.start > first+length*.15 || b.end < last-length*.15 || Math.abs(a.left-b.left) < 8 || Math.abs(a.right-b.right) < 8) return [];
+    const boxes = [a,b].map(band => {
+      let top = band.start, bottom = band.end;
+      while (top > first && spans[top-1].left <= band.left && spans[top-1].right >= band.right) top--;
+      while (bottom <= last && spans[bottom].left <= band.left && spans[bottom].right >= band.right) bottom++;
+      return transpose ? {x:top,y:band.left,width:bottom-top,height:band.right-band.left+1} : {x:band.left,y:top,width:band.right-band.left+1,height:bottom-top};
+    });
+    const [one,two] = boxes;
+    const intersection = Math.max(0,Math.min(one.x+one.width,two.x+two.width)-Math.max(one.x,two.x)) * Math.max(0,Math.min(one.y+one.height,two.y+two.height)-Math.max(one.y,two.y));
+    if (intersection/Math.min(one.width*one.height,two.width*two.height) > .35) return [];
+    let total = 0, covered = 0;
+    for (let y=0;y<height;y++) for(let x=0;x<width;x++) if(filled[y*width+x]) {
+      total++; if(boxes.some(r=>x>=r.x&&x<r.x+r.width&&y>=r.y&&y<r.y+r.height)) covered++;
+    }
+    return total && covered/total >= .94 ? boxes : [];
+  }
+  const vertical = scan(false);
+  return vertical.length ? vertical : scan(true);
+}
+
+/** Assign overlap pixels to the nearest box in normalized box coordinates. */
+export function captionOwner(boxes: PixelBox[], x: number, y: number) {
+  let owner = -1, best = Infinity;
+  boxes.forEach((box,i) => {
+    if (x<box.x || x>=box.x+box.width || y<box.y || y>=box.y+box.height) return;
+    const score = ((x-box.x-box.width/2)/box.width)**2 + ((y-box.y-box.height/2)/box.height)**2;
+    if (score < best) { owner = i; best = score; }
+  });
+  return owner;
 }

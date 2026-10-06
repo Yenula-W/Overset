@@ -159,15 +159,19 @@ export async function processPage(chapterId: string, input: z.infer<typeof proce
 /** The enclosed bubble around a box, as page-percentage bounds, or null when there isn't one. */
 async function bubbleAt(original: Buffer, page: { width: number; height: number }, bounds: Rect) {
   const px = { x: bounds.x / 100 * page.width, y: bounds.y / 100 * page.height, w: bounds.width / 100 * page.width, h: bounds.height / 100 * page.height };
-  const margin = bubbleMargin(px.w, px.h);
-  const left = Math.max(0, Math.floor(px.x - margin)), top = Math.max(0, Math.floor(px.y - margin));
-  const width = Math.min(page.width, Math.ceil(px.x + px.w + margin)) - left, height = Math.min(page.height, Math.ceil(px.y + px.h + margin)) - top;
-  if (width < 8 || height < 8 || width * height > 16_000_000) return null;
-  const pixels = await sharp(original, { limitInputPixels: 100_000_000 }).extract({ left, top, width, height }).toColourspace('srgb').ensureAlpha().raw().toBuffer();
-  const found = analyzeBubble(pixels, width, height, { x: px.x - left, y: px.y - top, width: px.w, height: px.h });
-  if (!found.bubbleBox || !found.safeBox || !found.glyphCount) return null;
-  const b = found.bubbleBox;
-  return { bounds: { x: (left + b.x) / page.width * 100, y: (top + b.y) / page.height * 100, width: b.width / page.width * 100, height: b.height / page.height * 100 }, glyphHeight: found.glyphHeight };
+  for(const factor of [1,2.5,5]) {
+    const margin = bubbleMargin(px.w, px.h)*factor;
+    const left = Math.max(0, Math.floor(px.x - margin)), top = Math.max(0, Math.floor(px.y - margin));
+    const width = Math.min(page.width, Math.ceil(px.x + px.w + margin)) - left, height = Math.min(page.height, Math.ceil(px.y + px.h + margin)) - top;
+    if (width < 8 || height < 8 || width * height > 16_000_000) return null;
+    const pixels = await sharp(original, { limitInputPixels: 100_000_000 }).extract({ left, top, width, height }).toColourspace('srgb').ensureAlpha().raw().toBuffer();
+    const found = analyzeBubble(pixels, width, height, { x: px.x - left, y: px.y - top, width: px.w, height: px.h });
+    if (!found.filled) continue;
+    if (!found.bubbleBox || !found.safeBox || !found.glyphCount) return null;
+    const b = found.bubbleBox;
+    return { bounds: { x: (left + b.x) / page.width * 100, y: (top + b.y) / page.height * 100, width: b.width / page.width * 100, height: b.height / page.height * 100 }, glyphHeight: found.glyphHeight };
+  }
+  return null;
 }
 
 /** The page with each candidate outlined and numbered, so the AI can say which text is in which bubble. */

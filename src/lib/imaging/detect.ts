@@ -1,3 +1,4 @@
+import { analyzeBubble } from './bubble-core';
 import { analyzeLettering, letteringColumns } from './lettering-core';
 import { detectBubbles, readingOrder, rgbaToLuma } from './detect-core';
 import { DEFAULT_TYPESETTING, type DialogueRegion, type LanguageCode } from '@/lib/types/domain';
@@ -32,6 +33,14 @@ export async function detectRegions(
     const bubbles = readingOrder(detectBubbles(lum, w, h, {lightThreshold:195}), sourceLanguage === 'ja' ? 'rtl' : 'ltr');
 
     const measured=bubbles.flatMap(b=>{
+      const left=Math.max(0,b.x-8),top=Math.max(0,b.y-8);
+      const cw=Math.min(w,b.x+b.width+8)-left,ch=Math.min(h,b.y+b.height+8)-top;
+      const crop=ctx.getImageData(left,top,cw,ch).data;
+      const connected=analyzeBubble(crop,cw,ch,{x:b.x-left,y:b.y-top,width:b.width,height:b.height});
+      if(connected.captionBoxes && connected.captionBoxes.length>1) return connected.captionBoxes.map(box=>({
+        b:{...b,x:left+box.x,y:top+box.y,width:box.width,height:box.height,shape:'box' as const},
+        analysis:analyzeBubble(crop,cw,ch,box),
+      })).filter(m=>m.analysis.glyphCount>=3&&m.analysis.safeBox);
       const analysis=analyzeLettering(ctx.getImageData(b.x,b.y,b.width,b.height).data,b.width,b.height);
       const text=analysis.textBox;
       if(!text||!analysis.safeBox||analysis.glyphHeight<3||analysis.glyphCount<3||analysis.glyphCount<text.width*text.height/analysis.glyphHeight**2*0.3)return [];
