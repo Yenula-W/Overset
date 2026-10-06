@@ -36,3 +36,30 @@ export function letteringText(source: string) {
   text += source.slice(cursor);
   return { text, emphasis };
 }
+
+/** Preserve old manually fitted boxes unless the translator chooses coverage. */
+export function letteringCoverage(t: TypesettingProperties): number {
+  if (!t.autoFit) return 1;
+  if (t.coverage === 'roomy') return 0.66;
+  if (t.coverage === 'balanced') return 0.8;
+  if (t.coverage === 'fuller') return 0.92;
+  return t.fontSource === 'manual' ? 1 : 0.8;
+}
+
+/** A page can contain dialogue, narration and SFX with deliberately different
+ * styles. Apply only to this text kind, fitting each original box independently. */
+export function applyLetteringStyle(regions: DialogueRegion[], selected: DialogueRegion): DialogueRegion[] {
+  const style = effectiveTypesetting(selected);
+  return regions.map(region => region.translate && region.type === selected.type ? {
+    ...region,
+    status: region.finalTranslation ? 'edited' : region.status,
+    typesetting: {
+      ...effectiveTypesetting(region),
+      fontFamily: style.fontFamily, fontWeight: style.fontWeight,
+      fontSize: style.fontSize, lineHeight: style.lineHeight,
+      letterSpacing: style.letterSpacing, outline: style.outline, align: style.align,
+      coverage: style.coverage ?? 'balanced',
+      fontSource: 'manual', autoFit: true,
+    },
+  } : region);
+}

@@ -1,4 +1,4 @@
-import { effectiveTypesetting, letteringText } from './typography-core';
+import { effectiveTypesetting, letteringCoverage, letteringText } from './typography-core';
 import type { PixelBox } from './lettering-core';
 import { analyzeBubble, bubbleMargin, fillBubbleText, type BubbleAnalysis } from './bubble-core';
 import { cloneMaskedPixels } from './clone-core';
@@ -63,7 +63,7 @@ export function measureFit(region: DialogueRegion, pageW: number, pageH: number,
       text: content.text,
       boxWidth: box.width,
       // Leave breathing room while using most of the original text area.
-      boxHeight: t.autoFit && t.fontSource !== 'manual' ? box.height * 0.8 : box.height,
+      boxHeight: box.height * letteringCoverage(t),
       fontSizePx: t.fontSize * scale, // auto-fit only ever shrinks from the chosen size
       minFontSizePx: Math.max(9, 11 * scale),
       lineHeight: t.lineHeight,
