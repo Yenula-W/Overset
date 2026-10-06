@@ -62,21 +62,36 @@ export function measureFit(region: DialogueRegion, pageW: number, pageH: number,
     {
       text: content.text,
       boxWidth: box.width,
-      boxHeight: box.height,
+      // Leave breathing room while using most of the original text area.
+      boxHeight: t.autoFit && t.fontSource !== 'manual' ? box.height * 0.8 : box.height,
       fontSizePx: t.fontSize * scale, // auto-fit only ever shrinks from the chosen size
       minFontSizePx: Math.max(9, 11 * scale),
       lineHeight: t.lineHeight,
       autoFit: t.autoFit,
     },
-    (text, size) => {
+    (text, size, start = 0) => {
       if (!measureCanvas) return text.length * size * 0.5;
-      // Reserve bold widths when the line contains emphasis so it cannot overflow.
-      const emphatic = content.emphasis.length > 0;
-      measureCanvas.font = fontString(emphatic ? { ...region, typesetting: { ...t, fontSource: 'manual', fontWeight: Math.max(700, t.fontWeight) } } : region, size);
       if ('letterSpacing' in measureCanvas) (measureCanvas as CanvasRenderingContext2D & { letterSpacing: string }).letterSpacing = `${t.letterSpacing * size}px`;
-      return measureCanvas.measureText(text).width;
+      return letteringRuns(measureCanvas, region, text, size, start, content).reduce((sum, run) => sum + run.width, 0);
     },
   );
+}
+
+/** One run model measures and draws emphasis, avoiding conservative bold widths
+ * that would make otherwise ordinary words wrap too early. */
+function letteringRuns(ctx: CanvasRenderingContext2D, region: DialogueRegion, line: string, size: number, start: number, content: ReturnType<typeof letteringText>) {
+  const t = effectiveTypesetting(region);
+  const spans = content.emphasis.filter(e => e.end > start && e.start < start + line.length);
+  const cuts = new Set([0, line.length]);
+  for (const span of spans) { cuts.add(Math.max(0, span.start - start)); cuts.add(Math.min(line.length, span.end - start)); }
+  const positions = [...cuts].sort((a,b) => a-b);
+  return positions.slice(0,-1).map((from,i) => {
+    const bold = spans.some(e => from + start >= e.start && from + start < e.end);
+    const font = fontString(bold ? { ...region, typesetting: { ...t, fontSource: 'manual', fontWeight: Math.max(700, t.fontWeight) } } : region, size);
+    const text = line.slice(from, positions[i+1]);
+    ctx.font = font;
+    return { text, font, width: ctx.measureText(text).width };
+  });
 }
 
 export interface SourceLayout { x:number; y:number; w:number; h:number; pixels:ImageData; cleaned?:ImageData; analysis:BubbleAnalysis }
@@ -145,17 +160,7 @@ function typesetRegion(ctx: CanvasRenderingContext2D, region: DialogueRegion, pa
     const y = top + i * lineH;
     const start = content.text.indexOf(line, cursor);
     cursor = Math.max(cursor, start + line.length);
-    const spans = content.emphasis.filter(e => e.end > start && e.start < start + line.length);
-    const cuts = new Set([0, line.length]);
-    for (const span of spans) { cuts.add(Math.max(0, span.start - start)); cuts.add(Math.min(line.length, span.end - start)); }
-    const positions = [...cuts].sort((a,b) => a-b);
-    const runs = positions.slice(0,-1).map((from,i) => {
-      const bold = spans.some(e => from + start >= e.start && from + start < e.end);
-      const font = fontString(bold ? { ...region, typesetting: { ...t, fontSource: 'manual', fontWeight: Math.max(700, t.fontWeight) } } : region, size);
-      const text = line.slice(from, positions[i+1]);
-      ctx.font = font;
-      return { text, font, width: ctx.measureText(text).width };
-    });
+    const runs = letteringRuns(ctx, region, line, size, start, content);
     const width = runs.reduce((sum,r) => sum + r.width, 0);
     let left = t.align === 'left' ? x : t.align === 'right' ? x - width : x - width / 2;
     ctx.textAlign = 'left';

@@ -238,6 +238,8 @@ export interface ContextReference {
 }
 
 export interface TypesettingProperties {
+  /** Original lettering traits retained separately from human formatting. */
+  sourceFont?: { category: 'serif' | 'sans' | 'handwritten' | 'display'; weight: number; size: number };
   /** Explicit human font choices survive later OCR. */
   fontSource?: 'matched' | 'manual';
   fontFamily: string;

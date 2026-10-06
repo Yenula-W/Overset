@@ -71,7 +71,7 @@ export function TypesetPanel({
         Fit to bubble
       </button>
 
-      <button onClick={() => onChange({ ...effectiveTypesetting({ ...region, typesetting: { ...region.typesetting, fontSource: 'matched', autoFit: true, fontSize: region.type === 'narration' ? 16 : 22 } }), fontSource: 'matched' })} className="ml-3 text-[12px] text-[#B9B4FF] hover:underline">Reset lettering</button>
+      <button onClick={() => onChange({ ...effectiveTypesetting({ ...region, typesetting: { ...region.typesetting, fontSource: 'matched', autoFit: true, fontSize: region.typesetting.sourceFont?.size ?? 28 } }), fontSource: 'matched' })} className="ml-3 text-[12px] text-[#B9B4FF] hover:underline">Match original</button>
 
       <Row label="Font">
         <select
