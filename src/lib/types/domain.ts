@@ -247,6 +247,8 @@ export interface TypesettingProperties {
   fontFamily: string;
   fontSize: number;
   fontWeight: number;
+  fontStyle?: 'normal' | 'italic';
+  textCase?: 'original' | 'uppercase';
   align: 'left' | 'center' | 'right';
   lineHeight: number;
   letterSpacing: number;

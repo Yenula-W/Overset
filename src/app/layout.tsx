@@ -37,7 +37,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
-          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Archivo:wght@400;500;600;700;800&family=Archivo+Narrow:wght@600;700&family=Noto+Sans+KR:wght@600;700&family=Noto+Serif:wght@400;600;700&family=Comic+Neue:wght@400;700&family=Bangers&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Archivo:wght@400;500;600;700;800&family=Archivo+Narrow:ital,wght@0,600;0,700;1,600;1,700&family=Noto+Sans+KR:wght@600;700&family=Noto+Serif:wght@400;600;700&family=Comic+Neue:wght@400;700&family=Bangers&display=swap"
           rel="stylesheet"
         />
       </head>

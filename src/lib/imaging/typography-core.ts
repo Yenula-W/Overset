@@ -14,15 +14,16 @@ export function effectiveTypesetting(region: Pick<DialogueRegion, 'type' | 'type
   if (region.type === 'narration' || region.type === 'dialogue' || region.type === 'thought') return {
     ...t, fontFamily: family, fontWeight: weight,
     fontSize: Math.min(source?.size ?? t.fontSize, 28), lineHeight: 1.2,
-    letterSpacing: 0, align: region.type === 'narration' ? 'left' : t.align,
+    letterSpacing: 0, align: 'center',
   };
   return t;
 }
 
 /** Display inline emphasis without changing the saved translation. Paired
  * markers become bold lettering; unmatched asterisks remain literal. */
-export function letteringText(source: string) {
+export function letteringText(source: string, textCase: 'original' | 'uppercase' = 'original') {
   source = source.replace(/[^\S\n]+/g, ' ');
+  if (textCase === 'uppercase') source = source.toUpperCase();
   let text = '', cursor = 0;
   const emphasis: { start: number; end: number }[] = [];
   const pattern = /(?<!\w)(\*\*|__|\*|_)(?=\S)(.+?)\1(?!\w)/g;
@@ -56,10 +57,30 @@ export function applyLetteringStyle(regions: DialogueRegion[], selected: Dialogu
     typesetting: {
       ...effectiveTypesetting(region),
       fontFamily: style.fontFamily, fontWeight: style.fontWeight,
+      fontStyle: style.fontStyle ?? 'normal', textCase: style.textCase ?? 'original',
       fontSize: style.fontSize, lineHeight: style.lineHeight,
       letterSpacing: style.letterSpacing, outline: style.outline, align: style.align,
       coverage: style.coverage ?? 'balanced',
       fontSource: 'manual', autoFit: true,
     },
   } : region);
+}
+
+/** Presets change presentation only; source text, translations and boxes stay intact. */
+export function comicLetteringStyle(t: TypesettingProperties): TypesettingProperties {
+  return { ...t, fontSource: 'manual', fontFamily: 'Archivo Narrow', fontWeight: 600,
+    fontStyle: 'italic', textCase: 'uppercase', align: 'center', lineHeight: 1.15,
+    letterSpacing: 0, coverage: 'balanced', autoFit: true, fontSize: Math.max(t.fontSize, 28) };
+}
+
+export interface LineInk { left: number; right: number; ascent: number; descent: number }
+/** Center visible ink, rather than font advance widths or the em square. */
+export function letteringPlacement(lines: LineInk[], lineHeight: number, width: number, align: TypesettingProperties['align']) {
+  if (!lines.length) return [];
+  const top = Math.min(...lines.map((line,i) => i*lineHeight-line.ascent));
+  const bottom = Math.max(...lines.map((line,i) => i*lineHeight+line.descent));
+  return lines.map((line,i) => ({
+    x: align === 'left' ? -width/2-line.left : align === 'right' ? width/2-line.right : -(line.left+line.right)/2,
+    y: i*lineHeight-(top+bottom)/2,
+  }));
 }

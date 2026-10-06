@@ -1,12 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {effectiveTypesetting,letteringText,letteringCoverage,applyLetteringStyle} from '../src/lib/imaging/typography-core.ts';
+import {effectiveTypesetting,letteringText,letteringCoverage,applyLetteringStyle,comicLetteringStyle,letteringPlacement} from '../src/lib/imaging/typography-core.ts';
 import {wrapLines,fitText} from '../src/lib/imaging/typeset-core.ts';
 const typesetting={fontSource:'matched',fontFamily:'Archivo',fontSize:40,fontWeight:400,align:'left',lineHeight:1.15,letterSpacing:0,rotation:0,outline:false,direction:'horizontal',autoFit:true};
 test('existing automatic narration receives source-like serif lettering without editing text',()=>{
  const region={type:'narration',sourceLanguage:'ja',typesetting,finalTranslation:'It is not like I *want* to do it, either.'};
  const t=effectiveTypesetting(region);
- assert.equal(t.fontFamily,'Noto Serif');assert.equal(t.fontSize,28);assert.equal(t.lineHeight,1.2);assert.equal(t.align,'left');
+ assert.equal(t.fontFamily,'Noto Serif');assert.equal(t.fontSize,28);assert.equal(t.lineHeight,1.2);assert.equal(t.align,'center');
  assert.equal(region.typesetting.fontSize,40);assert.equal(region.finalTranslation,'It is not like I *want* to do it, either.');
 });
 test('human font, size, alignment and spacing remain authoritative',()=>{
@@ -75,4 +75,31 @@ test('applying a style preserves other text kinds, original boxes and translatio
  assert.equal(result[1].status,'edited');
  assert.equal(result[2],dialogue);assert.equal(result[3],sfx);assert.equal(result[4],skipped);
  assert.equal(second.status,'approved');
+});
+
+test('visible lettering stays centered with italic bearings and unequal ascenders',()=>{
+ const lines=[{left:-3,right:96,ascent:18,descent:0},{left:1,right:72,ascent:15,descent:5}];
+ const placed=letteringPlacement(lines,26,120,'center');
+ for(let i=0;i<lines.length;i++) assert.equal(placed[i].x+(lines[i].left+lines[i].right)/2,0);
+ const top=Math.min(...lines.map((l,i)=>placed[i].y-l.ascent));
+ const bottom=Math.max(...lines.map((l,i)=>placed[i].y+l.descent));
+ assert.equal(top,-bottom);
+ assert.equal(placed[1].y-placed[0].y,26);
+ for(const align of ['left','right']) {
+  const p=letteringPlacement(lines,26,120,align);
+  for(let i=0;i<lines.length;i++) assert.equal(p[i].x+lines[i][align],align==='left'?-60:60);
+ }
+ assert.deepEqual(letteringPlacement([],26,120,'center'),[]);
+});
+test('comic preset is a reversible presentation choice and keeps source font metadata',()=>{
+ const style=comicLetteringStyle({...typesetting,sourceFont:{category:'serif',weight:400,size:27}});
+ assert.equal(style.align,'center');assert.equal(style.fontFamily,'Archivo Narrow');assert.equal(style.fontStyle,'italic');assert.equal(style.textCase,'uppercase');
+ assert.deepEqual(style.sourceFont,{category:'serif',weight:400,size:27});
+ const source='Wait, *Hunters*?';
+ const display=letteringText(source,style.textCase);
+ assert.equal(display.text,'WAIT, HUNTERS?');assert.equal(source,'Wait, *Hunters*?');
+ assert.deepEqual(display.emphasis.map(e=>display.text.slice(e.start,e.end)),['HUNTERS']);
+ const region={id:'n',type:'narration',translate:true,typesetting:style,finalTranslation:source};
+ const applied=applyLetteringStyle([{...region,id:'n2',typesetting}],region)[0];
+ assert.equal(applied.typesetting.fontStyle,'italic');assert.equal(applied.typesetting.textCase,'uppercase');assert.equal(applied.finalTranslation,source);
 });
