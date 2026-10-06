@@ -7,7 +7,7 @@
  * the result says so instead of shrinking it into illegibility.
  */
 
-export type Measure = (text: string, fontSizePx: number) => number;
+export type Measure = (text: string, fontSizePx: number, start?: number) => number;
 
 export interface FitInput {
   text: string;
@@ -30,28 +30,67 @@ export interface FitResult {
 }
 
 export function wrapLines(text: string, maxWidth: number, size: number, measure: Measure): string[] {
-  const out: string[] = [];
-  for (const paragraph of text.split(/\n/)) {
-    const words = paragraph.split(/\s+/).filter(Boolean);
-    let line = '';
-    for (const word of words) {
+  let paragraphOffset = 0;
+  return text.split(/\n/).flatMap(paragraph => {
+    const offset = paragraphOffset;
+    paragraphOffset += paragraph.length + 1;
+    const matches = [...paragraph.matchAll(/\S+/g)];
+    const words = matches.map(m => m[0]);
+    const starts = matches.map(m => offset + m.index!);
+    if (!words.length) return [];
+    const greedy: string[] = [];
+    let line = '', lineStart = 0;
+    for (let i = 0; i < words.length; i++) {
+      const word = words[i];
       const candidate = line ? `${line} ${word}` : word;
-      if (line && measure(candidate, size) > maxWidth) {
-        out.push(line);
-        line = word;
-      } else {
-        line = candidate;
-      }
+      if (line && measure(candidate, size, starts[lineStart]) > maxWidth) { greedy.push(line); line = word; lineStart = i; }
+      else line = candidate;
     }
-    out.push(line);
-  }
-  return out.filter((l, i, arr) => l.length > 0 || arr.length === 1);
+    greedy.push(line);
+    // Keep the minimum line count (and therefore fit height), but distribute
+    // words evenly instead of leaving a lone "a" or "and" on its own line.
+    if (words.length > 100 || greedy.length < 2) return greedy;
+    const count = greedy.length, n = words.length;
+    const widths = new Map<string, number>();
+    const widthOf = (line: string, start: number) => {
+      const key = `${start}:${line}`;
+      let width = widths.get(key);
+      if (width === undefined) { width = measure(line, size, starts[start]); widths.set(key, width); }
+      return width;
+    };
+    const memo = new Map<string, { cost: number; lines: string[] }>();
+    function solve(start: number, remaining: number): { cost: number; lines: string[] } {
+      if (!remaining) return { cost: start === n ? 0 : Infinity, lines: [] };
+      const key = `${start}:${remaining}`, cached = memo.get(key);
+      if (cached) return cached;
+      let best = { cost: Infinity, lines: [] as string[] }, candidate = '';
+      for (let end = start; end <= n - remaining; end++) {
+        candidate += (candidate ? ' ' : '') + words[end];
+        const width = widthOf(candidate, start);
+        if (width > maxWidth) break;
+        const rest = solve(end + 1, remaining - 1);
+        const slack = (maxWidth - width) / Math.max(1, maxWidth);
+        const orphan = end === start && n > count ? 1.5 : 0;
+        const cost = rest.cost + slack * slack + orphan;
+        if (cost < best.cost) best = { cost, lines: [candidate, ...rest.lines] };
+      }
+      memo.set(key, best);
+      return best;
+    }
+    const balanced = solve(0, count);
+    return Number.isFinite(balanced.cost) ? balanced.lines : greedy;
+  });
 }
 
 function fitsAt(input: FitInput, size: number, measure: Measure) {
   const lines = wrapLines(input.text, input.boxWidth, size, measure);
   const blockHeight = lines.length * size * input.lineHeight;
-  const widest = Math.max(0, ...lines.map((l) => measure(l, size)));
+  let cursor = 0;
+  const widest = Math.max(0, ...lines.map(line => {
+    const start = Math.max(cursor, input.text.indexOf(line, cursor));
+    cursor = start + line.length;
+    return measure(line, size, start);
+  }));
   return { lines, blockHeight, fits: blockHeight <= input.boxHeight && widest <= input.boxWidth };
 }
 

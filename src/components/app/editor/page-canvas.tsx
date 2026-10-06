@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { effectiveTypesetting } from '@/lib/imaging/typography-core';
 import { fontString, measureFit, renderPage, sourceLayout, type RenderMode } from '@/lib/imaging/render';
 import { REGION_TYPE_LABELS, type DialogueRegion, type Rect } from '@/lib/types/domain';
 import { cn } from '@/lib/utils';
@@ -226,9 +227,9 @@ export function PageCanvas({
             const r=regions.find(r=>r.id===editingId),layout=r&&image?sourceLayout(image,r):null,area=layout?.analysis.safeBox;
             if(!r||!layout||!area)return null;
             const finish=()=>{onTextCommit?.(r.id,beforeText.current,r.finalTranslation);setEditingId(null);};
-            const fit=measureFit(r,width,height,area);
+            const fit=measureFit(r,width,height,area), t=effectiveTypesetting(r);
             return <div className="absolute" style={{left:`${(layout.x+area.x)/width*100}%`,top:`${(layout.y+area.y)/height*100}%`,width:`${area.width/width*100}%`,height:`${area.height/height*100}%`}} onPointerDown={e=>e.stopPropagation()}>
-              <textarea autoFocus aria-label="Edit translation on page" value={r.finalTranslation} onChange={e=>onTextChange?.(r.id,e.target.value)} onBlur={finish} onKeyDown={e=>{e.stopPropagation();if(e.key==='Escape'||((e.metaKey||e.ctrlKey)&&e.key==='Enter')){e.preventDefault();finish();}}} className="no-scrollbar h-full w-full resize-none rounded-sm border-0 bg-transparent p-0 text-ink outline outline-2 outline-accent focus:outline-accent" style={{font:fontString(r,Math.max(12,fit.fontSizePx*(overlayRef.current?.clientWidth??width)/width)),lineHeight:r.typesetting.lineHeight,textAlign:r.typesetting.align,letterSpacing:`${r.typesetting.letterSpacing}em`,paddingTop:Math.max(0,(area.height-fit.blockHeight)/2*(overlayRef.current?.clientWidth??width)/width)}} />
+              <textarea autoFocus aria-label="Edit translation on page" value={r.finalTranslation} onChange={e=>onTextChange?.(r.id,e.target.value)} onBlur={finish} onKeyDown={e=>{e.stopPropagation();if(e.key==='Escape'||((e.metaKey||e.ctrlKey)&&e.key==='Enter')){e.preventDefault();finish();}}} className="no-scrollbar h-full w-full resize-none rounded-sm border-0 bg-transparent p-0 text-ink outline outline-2 outline-accent focus:outline-accent" style={{font:fontString(r,Math.max(1,fit.fontSizePx*(overlayRef.current?.clientWidth??width)/width)),lineHeight:t.lineHeight,textAlign:t.align,letterSpacing:`${t.letterSpacing}em`,paddingTop:Math.max(0,(area.height-fit.blockHeight)/2*(overlayRef.current?.clientWidth??width)/width)}} />
             </div>;
           })()}
           {drag?.kind === 'draw' && (

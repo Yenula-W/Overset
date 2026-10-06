@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { effectiveTypesetting } from '@/lib/imaging/typography-core';
 import { Maximize, TriangleAlert } from 'lucide-react';
 import type { DialogueRegion, TypesettingProperties } from '@/lib/types/domain';
 import { LETTERING_FONTS, measureFit, REFERENCE_WIDTH, sourceLayout } from '@/lib/imaging/render';
@@ -24,7 +25,7 @@ export function TypesetPanel({
   pageHeight: number;
   onChange: (patch: Partial<TypesettingProperties>) => void;
 }) {
-  const t = region.typesetting;
+  const t = effectiveTypesetting(region);
   const layout=image?sourceLayout(image,region):null;
   const area=layout?.analysis.safeBox??undefined;
   const fit = region.finalTranslation.trim() ? measureFit(region, pageWidth, pageHeight,area) : null;
@@ -33,7 +34,7 @@ export function TypesetPanel({
   function fitToBubble() {
     // Measure with auto-fit on, then store the result as a fixed size.
     const fitted = measureFit({ ...region, typesetting: { ...t, autoFit: true } }, pageWidth, pageHeight,area);
-    onChange({ fontSize: Math.round((fitted.fontSizePx / scale) * 4) / 4, autoFit: false });
+    onChange({ ...t, fontSource: 'manual', fontSize: Math.round((fitted.fontSizePx / scale) * 4) / 4, autoFit: false });
   }
 
   return (
@@ -69,6 +70,8 @@ export function TypesetPanel({
         <Maximize size={12} />
         Fit to bubble
       </button>
+
+      <button onClick={() => onChange({ ...effectiveTypesetting({ ...region, typesetting: { ...region.typesetting, fontSource: 'matched', autoFit: true, fontSize: region.typesetting.sourceFont?.size ?? 28 } }), fontSource: 'matched' })} className="ml-3 text-[12px] text-[#B9B4FF] hover:underline">Match original</button>
 
       <Row label="Font">
         <select
