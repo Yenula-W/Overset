@@ -242,6 +242,8 @@ export interface TypesettingProperties {
   sourceFont?: { category: 'serif' | 'sans' | 'handwritten' | 'display'; weight: number; size: number };
   /** Explicit human font choices survive later OCR. */
   fontSource?: 'matched' | 'manual';
+  /** Available text area used by automatic fitting; never changes the bubble. */
+  coverage?: 'roomy' | 'balanced' | 'fuller';
   fontFamily: string;
   fontSize: number;
   fontWeight: number;

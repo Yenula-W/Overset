@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { effectiveTypesetting } from '@/lib/imaging/typography-core';
 import { Maximize, TriangleAlert } from 'lucide-react';
-import type { DialogueRegion, TypesettingProperties } from '@/lib/types/domain';
+import { REGION_TYPE_LABELS, type DialogueRegion, type TypesettingProperties } from '@/lib/types/domain';
 import { LETTERING_FONTS, measureFit, REFERENCE_WIDTH, sourceLayout } from '@/lib/imaging/render';
 
 /**
@@ -73,6 +73,18 @@ export function TypesetPanel({
 
       <button onClick={() => onChange({ ...effectiveTypesetting({ ...region, typesetting: { ...region.typesetting, fontSource: 'matched', autoFit: true, fontSize: region.typesetting.sourceFont?.size ?? 28 } }), fontSource: 'matched' })} className="ml-3 text-[12px] text-[#B9B4FF] hover:underline">Match original</button>
 
+      <Row label="Fill the bubble">
+        <div role="group" aria-label="Text coverage" className="flex gap-1">
+          {(['roomy', 'balanced', 'fuller'] as const).map(coverage => (
+            <button key={coverage} aria-pressed={t.autoFit && (t.coverage ?? (t.fontSource === 'manual' ? undefined : 'balanced')) === coverage}
+              onClick={() => onChange({ coverage, autoFit: true, fontSize: Math.max(t.fontSize, t.sourceFont?.size ?? 28) })}
+              className={`min-h-11 flex-1 rounded-md border px-2 text-[12px] capitalize ${t.autoFit && (t.coverage ?? (t.fontSource === 'manual' ? undefined : 'balanced')) === coverage ? 'border-accent bg-accent/15 text-editor-text' : 'border-editor-line text-editor-muted hover:text-editor-text'}`}>
+              {coverage}
+            </button>
+          ))}
+        </div>
+      </Row>
+
       <Row label="Font">
         <select
           value={t.fontFamily}
@@ -87,35 +99,41 @@ export function TypesetPanel({
         </select>
       </Row>
 
-      {onApplyPage&&<button onClick={onApplyPage} className="text-[12px] text-[#B9B4FF] hover:underline">Use this font and weight across this page</button>}
+      {onApplyPage&&<button onClick={onApplyPage} className="text-[12px] text-[#B9B4FF] hover:underline">Apply style to {REGION_TYPE_LABELS[region.type].toLowerCase()} on this page</button>}
       {image&&!area&&!region.artworkCleanup&&<p role="status" className="rounded-md border border-warn/40 p-3 text-[12px] text-warn">Source text kept intact: no safe bubble interior found. Adjust the text region or use the cleanup brush.</p>}
-      <Slider label="Size" value={t.fontSize} min={6} max={60} step={0.5} onChange={(v) => onChange({ fontSize: v, autoFit: false })} />
-      <Slider label="Weight" value={t.fontWeight} min={300} max={900} step={100} onChange={(v) => onChange({ fontWeight: v })} />
-      <Slider label="Line spacing" value={t.lineHeight} min={0.85} max={2} step={0.05} onChange={(v) => onChange({ lineHeight: v })} />
-      <Slider label="Letter spacing" value={t.letterSpacing} min={-0.05} max={0.3} step={0.01} onChange={(v) => onChange({ letterSpacing: v })} suffix="em" />
-      <Slider label="Rotation" value={t.rotation} min={-45} max={45} onChange={(v) => onChange({ rotation: v })} suffix="°" />
+      <Slider label={t.autoFit ? "Size limit" : "Size"} value={t.fontSize} min={6} max={60} step={0.5} onChange={(v) => onChange({ fontSize: v, autoFit: false })} />
+      <details className="rounded-lg border border-editor-line">
+        <summary className="cursor-pointer px-3 py-3 text-[12px] text-editor-text">Spacing & advanced</summary>
+        <div className="space-y-4 border-t border-editor-line px-3 py-3">
+          <Slider label="Weight" value={t.fontWeight} min={300} max={900} step={100} onChange={(v) => onChange({ fontWeight: v })} />
+          <Slider label="Line spacing" value={t.lineHeight} min={0.85} max={2} step={0.05} onChange={(v) => onChange({ lineHeight: v })} />
+          <Slider label="Letter spacing" value={t.letterSpacing} min={-0.05} max={0.3} step={0.01} onChange={(v) => onChange({ letterSpacing: v })} suffix="em" />
+          <Slider label="Rotation" value={t.rotation} min={-45} max={45} onChange={(v) => onChange({ rotation: v })} suffix="°" />
 
-      <Row label="Alignment">
-        <div className="flex gap-1">
-          {(['left', 'center', 'right'] as const).map((a) => (
-            <button
-              key={a}
-              onClick={() => onChange({ align: a })}
-              aria-pressed={t.align === a}
-              className={`flex-1 rounded-md border px-2 py-1 text-[11.5px] capitalize ${t.align === a ? 'border-accent bg-accent/15 text-editor-text' : 'border-editor-line text-editor-muted'}`}
-            >
-              {a}
-            </button>
-          ))}
+          <Row label="Alignment">
+            <div className="flex gap-1">
+              {(['left', 'center', 'right'] as const).map((a) => (
+                <button
+                  key={a}
+                  onClick={() => onChange({ align: a })}
+                  aria-pressed={t.align === a}
+                  className={`flex-1 rounded-md border px-2 py-1 text-[11.5px] capitalize ${t.align === a ? 'border-accent bg-accent/15 text-editor-text' : 'border-editor-line text-editor-muted'}`}
+                >
+                  {a}
+                </button>
+              ))}
+            </div>
+          </Row>
+
+          <div className="flex items-center justify-between rounded-lg bg-editor-panel px-3 py-2">
+            <label htmlFor="outline" className="text-[12px] text-editor-muted">
+              White outline
+            </label>
+            <input id="outline" type="checkbox" checked={t.outline} onChange={(e) => onChange({ outline: e.target.checked })} className="accent-accent" />
+          </div>
+
         </div>
-      </Row>
-
-      <div className="flex items-center justify-between rounded-lg bg-editor-panel px-3 py-2">
-        <label htmlFor="outline" className="text-[12px] text-editor-muted">
-          White outline
-        </label>
-        <input id="outline" type="checkbox" checked={t.outline} onChange={(e) => onChange({ outline: e.target.checked })} className="accent-accent" />
-      </div>
+      </details>
 
       <div className="rounded-lg bg-editor-panel px-3 py-2">
         <div className="flex items-center justify-between">

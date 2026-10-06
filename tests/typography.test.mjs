@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {effectiveTypesetting,letteringText} from '../src/lib/imaging/typography-core.ts';
+import {effectiveTypesetting,letteringText,letteringCoverage,applyLetteringStyle} from '../src/lib/imaging/typography-core.ts';
 import {wrapLines,fitText} from '../src/lib/imaging/typeset-core.ts';
 const typesetting={fontSource:'matched',fontFamily:'Archivo',fontSize:40,fontWeight:400,align:'left',lineHeight:1.15,letterSpacing:0,rotation:0,outline:false,direction:'horizontal',autoFit:true};
 test('existing automatic narration receives source-like serif lettering without editing text',()=>{
@@ -51,4 +51,28 @@ test('measurement receives correct source offsets for repeated words and paragra
  assert.equal(lines.join(' '),'Go now. Go with me.');
  assert.ok(calls.some(c=>c.text.startsWith('Go')&&c.start===8));
  assert.ok(calls.every(c=>Number.isInteger(c.start)));
+});
+
+test('coverage changes the fitting budget without overriding fixed manual sizes',()=>{
+ const base={...typesetting,fontSource:'manual'};
+ assert.equal(letteringCoverage(base),1);
+ assert.equal(letteringCoverage({...base,coverage:'roomy'}),.66);
+ assert.equal(letteringCoverage({...base,coverage:'balanced'}),.8);
+ assert.equal(letteringCoverage({...base,coverage:'fuller'}),.92);
+ assert.equal(letteringCoverage({...base,autoFit:false,coverage:'roomy'}),1);
+});
+test('applying a style preserves other text kinds, original boxes and translations',()=>{
+ const narration={id:'n',type:'narration',translate:true,status:'approved',bounds:{x:5,y:5,width:10,height:20},finalTranslation:'Approved text',typesetting:{...typesetting,fontSource:'manual',fontFamily:'Noto Serif',fontSize:24,coverage:'fuller',align:'right'}};
+ const second={...narration,id:'n2',typesetting:{...typesetting,rotation:12,align:'center',sourceFont:{category:'sans',weight:400,size:26}}};
+ const dialogue={...second,id:'d',type:'dialogue'};
+ const sfx={...second,id:'s',type:'sfx'};
+ const skipped={...second,id:'skip',translate:false};
+ const result=applyLetteringStyle([narration,second,dialogue,sfx,skipped],narration);
+ assert.equal(result[1].typesetting.fontFamily,'Noto Serif');assert.equal(result[1].typesetting.coverage,'fuller');assert.equal(result[1].typesetting.autoFit,true);
+ assert.equal(result[1].typesetting.rotation,12);assert.equal(result[1].typesetting.align,'right');
+ assert.deepEqual(result[1].typesetting.sourceFont,second.typesetting.sourceFont);
+ assert.equal(result[1].bounds,second.bounds);assert.equal(result[1].finalTranslation,second.finalTranslation);
+ assert.equal(result[1].status,'edited');
+ assert.equal(result[2],dialogue);assert.equal(result[3],sfx);assert.equal(result[4],skipped);
+ assert.equal(second.status,'approved');
 });
