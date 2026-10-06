@@ -2,9 +2,9 @@
  * Billing configuration.
  *
  * Every price, allowance, and credit pack lives here so it can be changed
- * without touching product code. These numbers are an opening concept, not a
- * validated margin — real limits must be set against measured cost per page
- * (see CostBreakdown and the pipeline cost centers).
+ * without touching product code. Allowances are set so every paid plan keeps
+ * at least a 50% gross margin even when a customer uses every page, at the
+ * measured AI cost per page (see COST_MODEL_CENTS_PER_PAGE).
  */
 
 import type { PlanId } from '@/lib/types/domain';
@@ -41,13 +41,13 @@ export const PLANS: PlanDefinition[] = [
   {
     id: 'creator',
     name: 'Creator',
-    priceMonthly: 12,
-    priceYearly: 120,
+    priceMonthly: 19,
+    priceYearly: 190,
     tagline: 'For solo translators shipping regularly.',
-    pageAllowance: 300,
+    pageAllowance: 80,
     seats: 1,
     features: [
-      '300 pages / month',
+      '80 pages / month',
       'Context-aware translation',
       'Automatic typesetting',
       'Translation memory',
@@ -60,13 +60,13 @@ export const PLANS: PlanDefinition[] = [
   {
     id: 'pro',
     name: 'Pro',
-    priceMonthly: 29,
-    priceYearly: 290,
+    priceMonthly: 49,
+    priceYearly: 490,
     tagline: 'Full context engine and QA.',
-    pageAllowance: 1000,
+    pageAllowance: 220,
     seats: 1,
     features: [
-      '1,000 pages / month',
+      '220 pages / month',
       'Unlimited projects',
       'Unlimited glossary',
       'Character voices',
@@ -81,13 +81,13 @@ export const PLANS: PlanDefinition[] = [
   {
     id: 'team',
     name: 'Team',
-    priceMonthly: 69,
-    priceYearly: 690,
+    priceMonthly: 129,
+    priceYearly: 1290,
     tagline: 'Translator, proofreader, typesetter — one workspace.',
-    pageAllowance: 3000,
+    pageAllowance: 600,
     seats: 5,
     features: [
-      '3,000 pages / month',
+      '600 pages / month',
       '5 members',
       'Collaboration',
       'Proofreading workflow',
@@ -100,16 +100,16 @@ export const PLANS: PlanDefinition[] = [
   {
     id: 'publisher',
     name: 'Publisher',
-    priceMonthly: 249,
-    priceYearly: 2490,
-    priceLabel: 'From $249',
+    priceMonthly: 499,
+    priceYearly: 5390,
+    priceLabel: 'From $499',
     tagline: 'High-volume localization infrastructure.',
-    pageAllowance: 10000,
+    pageAllowance: 2500,
     seats: 20,
     features: [
-      '10,000+ pages / month',
+      '2,500+ pages / month',
       '20+ members',
-      'API access',
+      'Volume pricing',
       'Organization workspace',
       'Priority processing',
       'Custom limits',
@@ -125,7 +125,7 @@ export interface CreditPack {
   priceUsd: number;
 }
 
-export const CREDIT_PACKS: CreditPack[] = [{ id: 'pages-100', pages: 100, priceUsd: 5 }];
+export const CREDIT_PACKS: CreditPack[] = [{ id: 'pages-50', pages: 50, priceUsd: 15 }];
 
 export function planById(id: PlanId): PlanDefinition {
   const plan = PLANS.find((p) => p.id === id);
@@ -134,25 +134,37 @@ export function planById(id: PlanId): PlanDefinition {
 }
 
 /**
- * Internal cost model, in cents per page. These are placeholders to be
- * replaced by measured values before production limits are locked in.
+ * Measured AI cost per page, in cents, on Claude Sonnet 5.5 ($2 / $10 per
+ * million input / output tokens) from processing logs:
+ * - reading the page (two images): ~2.0
+ * - translation: ~0.9 per bubble, ~6 bubbles on a typical page
+ * - proofreading, regeneration and suggestions: ~1.0
+ * Cleaning, typesetting and export run in the browser and cost nothing.
+ * Re-measure from `processing_tasks` before changing allowances.
  */
 export const COST_MODEL_CENTS_PER_PAGE = {
-  ocr: 0.4,
-  vision: 0.6,
-  translation: 1.8,
-  imageProcessing: 1.1,
-  storage: 0.05,
-  exports: 0.05,
+  ocr: 2.0,
+  translation: 5.4,
+  review: 1.0,
+  storage: 0.1,
 } as const;
+
+/** Rounded up so allowances stay safe on busier pages. */
+export const PLANNING_COST_CENTS_PER_PAGE = 9;
 
 export function estimatedCostPerPageCents() {
   return Object.values(COST_MODEL_CENTS_PER_PAGE).reduce((a, b) => a + b, 0);
 }
 
-/** Gross margin check for a plan at full allowance usage. */
+/** Card processing: 2.9% + 30¢ per charge. */
+export function paymentFeeCents(amountUsd: number) {
+  return amountUsd > 0 ? Math.round(amountUsd * 100 * 0.029 + 30) : 0;
+}
+
+/** Gross margin for one month of a plan when every included page is used. */
 export function planMarginAtFullUsage(plan: PlanDefinition) {
-  const costCents = plan.pageAllowance * estimatedCostPerPageCents();
   const revenueCents = plan.priceMonthly * 100;
-  return { costCents, revenueCents, marginCents: revenueCents - costCents };
+  const costCents = plan.pageAllowance * PLANNING_COST_CENTS_PER_PAGE + paymentFeeCents(plan.priceMonthly);
+  const marginCents = revenueCents - costCents;
+  return { costCents, revenueCents, marginCents, marginRatio: revenueCents ? marginCents / revenueCents : 0 };
 }

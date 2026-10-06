@@ -5,7 +5,7 @@ import { authenticated,adminClient } from '@/lib/server/records';
 import { failure,ServiceError,sameOrigin,siteUrl } from '@/lib/server/http';
 import { rateLimit } from '@/lib/server/authz';
 import { CREDIT_PACKS } from '@/lib/billing';
-const schema=z.object({item:z.enum(['creator','pro','team','publisher','pages-100']),interval:z.enum(['monthly','yearly']).default('monthly')});
+const schema=z.object({item:z.enum(['creator','pro','team','publisher','pages-50']),interval:z.enum(['monthly','yearly']).default('monthly')});
 export async function POST(request:Request) {
  try {
   sameOrigin(request);const {user}=await authenticated();const admin=adminClient();
