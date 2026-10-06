@@ -1,4 +1,6 @@
 import { extensionOf, IMAGE_EXTENSIONS, isImportableEntry, mimeForExtension, naturalCompare } from './sort';
+import { rgbaToLuma } from './detect-core';
+import { assessPageQuality } from './quality-core';
 
 /**
  * Turns uploaded files into pages, entirely in the browser.
@@ -71,9 +73,28 @@ async function thumbnailFrom(bitmap: ImageBitmap): Promise<Blob> {
   return canvasToBlob(canvas, 'image/webp', 0.82);
 }
 
+/** A page that can't be cleaned well: too small or too blurry. */
+class QualityError extends Error {}
+
+/** Checks a band of the page at native resolution (tall strips are sampled). */
+function checkQuality(name: string, bitmap: ImageBitmap) {
+  const band = Math.min(bitmap.height, 3000);
+  const top = Math.floor((bitmap.height - band) / 2);
+  const canvas = document.createElement('canvas');
+  canvas.width = bitmap.width;
+  canvas.height = band;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  if (!ctx) throw new Error('This browser could not create a canvas.');
+  ctx.drawImage(bitmap, 0, -top);
+  const lum = rgbaToLuma(ctx.getImageData(0, 0, bitmap.width, band).data, bitmap.width * band);
+  const quality = assessPageQuality(lum, bitmap.width, band);
+  if (!quality.ok) throw new QualityError(`“${name}”: ${quality.reason?.replace(`${bitmap.width}×${band}`, `${bitmap.width}×${bitmap.height}`)}`);
+}
+
 async function pageFromImage(name: string, blob: Blob, mimeType: string): Promise<IngestedPage> {
   const { width, height, bitmap } = await measure(blob);
   try {
+    checkQuality(name, bitmap);
     return { fileName: name, mimeType, width, height, original: blob, thumbnail: await thumbnailFrom(bitmap) };
   } finally {
     bitmap.close();
@@ -146,8 +167,8 @@ export async function ingestFiles(files: File[], onProgress?: IngestProgress): P
           onProgress?.(i, queue.length, `Unpacking ${file.name} — ${j + 1} of ${entries.length}`);
           try {
             pages.push(await pageFromImage(entries[j].name, entries[j].blob, entries[j].mime));
-          } catch {
-            problems.push({ file: `${file.name} › ${entries[j].name}`, reason: `“${entries[j].name}” inside ${file.name} couldn’t be read as an image.` });
+          } catch (err) {
+            problems.push({ file: `${file.name} › ${entries[j].name}`, reason: err instanceof QualityError ? err.message : `“${entries[j].name}” inside ${file.name} couldn’t be read as an image.` });
           }
         }
       } else if (ext === 'pdf') {
@@ -159,7 +180,7 @@ export async function ingestFiles(files: File[], onProgress?: IngestProgress): P
     } catch (err) {
       problems.push({
         file: file.name,
-        reason:
+        reason: err instanceof QualityError ? err.message :
           ext === 'pdf'
             ? `“${file.name}” couldn’t be opened as a PDF. It may be encrypted or damaged.`
             : ext === 'zip'
