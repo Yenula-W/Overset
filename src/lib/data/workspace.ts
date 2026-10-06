@@ -29,7 +29,7 @@ export const DEMO_SUBSCRIPTION: Subscription = {
   currentPeriodStart: '2026-09-01T00:00:00Z',
   currentPeriodEnd: '2026-10-01T00:00:00Z',
   seats: 1,
-  pageAllowance: 1000,
+  pageAllowance: 220,
   additionalCredits: 0,
   cancelAtPeriodEnd: false,
 };
