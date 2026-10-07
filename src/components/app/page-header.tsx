@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { cn } from '@/lib/utils';
+import { PageEnter } from '@/components/fx';
 
 export function PageHeader({
   title,
@@ -24,5 +25,5 @@ export function PageHeader({
 }
 
 export function AppShellPage({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <div className={cn('mx-auto w-full max-w-6xl px-5 py-8 sm:px-8 sm:py-10', className)}>{children}</div>;
+  return <PageEnter className={cn('mx-auto w-full max-w-6xl px-5 py-8 sm:px-8 sm:py-10', className)}>{children}</PageEnter>;
 }

@@ -63,12 +63,15 @@ export function UploadZone({ items, onChange }: { items: UploadItem[]; onChange:
           setDragging(false);
           accept(e.dataTransfer.files);
         }}
+        data-dragging={dragging}
         className={cn(
-          'rounded-xl2 border-2 border-dashed px-6 py-16 text-center transition-colors',
-          dragging ? 'border-accent bg-accent-soft' : 'border-line bg-surface',
+          'fx-dropzone rounded-xl2 border-2 border-dashed px-6 py-16 text-center transition-colors',
+          dragging ? 'border-accent bg-accent-soft' : 'border-line bg-surface hover:border-accent/40',
         )}
       >
-        <Upload size={22} className="mx-auto text-accent" aria-hidden />
+        <span className={cn('mx-auto flex size-12 items-center justify-center rounded-2xl bg-accent-soft text-accent transition-transform duration-300', dragging ? 'scale-110' : 'fx-float')}>
+          <Upload size={22} aria-hidden />
+        </span>
         <p className="mt-4 text-[17px] font-medium">Drop your chapter here</p>
         <p className="mt-1.5 text-[13px] text-ink-muted">Supported: {ACCEPTED_LABEL}</p>
         <Button variant="secondary" className="mt-5" onClick={() => inputRef.current?.click()}>

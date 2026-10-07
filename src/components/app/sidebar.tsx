@@ -24,6 +24,8 @@ import { logOut } from '@/lib/store/auth';
 import { useActiveWorkspace, useLiveQuery, useSession, useUser } from '@/lib/store/hooks';
 import { getUsage } from '@/lib/store/repo';
 import { cn, formatNumber, pct } from '@/lib/utils';
+import { motion, useReducedMotion } from 'framer-motion';
+import { CountUp, ScrollFade } from '@/components/fx';
 
 const NAV = [
   { href: '/dashboard', label: 'Home', icon: Home },
@@ -65,11 +67,13 @@ export function AppSidebar() {
 
       <WorkspaceSwitcher />
 
-      <nav className="flex-1 space-y-0.5 overflow-y-auto px-2.5 pb-4" aria-label="Workspace">
-        {NAV.map((item) => (
-          <NavLink key={item.href} {...item} active={pathname === item.href || pathname.startsWith(`${item.href}/`)} />
-        ))}
-      </nav>
+      <ScrollFade className="flex-1 overflow-y-auto">
+        <nav className="space-y-0.5 px-2.5 pb-4" aria-label="Workspace">
+          {NAV.map((item) => (
+            <NavLink key={item.href} {...item} active={pathname === item.href || pathname.startsWith(`${item.href}/`)} />
+          ))}
+        </nav>
+      </ScrollFade>
 
       <div className="space-y-0.5 border-t border-line px-2.5 py-2">
         {BOTTOM.map((item) => (
@@ -84,7 +88,7 @@ export function AppSidebar() {
           <p className="truncate text-[13px] font-medium">{user.name}</p>
           <p className="text-[11.5px] text-ink-muted">{plan.name} plan</p>
           <p className="mt-1.5 text-[11px] tabular-nums text-ink-faint">
-            {formatNumber(used)} / {formatNumber(total)} pages
+            <CountUp value={used} /> / {formatNumber(total)} pages
           </p>
           <Progress value={pct(used, total)} className="mt-1" label="Pages used this cycle" />
         </div>
@@ -168,17 +172,29 @@ function NavLink({
   icon: React.ComponentType<{ size?: number; className?: string }>;
   active: boolean;
 }) {
+  const reduced = useReducedMotion();
   return (
     <Link
       href={href}
       aria-current={active ? 'page' : undefined}
       className={cn(
-        'flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13.5px] transition-colors',
-        active ? 'bg-ink/[0.055] font-medium text-ink' : 'text-ink-muted hover:bg-ink/[0.03] hover:text-ink',
+        'fx-icon-host relative flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13.5px] transition-colors',
+        active ? 'font-medium text-ink' : 'text-ink-muted hover:bg-ink/[0.03] hover:text-ink',
       )}
     >
-      <Icon size={16} className={active ? 'text-accent' : 'text-ink-faint'} />
-      {label}
+      {/* One highlight that slides between items as you navigate. */}
+      {active && (
+        <motion.span
+          layoutId="sidebar-active"
+          transition={reduced ? { duration: 0 } : { type: 'spring', stiffness: 420, damping: 34 }}
+          className="absolute inset-0 rounded-lg bg-ink/[0.055]"
+          aria-hidden
+        >
+          <span className="absolute inset-y-2 left-0 w-[3px] rounded-full bg-accent" />
+        </motion.span>
+      )}
+      <Icon size={16} className={cn('fx-icon relative', active ? 'text-accent' : 'text-ink-faint')} />
+      <span className="relative">{label}</span>
     </Link>
   );
 }

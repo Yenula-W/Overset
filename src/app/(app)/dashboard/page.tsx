@@ -14,6 +14,7 @@ import { useWorkspace } from '@/lib/store/workspace';
 import { createProject } from '@/lib/store/repo';
 import { LANGUAGE_LABELS } from '@/lib/types/domain';
 import { formatNumber, greeting } from '@/lib/utils';
+import { CountUp, trackSpotlight } from '@/components/fx';
 
 export default function DashboardPage() {
   const user = useUser();
@@ -43,10 +44,10 @@ export default function DashboardPage() {
   const waiting = data?.chapters.filter((c) => c.status === 'review').length ?? 0;
 
   const metrics = [
-    { value: formatNumber(data?.pages.length ?? 0), label: 'Pages uploaded', href: '/usage' },
-    { value: formatNumber(data?.projects.length ?? 0), label: data?.projects.length === 1 ? 'Project' : 'Projects', href: '/projects' },
-    { value: formatNumber(regions), label: 'Text regions', href: '/projects' },
-    { value: formatNumber(approved), label: 'Approved translations', href: '/memory' },
+    { value: data?.pages.length ?? 0, label: 'Pages uploaded', href: '/usage' },
+    { value: data?.projects.length ?? 0, label: data?.projects.length === 1 ? 'Project' : 'Projects', href: '/projects' },
+    { value: regions, label: 'Text regions', href: '/projects' },
+    { value: approved, label: 'Approved translations', href: '/memory' },
   ];
 
   return (
@@ -79,8 +80,8 @@ export default function DashboardPage() {
 
       <dl className="mt-8 grid grid-cols-2 gap-px overflow-hidden rounded-xl2 border border-line bg-line lg:grid-cols-4">
         {metrics.map((m) => (
-          <Link key={m.label} href={m.href} className="group bg-surface p-5 transition-colors hover:bg-canvas">
-            <dd className="text-[30px] font-semibold tabular-nums tracking-[-0.035em]">{data ? m.value : <Skeleton className="h-9 w-16" />}</dd>
+          <Link key={m.label} href={m.href} onPointerMove={trackSpotlight} className="fx-spotlight group bg-surface p-5 transition-colors hover:bg-canvas">
+            <dd className="text-[30px] font-semibold tabular-nums tracking-[-0.035em]">{data ? <CountUp value={m.value} /> : <Skeleton className="h-9 w-16" />}</dd>
             <dt className="mt-1 flex items-center gap-1 text-[13px] text-ink-muted">
               {m.label}
               <ArrowUpRight size={12} className="opacity-0 transition-opacity group-hover:opacity-100" aria-hidden />

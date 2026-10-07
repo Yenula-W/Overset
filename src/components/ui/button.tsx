@@ -8,12 +8,12 @@ type Variant = 'primary' | 'secondary' | 'ghost' | 'outline' | 'danger' | 'dark'
 type Size = 'sm' | 'md' | 'lg';
 
 const variants: Record<Variant, string> = {
-  primary: 'bg-accent text-white hover:bg-accent-strong active:bg-accent-strong shadow-[0_1px_2px_rgba(22,22,22,0.10)]',
+  primary: 'fx-shine bg-accent text-white hover:bg-accent-strong active:bg-accent-strong shadow-[0_1px_2px_rgba(22,22,22,0.10)]',
   secondary: 'bg-surface text-ink border border-line hover:border-ink/25 hover:bg-white',
   ghost: 'text-ink-muted hover:text-ink hover:bg-ink/[0.045]',
   outline: 'border border-ink/15 text-ink hover:border-ink/35',
   danger: 'bg-danger text-white hover:brightness-95',
-  dark: 'bg-ink text-canvas hover:bg-ink/90',
+  dark: 'fx-shine bg-ink text-canvas hover:bg-ink/90',
 };
 
 const sizes: Record<Size, string> = {
