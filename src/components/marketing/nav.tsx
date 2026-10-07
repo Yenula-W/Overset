@@ -8,6 +8,7 @@ import { OversetMark } from "@/components/brand";
 import { cn } from "@/lib/utils";
 import { NAV_LINKS } from "./mk";
 import { TextRoll } from "./text-roll";
+import { Magnetic } from "@/components/fx";
 
 function isActive(pathname: string, href: string) {
   return href === "/"
@@ -106,12 +107,14 @@ export function MarketingNav() {
           >
             Log in
           </Link>
-          <Link
-            href="/signup"
-            className="roll-host rounded-full bg-ink px-5 py-2.5 text-[14px] font-medium text-white transition-colors hover:bg-accent hover:text-white"
-          >
-            <TextRoll>Translate free</TextRoll>
-          </Link>
+          <Magnetic>
+            <Link
+              href="/signup"
+              className="roll-host fx-shine rounded-full bg-ink px-5 py-2.5 text-[14px] font-medium text-white transition-colors hover:bg-accent hover:text-white"
+            >
+              <TextRoll>Translate free</TextRoll>
+            </Link>
+          </Magnetic>
         </div>
 
         <button

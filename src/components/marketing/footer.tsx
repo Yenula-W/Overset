@@ -20,7 +20,7 @@ export function MarketingFooter() {
             <Link
               key={l.href}
               href={l.href}
-              className="text-[13px] text-ink-muted hover:text-ink"
+              className="fx-underline text-[13px] text-ink-muted hover:text-ink"
             >
               {l.label}
             </Link>
@@ -36,10 +36,10 @@ export function MarketingFooter() {
           </span>
           {/* Legal pages stay reachable from every marketing page. */}
           <span className="flex gap-4 text-[12px]">
-            <Link href="/privacy" className="text-ink-faint hover:text-ink">
+            <Link href="/privacy" className="fx-underline text-ink-faint hover:text-ink">
               Privacy
             </Link>
-            <Link href="/terms" className="text-ink-faint hover:text-ink">
+            <Link href="/terms" className="fx-underline text-ink-faint hover:text-ink">
               Terms
             </Link>
           </span>

@@ -222,3 +222,85 @@
 .statement-text .block + .block { color: #5049d0; }
 .statement[data-motion=reduced] { height: auto; }
 .statement[data-motion=reduced] .statement-stage { position: relative; top: 0; height: auto; padding: 120px 16px; }
+
+/* ------------------------------------------------------------------ fx
+   Small motion layer shared by the site and workspace (see components/fx).
+   Everything here is decorative and stands still under reduced motion. */
+
+/* Language ticker */
+.fx-ticker-track { animation: fx-ticker 38s linear infinite; }
+.fx-ticker:hover .fx-ticker-track { animation-play-state: paused; }
+@keyframes fx-ticker { to { transform: translateX(-50%); } }
+
+/* Cursor spotlight: set --mx/--my with trackSpotlight() */
+.fx-spotlight { position: relative; isolation: isolate; }
+.fx-spotlight::before {
+  content: ''; position: absolute; inset: 0; z-index: -1; border-radius: inherit; pointer-events: none;
+  background: radial-gradient(360px circle at var(--mx, 50%) var(--my, 50%), rgb(108 99 232 / .12), transparent 60%);
+  opacity: 0; transition: opacity .3s ease;
+}
+.fx-spotlight:hover::before { opacity: 1; }
+.fx-spotlight-dark::before { background: radial-gradient(360px circle at var(--mx, 50%) var(--my, 50%), rgb(140 133 255 / .28), transparent 60%); }
+
+/* Underline that sweeps in from the left and out to the right (adapted from Skiper UI skiper40) */
+.fx-underline { position: relative; }
+.fx-underline::after {
+  content: ''; position: absolute; left: 0; right: 0; bottom: -2px; height: 1px; background: currentColor;
+  transform: scaleX(0); transform-origin: right; transition: transform .3s cubic-bezier(.4,0,.2,1);
+}
+.fx-underline:hover::after, .fx-underline:focus-visible::after { transform: scaleX(1); transform-origin: left; }
+
+/* Shine sweep across primary buttons */
+.fx-shine { position: relative; overflow: hidden; }
+.fx-shine::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(110deg, transparent 30%, rgb(255 255 255 / .35) 50%, transparent 70%);
+  transform: translateX(-120%);
+}
+.fx-shine:hover::after { transform: translateX(120%); transition: transform .7s cubic-bezier(.22,1,.36,1); }
+
+/* Lift on hover for cards */
+.fx-lift { transition: transform .35s cubic-bezier(.22,1,.36,1), box-shadow .35s ease, border-color .2s ease; }
+.fx-lift:hover { transform: translateY(-3px); }
+
+/* Icon nudge on hover (adapted from Skiper UI animated icons, skiper99) */
+.fx-icon-host:hover .fx-icon { animation: fx-wiggle .5s cubic-bezier(.36,.07,.19,.97); }
+@keyframes fx-wiggle { 20% { transform: rotate(-12deg) scale(1.1); } 50% { transform: rotate(9deg) scale(1.1); } 80% { transform: rotate(-4deg); } }
+
+/* Upload zone: marching dashed border while a file is dragged over, floating icon at rest */
+.fx-dropzone { background-clip: padding-box; }
+.fx-dropzone[data-dragging=true] {
+  border-color: transparent;
+  background-image:
+    linear-gradient(var(--fx-drop-fill, #EFEEFF), var(--fx-drop-fill, #EFEEFF)),
+    repeating-linear-gradient(90deg, #6C63E8 0 10px, transparent 10px 18px),
+    repeating-linear-gradient(180deg, #6C63E8 0 10px, transparent 10px 18px),
+    repeating-linear-gradient(90deg, #6C63E8 0 10px, transparent 10px 18px),
+    repeating-linear-gradient(180deg, #6C63E8 0 10px, transparent 10px 18px);
+  background-size: 100% 100%, 100% 2px, 2px 100%, 100% 2px, 2px 100%;
+  background-position: 0 0, 0 0, 100% 0, 0 100%, 0 0;
+  background-repeat: no-repeat;
+  background-origin: border-box;
+  animation: fx-march .6s linear infinite;
+}
+@keyframes fx-march {
+  to { background-position: 0 0, 18px 0, 100% 18px, -18px 100%, 0 -18px; }
+}
+.fx-float { animation: fx-float 3.2s ease-in-out infinite; }
+@keyframes fx-float { 50% { transform: translateY(-5px); } }
+
+/* Progress bars fill in on load and carry a soft moving sheen */
+.fx-progress-fill { position: relative; overflow: hidden; animation: fx-grow .9s cubic-bezier(.22,1,.36,1) both; transform-origin: left; }
+.fx-progress-fill::after {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / .45), transparent);
+  transform: translateX(-100%); animation: fx-sheen 2.8s ease-in-out 1s infinite;
+}
+@keyframes fx-grow { from { transform: scaleX(0); } }
+@keyframes fx-sheen { 60%, 100% { transform: translateX(100%); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .fx-ticker-track, .fx-float, .fx-progress-fill, .fx-progress-fill::after, .fx-dropzone[data-dragging=true], .fx-icon-host:hover .fx-icon { animation: none !important; }
+  .fx-shine::after, .fx-lift, .fx-underline::after { transition: none !important; }
+  .fx-lift:hover { transform: none; }
+}

@@ -22,7 +22,7 @@ export function Progress({
       aria-label={label}
       className={cn('h-1.5 w-full overflow-hidden rounded-full bg-ink/[0.07]', className)}
     >
-      <div className={cn('h-full rounded-full transition-[width] duration-500 ease-out', bar)} style={{ width: `${clamped}%` }} />
+      <div className={cn('fx-progress-fill h-full rounded-full transition-[width] duration-500 ease-out', bar)} style={{ width: `${clamped}%` }} />
     </div>
   );
 }

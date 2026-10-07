@@ -5,6 +5,7 @@ import { LANGUAGE_LABELS } from '@/lib/types/domain';
 import type { ChapterRecord, ProjectRecord } from '@/lib/store/schema';
 import type { ChapterStats } from '@/lib/stats';
 import { formatNumber } from '@/lib/utils';
+import { trackSpotlight } from '@/components/fx';
 
 const STATUS_TONE: Record<ChapterStatus, { tone: 'ok' | 'accent' | 'warn' | 'neutral' | 'danger'; label: string }> = {
   draft: { tone: 'neutral', label: 'Draft' },
@@ -38,10 +39,11 @@ export function ProjectCard({
   return (
     <Link
       href={`/projects/${project.id}`}
-      className="group flex flex-col rounded-xl2 border border-line bg-surface p-5 transition-[border-color,box-shadow] hover:border-ink/20 hover:shadow-card"
+      onPointerMove={trackSpotlight}
+      className="fx-spotlight fx-lift group flex flex-col rounded-xl2 border border-line bg-surface p-5 hover:border-ink/20 hover:shadow-lift"
     >
       <div className="flex items-start justify-between gap-3">
-        <span className="h-9 w-9 shrink-0 rounded-lg" style={{ background: project.coverColor }} aria-hidden />
+        <span className="h-9 w-9 shrink-0 rounded-lg transition-transform duration-300 group-hover:rotate-[-8deg] group-hover:scale-110" style={{ background: project.coverColor }} aria-hidden />
         {status && <StatusBadge tone={status.tone} label={status.label} />}
       </div>
       <h3 className="mt-4 text-[16px] font-semibold tracking-[-0.01em]">{project.name}</h3>
@@ -77,7 +79,9 @@ export function ProjectCard({
           </dd>
         </div>
       </dl>
-      <span className="mt-4 text-[12.5px] font-medium text-accent">Open project →</span>
+      <span className="mt-4 text-[12.5px] font-medium text-accent">
+        Open project <span className="inline-block transition-transform duration-300 group-hover:translate-x-1">→</span>
+      </span>
     </Link>
   );
 }

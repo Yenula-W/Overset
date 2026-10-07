@@ -6,6 +6,7 @@ import NumberFlow from "@number-flow/react";
 import { CREDIT_PACKS, PLANS } from "@/lib/billing";
 import { cn } from "@/lib/utils";
 import { Segmented } from "./mk";
+import { trackSpotlight } from "@/components/fx";
 
 type Billing = "monthly" | "yearly";
 
@@ -61,11 +62,12 @@ function PlanGrid({ billing }: { billing: Billing }) {
           return (
             <div
               key={plan.id}
+              onPointerMove={trackSpotlight}
               className={cn(
-                "pricing-panel flex flex-col gap-[18px] rounded-2xl border p-6",
+                "pricing-panel fx-spotlight fx-lift flex flex-col gap-[18px] rounded-2xl border p-6",
                 hl
-                  ? "border-editor-line bg-ink text-white"
-                  : "border-line bg-white text-ink",
+                  ? "fx-spotlight-dark border-editor-line bg-ink text-white"
+                  : "border-line bg-white text-ink hover:shadow-lift",
               )}
             >
               <div className="flex min-h-6 items-center justify-between">

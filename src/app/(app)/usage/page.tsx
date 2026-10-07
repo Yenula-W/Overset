@@ -10,6 +10,7 @@ import { useLiveQuery, useActiveWorkspace } from '@/lib/store/hooks';
 import { getUsage, listAllPages, periodKey } from '@/lib/store/repo';
 import type { UsageRecord } from '@/lib/store/schema';
 import { formatBytes } from '@/lib/download';
+import { CountUp } from '@/components/fx';
 import { formatNumber, pct } from '@/lib/utils';
 
 export default function UsagePage() {
@@ -54,7 +55,7 @@ export default function UsagePage() {
             </CardHeader>
             <CardBody>
               <p className="text-[34px] font-semibold tabular-nums tracking-[-0.035em]">
-                {formatNumber(used)}
+                <CountUp value={used} />
                 <span className="text-[20px] font-normal text-ink-muted"> / {formatNumber(allowance)} pages</span>
               </p>
               <Progress value={pct(used, allowance)} tone={used > allowance ? 'warn' : 'accent'} className="mt-4" label={plan.id === 'free' ? 'Trial pages used' : 'Pages used this month'} />
