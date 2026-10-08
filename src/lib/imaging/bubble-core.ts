@@ -123,6 +123,7 @@ export function analyzeBubble(rgba: Uint8ClampedArray | Uint8Array, width: numbe
   let bubbleBox = { x: fx0, y: fy0, width: fx1 - fx0 + 1, height: fy1 - fy0 + 1 };
   const captionBoxes = connectedCaptionBoxes(filled, width, height);
   let compound = false;
+  let letteringFilled: Uint8Array | null = null;
   if (captionBoxes.length > 1) {
     const scored = captionBoxes.map((box,index) => {
       const overlap = Math.max(0,Math.min(box.x+box.width,rx1)-Math.max(box.x,rx0)) * Math.max(0,Math.min(box.y+box.height,ry1)-Math.max(box.y,ry0));
@@ -132,8 +133,23 @@ export function analyzeBubble(rgba: Uint8ClampedArray | Uint8Array, width: numbe
     if (!compound) {
       const selected = scored[0].index;
       bubbleBox = captionBoxes[selected]; filledArea = 0;
+      letteringFilled = new Uint8Array(total);
       for(let i=0;i<total;i++) {
         const x=i%width,y=Math.floor(i/width);
+        // A straight bisector reserves separate lettering lanes. Cleanup still
+        // uses nearest-box ownership so source glyphs are removed independently.
+        if (filled[i] && x >= bubbleBox.x && x < bubbleBox.x + bubbleBox.width && y >= bubbleBox.y && y < bubbleBox.y + bubbleBox.height) {
+          letteringFilled[i] = captionBoxes.every((other,index) => {
+            if (index === selected || x < other.x || x >= other.x + other.width || y < other.y || y >= other.y + other.height) return true;
+            const dx = bubbleBox.x + bubbleBox.width/2 - other.x - other.width/2;
+            const dy = bubbleBox.y + bubbleBox.height/2 - other.y - other.height/2;
+            const horizontal = Math.abs(dx)/(bubbleBox.width+other.width) >= Math.abs(dy)/(bubbleBox.height+other.height);
+            const split = horizontal
+              ? (Math.max(bubbleBox.x,other.x)+Math.min(bubbleBox.x+bubbleBox.width,other.x+other.width))/2
+              : (Math.max(bubbleBox.y,other.y)+Math.min(bubbleBox.y+bubbleBox.height,other.y+other.height))/2;
+            return horizontal ? (dx > 0 ? x >= Math.ceil(split) : x < Math.ceil(split)) : (dy > 0 ? y >= Math.ceil(split) : y < Math.ceil(split));
+          }) ? 1 : 0;
+        }
         if(filled[i] && captionOwner(captionBoxes,x,y)!==selected) filled[i]=0;
         outside[i]=filled[i]?0:1;
         if(filled[i]) filledArea++;
@@ -227,18 +243,31 @@ export function analyzeBubble(rgba: Uint8ClampedArray | Uint8Array, width: numbe
 
   // Largest rectangle inside the bubble around its middle: where the
   // translation is lettered, so it never crosses the outline.
-  const midX = Math.floor(textBox ? textBox.x + textBox.width / 2 : bubbleBox.x + bubbleBox.width / 2);
-  const midY = Math.floor(textBox ? textBox.y + textBox.height / 2 : bubbleBox.y + bubbleBox.height / 2);
+  // Cleanup ownership cuts an asymmetric notch out of connected captions.
+  // Keep lettering centered on the original rectangle, not on that notch
+  // or the source glyphs (which may be arranged in vertical columns).
+  const centeredCaption = captionBoxes.length > 1 && !compound;
+  const centerX = bubbleBox.x + bubbleBox.width / 2;
+  const centerY = bubbleBox.y + bubbleBox.height / 2;
+  const midX = Math.floor(centeredCaption ? centerX : textBox ? textBox.x + textBox.width / 2 : centerX);
+  const midY = Math.floor(centeredCaption ? centerY : textBox ? textBox.y + textBox.height / 2 : centerY);
   const columns = new Int32Array(width), indices = new Int32Array(width + 1);
   let rect: PixelBox | null = null, area = 0;
   for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) columns[x] = filled[y * width + x] ? columns[x] + 1 : 0;
+    for (let x = 0; x < width; x++) columns[x] = (letteringFilled ?? filled)[y * width + x] ? columns[x] + 1 : 0;
     let size = 0;
     for (let x = 0; x <= width; x++) {
       const current = x === width ? 0 : columns[x];
       while (size && columns[indices[size - 1]] > current) {
         const column = indices[--size], h = columns[column], left = size ? indices[size - 1] + 1 : 0, w = x - left, top = y - h + 1;
-        if (w * h > area && midX >= left && midX < x && midY >= top && midY <= y) { area = w * h; rect = { x: left, y: top, width: w, height: h }; }
+        if (midX >= left && midX < x && midY >= top && midY <= y) {
+          const halfW = Math.min(centerX - left, x - centerX);
+          const halfH = Math.min(centerY - top, y + 1 - centerY);
+          const candidate = centeredCaption
+            ? { x: centerX - halfW, y: centerY - halfH, width: halfW * 2, height: halfH * 2 }
+            : { x: left, y: top, width: w, height: h };
+          if (candidate.width * candidate.height > area) { area = candidate.width * candidate.height; rect = candidate; }
+        }
       }
       indices[size++] = x;
     }

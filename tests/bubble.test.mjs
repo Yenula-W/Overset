@@ -50,6 +50,11 @@ test('connected staggered captions retain independent lettering and cleanup mask
   const analyses = merged.captionBoxes.map(box => analyzeBubble(data, width, height, box));
   for (const a of analyses) {
     assert.ok(a.safeBox && a.glyphCount >= 5);
+    assert.equal(a.safeBox.x + a.safeBox.width / 2, a.bubbleBox.x + a.bubbleBox.width / 2, 'lettering is horizontally centered on its original caption');
+    assert.equal(a.safeBox.y + a.safeBox.height / 2, a.bubbleBox.y + a.bubbleBox.height / 2, 'lettering is vertically centered on its original caption');
+    for (let y=a.safeBox.y;y<a.safeBox.y+a.safeBox.height;y++) for(let x=a.safeBox.x;x<a.safeBox.x+a.safeBox.width;x++) {
+      assert.ok(analyses.some(part => part.filled[y*width+x]), 'centered lettering stays inside the original bubble');
+    }
     const cleaned = fillBubbleText(data.slice(), width, height, a);
     let changed = 0;
     for (let i=0;i<width*height;i++) {
