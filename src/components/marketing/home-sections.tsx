@@ -13,7 +13,7 @@ export function FinalCta() {
           </MkButton>
         </Magnetic>
         <span className="text-[12px] text-ink-muted">
-          10 pages free · No card required
+          10 free pages / month · No card required
         </span>
       </div>
     </section>

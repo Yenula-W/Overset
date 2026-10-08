@@ -33,7 +33,7 @@ const VIEWER = '44444444-4444-4444-4444-444444444444';
 async function setup() {
   const db = new PGlite();
   await db.exec(SUPABASE_STUB);
-  for (const file of ['0001_overset.sql', '0002_private_helpers.sql', '0003_services.sql', '0004_record_identity.sql', '20261005155255_free_trial_controls.sql', '20261005162646_cross_browser_trial_limit.sql']) {
+  for (const file of ['0001_overset.sql', '0002_private_helpers.sql', '0003_services.sql', '0004_record_identity.sql', '20261005155255_free_trial_controls.sql', '20261005162646_cross_browser_trial_limit.sql', '20261008155348_free_monthly_pages.sql']) {
     await db.exec(readFileSync(new URL(`../supabase/migrations/${file}`, import.meta.url), 'utf8'));
   }
   await db.exec(`
@@ -144,7 +144,7 @@ const device = n => String(n).padStart(64,'0');
 async function trialReserve(db,owner,page,key=device(1),network=device(100)) {
  return (await service(db, `select reserve_page($1,$2::uuid,$1,'ocr','hash',$1,999,$3,$4) as result`,[page,owner,key,network])).rows[0].result;
 }
-test('free trial is ten lifetime pages even across periods, retries, and forged allowances',async()=>{
+test('free plan limits each month to ten unique pages despite retries, deleted usage, and forged allowances',async()=>{
  const db=await setup();await profile(db,'free');
  for(let i=0;i<10;i++) assert.equal((await trialReserve(db,OWNER,`trial-${i}`)).started,true);
  await service(db,`update page_charges set period='2000-01'`);
@@ -157,6 +157,18 @@ test('free trial is ten lifetime pages even across periods, retries, and forged 
  assert.equal((await trialReserve(db,OWNER,'after-delete')).limit,true);
  await assert.rejects(as(db,OWNER,`update free_trial_accounts set pages_used=0`),/permission/);
  await assert.rejects(as(db,OWNER,`select reserve_page_internal('fake',$1::uuid,'p','ocr','hash','token',999)`,[OWNER]),/permission/);
+ await db.close();
+});
+test('a new UTC calendar month renews ten pages without resetting identity claims',async()=>{
+ const db=await setup();await profile(db,'free');
+ for(let i=0;i<10;i++) assert.equal((await trialReserve(db,OWNER,`old-${i}`)).started,true);
+ assert.equal((await trialReserve(db,OWNER,'blocked')).limit,true);
+ await service(db,`update page_charges set created_at=(date_trunc('month',now() at time zone 'UTC')-interval '1 second') at time zone 'UTC'`);
+ for(let i=0;i<10;i++) assert.equal((await trialReserve(db,OWNER,`new-${i}`)).started,true);
+ assert.equal((await trialReserve(db,OWNER,'monthly-eleventh')).limit,true);
+ assert.equal((await db.query('select pages_used from free_trial_accounts')).rows[0].pages_used,20);
+ await service(db,`insert into records(store,id,owner_id,data) values('users',$1::text,$1::uuid,$2)`,[MEMBER,JSON.stringify({id:MEMBER,plan:'free'})]);
+ assert.equal((await trialReserve(db,MEMBER,'second-account',device(2))).trial_error,'network');
  await db.close();
 });
 test('same browser cannot claim a second trial even after original account deletion',async()=>{

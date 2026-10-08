@@ -50,15 +50,15 @@ export default function UsagePage() {
         <div className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>{plan.id === 'free' ? 'Free trial' : monthName}</CardTitle>
-              <span className="text-[12.5px] text-ink-muted">{plan.id === 'free' ? '10 pages total · does not reset' : `Resets ${resets.toLocaleDateString(undefined, { month: 'long', day: 'numeric' })}`}</span>
+              <CardTitle>{monthName}</CardTitle>
+              <span className="text-[12.5px] text-ink-muted">{`Resets ${resets.toLocaleDateString(undefined, { month: 'long', day: 'numeric', timeZone: 'UTC' })}${plan.id === 'free' ? ' · 10 free pages / month' : ''}`}</span>
             </CardHeader>
             <CardBody>
               <p className="text-[34px] font-semibold tabular-nums tracking-[-0.035em]">
                 <CountUp value={used} />
                 <span className="text-[20px] font-normal text-ink-muted"> / {formatNumber(allowance)} pages</span>
               </p>
-              <Progress value={pct(used, allowance)} tone={used > allowance ? 'warn' : 'accent'} className="mt-4" label={plan.id === 'free' ? 'Trial pages used' : 'Pages used this month'} />
+              <Progress value={pct(used, allowance)} tone={used > allowance ? 'warn' : 'accent'} className="mt-4" label={'Pages used this month'} />
               <p className="mt-3 text-[13.5px] text-ink-muted">
                 {used > allowance
                   ? `No pages remaining — upgrade or add credits to continue.`
@@ -73,7 +73,7 @@ export default function UsagePage() {
             </CardHeader>
             <ul className="divide-y divide-line">
               {[
-                [plan.id === 'free' ? 'Free trial pages used' : 'Pages processed this month', formatNumber(used)],
+                ['Pages processed this month', formatNumber(used)],
                 ['Pages exported this month', formatNumber(data.data?.usage.pagesExported ?? 0)],
                 ['Pages stored', formatNumber(data.data?.pages.length ?? 0)],
                 ['Text regions', formatNumber(regions.length)],

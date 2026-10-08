@@ -8,7 +8,7 @@ import { ServiceError } from './http';
 /** Opaque, signed identity: no fingerprinting or hardware collection. */
 export async function trialIdentity() {
   const secret = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY;
-  if (!secret) throw new ServiceError('trial_unavailable', 'Trial verification is temporarily unavailable.');
+  if (!secret) throw new ServiceError('trial_unavailable', 'Free-plan verification is temporarily unavailable.');
   const digest = (purpose: string, value: string) => trialDigest(secret, purpose, value);
   const jar = await cookies();
   const cookieName = process.env.NODE_ENV === 'production' ? '__Host-overset-trial' : 'overset-trial';
