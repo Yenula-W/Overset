@@ -44,10 +44,10 @@ export default function PrivacyPage() {
             and exports can be deleted from your account, and deletion removes the underlying files.
           </p>
           <p>
-            <strong className="font-medium text-ink">Free-trial abuse prevention.</strong> We use a signed,
-            HTTP-only browser cookie and keyed hashes of network addresses to limit repeat trials. We don’t
-            collect hardware identifiers or fingerprint your device. Trial eligibility records, including keyed network hashes, remain after
-            account deletion to prevent repeat claims. One free-trial account is allowed per public connection,
+            <strong className="font-medium text-ink">Free-plan abuse prevention.</strong> We use a signed,
+            HTTP-only browser cookie and keyed hashes of network addresses to limit multiple free accounts. We don’t
+            collect hardware identifiers or fingerprint your device. Free-plan eligibility records, including keyed network hashes, remain after
+            account deletion to prevent repeat claims. One free account is allowed per public connection,
             so people on shared Wi-Fi may share this limit. Paid access is unaffected.
           </p>
           <p>

@@ -25,7 +25,7 @@ export function PricingHeader() {
           style={{ flex: "1 1 340px" }}
         >
           <p className="m-0 text-[15px] leading-[1.55] text-ink-muted">
-            10 pages free. OCR, translation, cleaning, and typesetting included.
+            10 pages free every month. OCR, translation, cleaning, and typesetting included.
           </p>
           <Segmented
             label="Billing interval"

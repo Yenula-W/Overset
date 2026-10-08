@@ -53,7 +53,7 @@ function SignupForm() {
   return (
     <AuthCard
       title="Create your account"
-      lede="10 pages free. No credit card required."
+      lede="10 pages free every month. No credit card required."
       footer={
         <>
           Already have an account?{' '}
@@ -93,7 +93,7 @@ function SignupForm() {
         </Button>
         <p className="text-center text-[12px] leading-relaxed text-ink-faint">
           By creating an account you confirm you will only upload material you own or are authorized to translate.
-          One free trial per person. Trial eligibility is checked when you process your first page.
+          One free account per person. Eligibility is checked when you process your first page.
         </p>
       </form>
     </AuthCard>

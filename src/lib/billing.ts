@@ -34,7 +34,7 @@ export const PLANS: PlanDefinition[] = [
     tagline: 'See what it does with a real chapter.',
     pageAllowance: 10,
     seats: 1,
-    features: ['10 pages, one-time trial', 'OCR', 'AI translation', 'Limited context', 'Typesetting preview', '1 project'],
+    features: ['10 pages / month', 'OCR', 'AI translation', 'Limited context', 'Typesetting preview', '1 project'],
     cta: 'Start free',
     href: '/signup',
   },

@@ -9,16 +9,19 @@ export async function GET(request:Request){try{
  const {data:billing,error}=await admin.from('workspace_billing').select('*').eq('owner_id',owner).maybeSingle();
  if(error)throw new ServiceError('usage_unavailable','Usage is temporarily unavailable.');
  const now=new Date();const month=`${now.getUTCFullYear()}-${String(now.getUTCMonth()+1).padStart(2,'0')}`;
- const period=billing?.period&&new Date(billing.resets_at)>now?billing.period:month;
+ const period=profile.plan !== 'free' && billing?.period&&new Date(billing.resets_at)>now?billing.period:month;
  const {data:stored,error:readError}=await db.from('records').select('data').eq('store','usage').eq('id',`${owner}:${period}`).maybeSingle();
  if(readError)throw new ServiceError('usage_unavailable','Usage is temporarily unavailable.');
  const usage=(stored?.data as UsageRecord|undefined)??{id:`${owner}:${period}`,ownerId:owner,period,pagesProcessed:0,pagesExported:0};
  const plan=planById(profile.plan);
  if(plan.id==='free'){
-  const trial=await admin.from('free_trial_accounts').select('pages_used').eq('owner_id',owner).maybeSingle();
-  if(trial.error)throw new ServiceError('usage_unavailable','Trial usage is temporarily unavailable.');
-  const used=trial.data?.pages_used??0;
-  return NextResponse.json({...usage,period:'trial',pagesProcessed:used,pagesUsed:used,pagesIncluded:10,additionalCredits:billing?.credits??0,remaining:Math.max(0,10-used)+(billing?.credits??0),resetsAt:null,hasSubscription:false});
+  const startsAt=new Date(Date.UTC(now.getUTCFullYear(),now.getUTCMonth(),1)).toISOString();
+  const resetsAt=new Date(Date.UTC(now.getUTCFullYear(),now.getUTCMonth()+1,1)).toISOString();
+  const charged=await admin.from('page_charges').select('page_id',{count:'exact',head:true}).eq('owner_id',owner).eq('credit',false).gte('created_at',startsAt).lt('created_at',resetsAt);
+  if(charged.error)throw new ServiceError('usage_unavailable','Monthly usage is temporarily unavailable.');
+  const used=charged.count??0;
+  const credits=billing?.credits??0;
+  return NextResponse.json({...usage,plan:'free',period:month,pagesProcessed:used,pagesUsed:used,pagesIncluded:plan.pageAllowance,additionalCredits:credits,remaining:Math.max(0,plan.pageAllowance-used)+credits,resetsAt,hasSubscription:false});
  }
  const charged=await admin.from('page_charges').select('page_id',{count:'exact',head:true}).eq('owner_id',owner).eq('period',period).eq('credit',true);
  const credits=billing?.credits??0;const spent=charged.count??0;
