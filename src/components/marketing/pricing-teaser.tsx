@@ -11,8 +11,8 @@ export function PricingTeaser() {
       <div className="mb-9 flex flex-wrap items-end justify-between gap-5">
         <div>
           <p className="mk-eyebrow m-0 uppercase">Pricing</p>
-          <h2 id="pricing-teaser-title" className="mk-h2 mt-3">
-            Pay by the page.
+          <h2 id="pricing-teaser-title" className="mk-h2 mk-two-tone mt-4">
+            Pay by the page. <span>Start at zero.</span>
           </h2>
         </div>
         <Link href="/pricing" className="editorial-link">

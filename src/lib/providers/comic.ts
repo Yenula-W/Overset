@@ -3,6 +3,7 @@ import { z } from 'zod';
 import type { TranslationContext, TranslationOutput, TranslationProvider, ProviderResult, ProofreadFinding } from './types';
 import type { DialogueRegion, Rect } from '@/lib/types/domain';
 import { ServiceError } from '@/lib/server/http';
+import { LOCALIZATION_CRAFT } from './localization-craft';
 import { structuredRequest, AiResponseError, OCR_OUTPUT, TRANSLATION_OUTPUT, PROOFREAD_OUTPUT } from './structured';
 
 export { rectSchema, ocrSchema, translationSchema } from './comic-schemas';
@@ -19,7 +20,7 @@ export class ClaudeComicProvider implements TranslationProvider, ComicOcrProvide
     const key = process.env.ANTHROPIC_API_KEY || process.env.OVERSET_TRANSLATION_API_KEY;
     if (!key) throw new ServiceError('ai_not_configured', 'AI processing is not connected yet. Your chapter is saved and can be edited manually.');
     try {
-      return { ...await structuredRequest({ key, model: process.env.OVERSET_AI_MODEL || 'claude-sonnet-5-5', system: INSTRUCTIONS, content, schema, output }), providerId: this.id };
+      return { ...await structuredRequest({ key, model: process.env.OVERSET_AI_MODEL || 'claude-sonnet-5-5', system: `${INSTRUCTIONS}\n\n${LOCALIZATION_CRAFT}`, content, schema, output }), providerId: this.id };
     } catch (error) {
       if (error instanceof AiResponseError) throw new ServiceError(error.code, error.message, error.status);
       throw error;
