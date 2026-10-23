@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { ArrowRight, Check } from "lucide-react";
 import { MkButton } from "@/components/marketing/mk";
+import { FinalCta } from "@/components/marketing/home-sections";
 
 export const metadata: Metadata = {
   title: "For teams",
@@ -71,6 +72,13 @@ export default function TeamsPage() {
           </div>
         ))}
       </section>
+      <FinalCta
+        eyebrow="Shared memory. Clear handoffs."
+        title="Bring your whole team."
+        cta={{ href: "/contact", label: "Talk to us" }}
+        note="Team plan: 5 members · Publisher plans for larger studios"
+        showUpload={false}
+      />
     </>
   );
 }

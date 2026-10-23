@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { ResourcesList } from './resources-list';
+import { FinalCta } from '@/components/marketing/home-sections';
 
 export const metadata: Metadata = {
   title: 'Resources',
@@ -8,9 +9,12 @@ export const metadata: Metadata = {
 
 export default function ResourcesPage() {
   return (
-    <section className="mk-shell pb-10 pt-14">
-      <h1 className="mk-display mb-10">Resources</h1>
-      <ResourcesList />
-    </section>
+    <>
+      <section className="mk-shell pb-10 pt-14">
+        <h1 className="mk-display mb-10">Resources</h1>
+        <ResourcesList />
+      </section>
+      <FinalCta />
+    </>
   );
 }
