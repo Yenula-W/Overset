@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { ArrowRight, Check } from "lucide-react";
+import { ArrowRight, Check, ChevronDown } from "lucide-react";
 import Link from "next/link";
 import { Segmented, UploadBar } from "./mk";
 import {
@@ -141,7 +141,16 @@ export function Hero() {
   const section = React.useRef<HTMLElement>(null);
   const lang = useHeroLanguage();
   const [step, setStep] = React.useState(-1);
+  const [scrolled, setScrolled] = React.useState(false);
   useDeskScroll(section, setStep);
+
+  // The "scroll to watch" cue disappears as soon as the visitor starts scrolling.
+  React.useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 24);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   return (
     <section
@@ -174,8 +183,15 @@ export function Hero() {
                   label: code,
                 }))}
               />
+              <span className="text-[12px] text-ink-muted">
+                10 free pages / month · No card required
+              </span>
             </div>
           </div>
+        </div>
+
+        <div className="scroll-cue" data-hidden={scrolled} aria-hidden>
+          Scroll to watch it translate <ChevronDown size={14} />
         </div>
 
         <div className="scroll-desk" aria-hidden>

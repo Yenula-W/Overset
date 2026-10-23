@@ -71,7 +71,8 @@ export function UploadBar({
       )}
     >
       <span className="flex flex-1 items-center truncate px-[18px] text-[14px] text-ink-faint">
-        Drop a chapter — PNG, JPG, WEBP, PDF, ZIP
+        Drop a chapter
+        <span className="hidden sm:inline">&nbsp;— PNG, JPG, WEBP, PDF, ZIP</span>
       </span>
       <span className="flex w-14 shrink-0 items-center justify-center bg-ink text-white transition-colors group-hover:bg-accent">
         <ArrowRight size={18} aria-hidden />
