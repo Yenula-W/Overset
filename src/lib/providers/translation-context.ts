@@ -24,8 +24,16 @@ export function buildTranslationContext(input: {
     glossary:glossary.filter(g=>g.status==='locked'||current.sourceText.includes(g.original)).slice(0,200).map(g=>({original:g.original,translation:g.translation,locked:g.status==='locked',type:g.type})),
     memory:prefs.useTranslationMemory?memory.filter(m=>m.sourceText===current.sourceText||current.sourceText.includes(m.sourceText)||m.sourceText.includes(current.sourceText)).slice(0,12).map(m=>({source:m.sourceText,translation:m.translation,context:`${m.chapterName}: ${m.context??''}`})):[],
     style:prefs.style,preserveHonorifics:prefs.preserveHonorifics,customRules:project.preferences.customRules,
-    bubbleHint:{widthPx:current.bounds.width*page.width/100,heightPx:current.bounds.height*page.height/100,estimatedCharsPerLine:25},
+    bubbleHint:bubbleHint(current,page),
   };
+}
+
+/** Rough room for Latin lettering: the usable box of an oval bubble at the region's own size, ~0.5em per character. */
+export function bubbleHint(current:DialogueRegion,page:Pick<PageRecord,'width'|'height'>){
+  const widthPx=current.bounds.width*page.width/100,heightPx=current.bounds.height*page.height/100;
+  const fontPx=Math.max(8,(current.typesetting?.fontSize??16)*page.width/840),lineHeight=current.typesetting?.lineHeight??1.2;
+  const estimatedCharsPerLine=Math.max(4,Math.round(widthPx*0.78/(fontPx*0.5))),estimatedLines=Math.max(1,Math.floor(heightPx*0.74/(fontPx*lineHeight)));
+  return {widthPx,heightPx,estimatedCharsPerLine,estimatedLines,estimatedCapacity:Math.round(estimatedCharsPerLine*estimatedLines*0.85)};
 }
 
 /** A second opinion is a proposal; never replace human work on generation. */

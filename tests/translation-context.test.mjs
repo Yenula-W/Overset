@@ -18,3 +18,7 @@ test('a proposed improvement preserves approved text, status and original region
 test('visual frame is centered on the selected scene on a tall page and leaves original bytes untouched',async()=>{
  const original=await sharp({create:{width:800,height:8000,channels:3,background:'white'}}).png().toBuffer();const snapshot=Buffer.from(original);const bounds={x:40,y:80,width:10,height:4};const visual=await translationFrame(original,800,8000,bounds);const meta=await sharp(visual.image).metadata();assert.equal(meta.width,800);assert.equal(meta.height,1600);assert.equal(visual.bounds.height,20);assert.ok(visual.bounds.y>=0&&visual.bounds.y+visual.bounds.height<=100);assert.deepEqual(original,snapshot);
 });
+test('bubble hint estimates how much lettering a bubble can hold',()=>{
+ const c=buildTranslationContext(context());assert.ok(c.bubbleHint.estimatedCharsPerLine>=4);assert.ok(c.bubbleHint.estimatedLines>=1);assert.ok(c.bubbleHint.estimatedCapacity>=1);
+ const big=buildTranslationContext({...context(),current:{...context().current,bounds:{x:20,y:30,width:30,height:20}}});assert.ok(big.bubbleHint.estimatedCapacity>c.bubbleHint.estimatedCapacity);
+});

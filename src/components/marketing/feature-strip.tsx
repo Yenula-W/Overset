@@ -23,8 +23,8 @@ export function FeatureStrip() {
   const reduced = useReducedMotion();
   return (
     <section className="mk-shell pb-8 pt-20">
-      <p className="text-[12px] font-semibold uppercase tracking-[0.12em] text-ink-muted">What’s inside</p>
-      <h2 className="mk-h2 mt-3 max-w-[16ch]">Everything a chapter needs.</h2>
+      <span className="mk-eyebrow-pill">What’s inside</span>
+      <h2 className="mk-h2 mk-two-tone mt-5 max-w-[18ch]">Everything a chapter needs. <span>Nothing it doesn’t.</span></h2>
       <div className="mt-10 flex flex-col gap-2 md:h-[340px] md:flex-row">
         {FEATURES.map((f, i) => {
           const open = active === i;
@@ -39,7 +39,7 @@ export function FeatureStrip() {
               layout={!reduced}
               transition={{ type: 'spring', stiffness: 220, damping: 30 }}
               className={cn(
-                'relative flex min-h-[72px] flex-col overflow-hidden rounded-2xl border border-line p-5 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 md:min-h-0',
+                'relative flex min-h-[72px] flex-col overflow-hidden rounded-2xl border border-line p-5 shadow-[inset_0_1px_0_rgba(255,255,255,.7)] text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 md:min-h-0',
                 open ? 'md:flex-[3.2]' : 'md:flex-1',
               )}
               style={{ background: f.tint }}

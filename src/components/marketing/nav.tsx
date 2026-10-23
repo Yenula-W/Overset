@@ -50,7 +50,7 @@ export function MarketingNav() {
   }, [open]);
 
   return (
-    <header className="sticky top-0 z-50 h-16 border-b border-line bg-[#fbfbf9]">
+    <header className="mk-header sticky top-0 z-50 h-16 border-b border-line">
       <nav
         className="mx-auto flex h-16 max-w-[1440px] items-center justify-between gap-6 px-4 sm:px-8"
         aria-label="Main"

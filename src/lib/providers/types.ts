@@ -128,7 +128,7 @@ export interface TranslationContext {
   culturalNotes?: string[];
   customRules: string[];
   /** Bubble geometry — a hint only. Fit must never outrank meaning. */
-  bubbleHint?: { widthPx: number; heightPx: number; estimatedCharsPerLine: number };
+  bubbleHint?: { widthPx: number; heightPx: number; estimatedCharsPerLine: number; estimatedLines: number; estimatedCapacity: number };
 }
 
 export interface TranslationOutput {

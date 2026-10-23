@@ -27,7 +27,8 @@
 @layer components {
   /* Marketing container: 1440px max, 32px gutters (16px on phones). */
   .mk-shell { @apply mx-auto w-full max-w-[1440px] px-4 sm:px-8; }
-  .mk-eyebrow { @apply text-[11px] font-medium tracking-[0.12em] text-ink-muted; }
+  .mk-eyebrow { @apply inline-flex items-center gap-2 font-mono text-[11px] font-medium tracking-[0.1em] text-ink-muted; }
+  .mk-eyebrow::before { content: ''; width: 6px; height: 6px; border-radius: 99px; background: #6c63e8; box-shadow: 0 0 0 3px rgb(108 99 232 / .16); }
   .mk-h2 { font-size: clamp(28px, 3.4vw, 46px); line-height: 1.05; letter-spacing: -0.02em; @apply m-0 font-bold text-balance; }
   .mk-display { font-size: clamp(40px, 6.4vw, 96px); line-height: 0.94; letter-spacing: -0.025em; @apply m-0 font-semibold; }
   .shell { @apply mx-auto w-full max-w-shell px-5 sm:px-8; }
@@ -65,7 +66,7 @@
    No animated layout, backdrop blur, filters, or inherited progress variables. */
 .scroll-hero { position: relative; height: 900svh; }
 .scroll-stage { position: sticky; top: 64px; height: calc(100svh - 64px); min-height: 360px; overflow: hidden; isolation: isolate; background: #eeede8; }
-.scroll-intro { position: absolute; z-index: 4; top: 0; left: 0; right: 0; display: grid; grid-template-columns: 1.65fr 1fr; align-items: end; gap: 32px; max-width: 1440px; margin: auto; padding: 34px 32px 24px; background: #fbfbf9; }
+.scroll-intro { position: absolute; z-index: 4; top: 0; left: 0; right: 0; display: grid; grid-template-columns: 1.65fr 1fr; align-items: end; gap: 32px; max-width: 1440px; margin: auto; padding: 34px 32px 24px; background: #fbfbf9 radial-gradient(ellipse 50% 140% at 78% 0%, rgb(108 99 232 / .08), transparent 70%); }
 .scroll-intro h1 { margin: 0; font-size: clamp(30px, 5.35vw, 80px); line-height: .98; letter-spacing: -.03em; font-weight: 800; text-transform: uppercase; }
 .scroll-intro-copy { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .scroll-lede { margin: 0; font-size: 14px; line-height: 1.5; color: #686868; }
@@ -312,3 +313,49 @@
 @keyframes scroll-cue-bob { 0%, 100% { transform: translateY(-1px); } 50% { transform: translateY(3px); } }
 .scroll-hero[data-motion=reduced] .scroll-cue { display: none; }
 @media (prefers-reduced-motion: reduce) { .scroll-cue svg { animation: none; } .scroll-cue { transition: none; } }
+
+/* ── 2026 aesthetic layer: hairlines, grid paper, soft accent light ───────── */
+.mk-eyebrow-pill {
+  display: inline-flex; align-items: center; gap: 8px; padding: 5px 11px 5px 9px;
+  border: 1px solid #e5e5df; border-radius: 999px; background: rgb(255 255 255 / .7);
+  font: 500 11px/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .08em; text-transform: uppercase; color: #686868;
+}
+.mk-eyebrow-pill::before { content: ''; width: 6px; height: 6px; border-radius: 99px; background: #6c63e8; box-shadow: 0 0 0 3px rgb(108 99 232 / .18); }
+.mk-two-tone { color: #161616; }
+.mk-two-tone > span { color: #9a9a96; }
+/* Graph-paper backdrop that fades out toward its edges. */
+.mk-grid {
+  position: relative; isolation: isolate;
+}
+.mk-grid::before {
+  content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background-image: linear-gradient(to right, rgb(22 22 22 / .045) 1px, transparent 1px), linear-gradient(to bottom, rgb(22 22 22 / .045) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(ellipse 70% 60% at 50% 40%, #000 30%, transparent 75%);
+  -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 40%, #000 30%, transparent 75%);
+}
+.mk-glow::after {
+  content: ''; position: absolute; left: 50%; top: -120px; z-index: -1; width: 720px; height: 360px; transform: translateX(-50%);
+  background: radial-gradient(closest-side, rgb(108 99 232 / .16), transparent); pointer-events: none;
+}
+/* Card with hairline border, top highlight and a cursor-following accent edge. */
+.mk-card {
+  position: relative; overflow: hidden; border: 1px solid #e5e5df; border-radius: 20px; background: #fff;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .9), 0 1px 2px rgb(22 22 22 / .04), 0 12px 32px -20px rgb(22 22 22 / .18);
+  transition: border-color .25s ease, box-shadow .35s ease, transform .35s cubic-bezier(.22,1,.36,1);
+}
+.mk-card:hover { border-color: #cfcdf5; transform: translateY(-2px); box-shadow: inset 0 1px 0 #fff, 0 2px 4px rgb(22 22 22 / .04), 0 24px 48px -24px rgb(80 73 208 / .28); }
+.mk-card-dark { background: #161616; border-color: #2b2b31; color: #fff; box-shadow: inset 0 1px 0 rgb(255 255 255 / .06), 0 24px 48px -28px rgb(0 0 0 / .6); }
+.mk-card-dark:hover { border-color: #4b4590; box-shadow: inset 0 1px 0 rgb(255 255 255 / .08), 0 24px 56px -24px rgb(108 99 232 / .45); }
+.mk-mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.mk-hair { height: 1px; background: linear-gradient(to right, transparent, #e5e5df 20%, #e5e5df 80%, transparent); }
+/* Soft edge fade for the language ticker. */
+.fx-ticker { mask-image: linear-gradient(to right, transparent, #000 8%, #000 92%, transparent); -webkit-mask-image: linear-gradient(to right, transparent, #000 8%, #000 92%, transparent); }
+/* Frosted header. */
+.mk-header { background: rgb(251 251 249 / .82); backdrop-filter: saturate(1.4) blur(14px); -webkit-backdrop-filter: saturate(1.4) blur(14px); }
+/* Craft section micro-animations. */
+@keyframes mk-type { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+.mk-typed { animation: mk-type 1.1s steps(28, end) both; }
+@keyframes mk-pulse-ring { 0% { box-shadow: 0 0 0 0 rgb(108 99 232 / .35); } 100% { box-shadow: 0 0 0 10px rgb(108 99 232 / 0); } }
+.mk-pulse { animation: mk-pulse-ring 2s ease-out infinite; }
+@media (prefers-reduced-motion: reduce) { .mk-typed, .mk-pulse { animation: none; } }
